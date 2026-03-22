@@ -1,0 +1,21 @@
+workflows:
+  android-release:
+    name: Android Release Build
+    instance_type: mac_mini_m2
+    working_directory: ironbook_gm
+    environment:
+      groups:
+        - google_play # Optional: for publishing
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build Android APK
+        script: flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - user@example.com # Replace with your email

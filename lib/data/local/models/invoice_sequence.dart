@@ -1,0 +1,17 @@
+import 'package:hive/hive.dart';
+
+@HiveType(typeId: 12)
+class InvoiceSequence extends HiveObject {
+  @HiveField(0)
+  late String prefix; // e.g. "INV-2026-"
+
+  @HiveField(1)
+  late int nextNumber;
+
+  InvoiceSequence({required this.prefix, this.nextNumber = 1});
+
+  String get nextInvoiceId {
+    final id = '$prefix${nextNumber.toString().padLeft(4, '0')}';
+    return id;
+  }
+}
