@@ -43,7 +43,7 @@ dependencies:
   workmanager: ^0.5.2              # Midnight engine (Android)
 
   # Local notifications
-  flutter_local_notifications: ^16.3.0
+  flutter_local_notifications: ^17.0.0
 
   # Invoice generation
   pdf: ^3.10.7
