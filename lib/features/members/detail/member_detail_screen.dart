@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../providers/member_provider.dart';
+import '../../../providers/payment_provider.dart';
+import '../../../data/local/models/member_snapshot_model.dart';
+import '../../../data/local/models/payment_model.dart';
 
 class MemberDetailScreen extends ConsumerWidget {
   final String id;
@@ -11,48 +15,67 @@ class MemberDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final members = ref.watch(membersProvider);
+    final member = members.where((m) => m.memberId == id).firstOrNull;
+    final allPayments = ref.watch(paymentsProvider);
+    final memberPayments = allPayments.where((p) => p.memberId == id).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    if (member == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Member Details')),
+        body: const Center(child: Text('Member not found')),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         title: const Text('Member Details'),
         actions: [
           IconButton(onPressed: () {}, icon: const Icon(LucideIcons.edit2)),
-          IconButton(onPressed: () {}, icon: const Icon(LucideIcons.trash2, color: AppColors.expired)),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(LucideIcons.trash2, color: AppColors.expired),
+          ),
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            _buildProfileHeader(),
+            _buildProfileHeader(member),
             const SizedBox(height: 32),
-            _buildInfoGrid(),
+            _buildInfoGrid(member),
             const SizedBox(height: 32),
-            _buildActionButtons(context),
+            _buildActionButtons(context, member),
             const SizedBox(height: 32),
-            _buildPaymentHistory(),
+            _buildPaymentHistory(memberPayments),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(MemberSnapshot member) {
     return Column(
       children: [
         CircleAvatar(
           radius: 40,
           backgroundColor: AppColors.bg3,
-          child: const Icon(LucideIcons.user, size: 40, color: AppColors.textMuted),
+          child: Text(
+            member.name.substring(0, member.name.length > 1 ? 2 : 1).toUpperCase(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppColors.primary),
+          ),
         ),
         const SizedBox(height: 16),
-        Text('Rajesh Kumar', style: AppTextStyles.cardTitle.copyWith(fontSize: 24)),
-        Text('+91 98765 43210', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+        Text(member.name, style: AppTextStyles.cardTitle.copyWith(fontSize: 24)),
+        Text(member.phone, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
       ],
     );
   }
 
-  Widget _buildInfoGrid() {
+  Widget _buildInfoGrid(MemberSnapshot member) {
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -61,12 +84,29 @@ class MemberDetailScreen extends ConsumerWidget {
       crossAxisSpacing: 12,
       childAspectRatio: 2.5,
       children: [
-        _buildInfoItem('JOIN DATE', '12 Mar 2026'),
-        _buildInfoItem('EXPIRY DATE', '12 Apr 2026'),
-        _buildInfoItem('PLAN', 'Monthly Standard'),
-        _buildInfoItem('STATUS', 'ACTIVE', color: AppColors.active),
+        _buildInfoItem('JOIN DATE', _formatDate(member.joinDate)),
+        _buildInfoItem('EXPIRY DATE', member.expiryDate != null ? _formatDate(member.expiryDate!) : 'N/A'),
+        _buildInfoItem('PLAN', member.planName ?? 'No Plan'),
+        _buildInfoItem(
+          'STATUS',
+          member.status.name.toUpperCase(),
+          color: _getStatusColor(member.status),
+        ),
       ],
     );
+  }
+
+  Color _getStatusColor(MemberStatus status) {
+    switch (status) {
+      case MemberStatus.active:
+        return AppColors.active;
+      case MemberStatus.expiring:
+        return AppColors.expiring;
+      case MemberStatus.expired:
+        return AppColors.expired;
+      default:
+        return AppColors.textMuted;
+    }
   }
 
   Widget _buildInfoItem(String label, String value, {Color? color}) {
@@ -88,14 +128,19 @@ class MemberDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
+  Widget _buildActionButtons(BuildContext context, MemberSnapshot member) {
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              // Renewal flow placeholder
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Renewal flow coming soon')),
+              );
+            },
             icon: const Icon(LucideIcons.creditCard),
-            label: const Text('Add Payment'),
+            label: const Text('Renew'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -107,9 +152,9 @@ class MemberDetailScreen extends ConsumerWidget {
         const SizedBox(width: 12),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () => context.push('/members/invoice/123'),
+            onPressed: () => context.push('/members/${member.memberId}/invoice'),
             icon: const Icon(LucideIcons.fileText),
-            label: const Text('Invoices'),
+            label: const Text('Latest Invoice'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary),
@@ -122,14 +167,19 @@ class MemberDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPaymentHistory() {
+  Widget _buildPaymentHistory(List<Payment> payments) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Payment History', style: AppTextStyles.cardTitle),
         const SizedBox(height: 16),
-        _buildPaymentItem('12 Mar 2026', '₹2,500', 'GPay'),
-        _buildPaymentItem('12 Feb 2026', '₹2,500', 'Cash'),
+        if (payments.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Text('No payment history found', style: TextStyle(color: AppColors.textMuted)),
+          )
+        else
+          ...payments.map((p) => _buildPaymentItem(_formatDate(p.date), '₹${p.amount.toStringAsFixed(0)}', p.method)),
       ],
     );
   }
@@ -157,4 +207,7 @@ class MemberDetailScreen extends ConsumerWidget {
       ),
     );
   }
+
+  String _formatDate(DateTime d) =>
+      '${d.day} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]} ${d.year}';
 }

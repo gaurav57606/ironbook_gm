@@ -13,7 +13,6 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.primary,
         surface: AppColors.bg2,
-        background: AppColors.bg,
         error: AppColors.expired,
       ),
       textTheme: GoogleFonts.outfitTextTheme(
@@ -48,7 +47,8 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.bg4,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.border),

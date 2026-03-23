@@ -5,10 +5,8 @@ import 'models/domain_event_model.dart';
 import 'models/member_snapshot_model.dart';
 import 'models/payment_model.dart';
 import 'models/plan_model.dart';
-import 'models/plan_component_model.dart';
 import 'models/owner_profile_model.dart';
 import 'models/app_settings_model.dart';
-import 'models/join_date_change_model.dart';
 
 class HiveInit {
   static Future<void> openAllBoxes() async {
@@ -44,7 +42,7 @@ class HiveInit {
           await Hive.deleteBoxFromDisk(name);
         } catch (_) {}
       }
-      return false; 
+      return false;
     }
   }
 }
