@@ -32,7 +32,7 @@ dependencies:
   firebase_messaging: ^15.0.3
 
   # Subscription billing
-  purchases_flutter: ^6.22.0       # RevenueCat
+  purchases_flutter: ^8.1.1       # RevenueCat
 
   # Security
   flutter_secure_storage: ^9.0.0   # Entitlement, PIN hash, HMAC key, Hive key
