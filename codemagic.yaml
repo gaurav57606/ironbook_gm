@@ -10,10 +10,7 @@ workflows:
       java: 17
     scripts:
       - name: Clean workspace
-        script: |
-          flutter clean
-          chmod +x android/gradlew
-          ./android/gradlew clean
+        script: flutter clean
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build Android APK
