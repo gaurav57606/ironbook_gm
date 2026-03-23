@@ -9,7 +9,7 @@ plugins {
 android {
     namespace = "com.ironbook.ironbook_gm"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "25.1.8937393"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
