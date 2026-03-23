@@ -68,7 +68,7 @@ void main() async {
       'midnight_engine',
       'midnightTask',
       frequency: const Duration(hours: 24),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     );
   }
 
