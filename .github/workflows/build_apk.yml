@@ -2,41 +2,38 @@ name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: '17'
-
-      - name: Set up Flutter
+          
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'latest'
+          flutter-version: '3.24.5'
           channel: 'stable'
-
+          
       - name: Install dependencies
         run: flutter pub get
-        working-directory: ironbook_gm
-
+        
       - name: Build APK
         run: flutter build apk --release
-        working-directory: ironbook_gm
-
+        
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: ironbook_gm/build/app/outputs/flutter-apk/app-release.apk
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
