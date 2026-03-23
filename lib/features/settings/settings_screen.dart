@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../sync/sync_engine.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -20,7 +21,7 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _buildProfileCard(auth),
+          _buildProfileCard(context, auth),
           const SizedBox(height: 24),
           _buildSection('App Settings', [
             _buildTile(LucideIcons.bell, 'Notifications', 'Reminders & alerts'),
@@ -31,12 +32,30 @@ class SettingsScreen extends ConsumerWidget {
               auth.settings.useBiometrics,
               (val) => ref.read(authProvider.notifier).setBiometricOptIn(val),
             ),
-            _buildTile(LucideIcons.receipt, 'GST Settings', 'GSTIN & Rates'),
+            _buildTile(
+              LucideIcons.receipt,
+              'GST Settings',
+              'GSTIN & Rates',
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('GST settings coming soon'))),
+            ),
           ]),
           const SizedBox(height: 24),
           _buildSection('Data & Backup', [
-            _buildTile(LucideIcons.cloud, 'Cloud Sync', 'Last synced: 2m ago'),
-            _buildTile(LucideIcons.history, 'Restore Data', 'Recover from cloud'),
+            _buildTile(
+              LucideIcons.cloud,
+              'Cloud Sync',
+              'Last synced: 2m ago',
+              onTap: () {
+                SyncEngine.pushPendingEvents();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Syncing data...')));
+              },
+            ),
+            _buildTile(
+              LucideIcons.history,
+              'Restore Data',
+              'Recover from cloud',
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Restore flow coming soon'))),
+            ),
           ]),
           const SizedBox(height: 32),
           TextButton.icon(
@@ -56,7 +75,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileCard(AuthState auth) {
+  Widget _buildProfileCard(BuildContext context, AuthState auth) {
     final name = auth.owner?.gymName ?? 'My Gym';
     final owner = auth.owner?.ownerName ?? 'Owner';
     
@@ -84,7 +103,10 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
-          IconButton(onPressed: () {}, icon: const Icon(LucideIcons.edit3, size: 20)),
+          IconButton(
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile editing coming soon'))),
+            icon: const Icon(LucideIcons.edit3, size: 20),
+          ),
         ],
       ),
     );
@@ -109,13 +131,13 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTile(IconData icon, String title, String subtitle) {
+  Widget _buildTile(IconData icon, String title, String subtitle, {VoidCallback? onTap}) {
     return ListTile(
       leading: Icon(icon, color: AppColors.textPrimary, size: 22),
       title: Text(title, style: AppTextStyles.label),
       subtitle: Text(subtitle, style: AppTextStyles.bodySmall.copyWith(fontSize: 11)),
       trailing: const Icon(LucideIcons.chevronRight, size: 18),
-      onTap: () {},
+      onTap: onTap ?? () {},
     );
   }
 

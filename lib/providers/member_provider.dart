@@ -208,4 +208,20 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     await paymentsBox.put(paymentId, payment);
     await snapshotsBox.put(memberId, member);
   }
+
+  Future<void> deleteMember(String memberId) async {
+    final eventBox = Hive.box<DomainEvent>('events');
+    final snapshotBox = Hive.box<MemberSnapshot>('snapshots');
+
+    final deleteEvent = DomainEvent(
+      entityId: memberId,
+      eventType: 'MEMBER_DELETED',
+      deviceId: _deviceId,
+      payload: {'memberId': memberId},
+    );
+    HmacService.sign(deleteEvent);
+
+    await eventBox.add(deleteEvent);
+    await snapshotBox.delete(memberId);
+  }
 }

@@ -6,8 +6,10 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../providers/member_provider.dart';
 import '../../../providers/payment_provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../../data/local/models/member_snapshot_model.dart';
 import '../../../data/local/models/payment_model.dart';
+import '../../../data/local/models/plan_model.dart';
 
 class MemberDetailScreen extends ConsumerWidget {
   final String id;
@@ -33,9 +35,12 @@ class MemberDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Member Details'),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(LucideIcons.edit2)),
           IconButton(
-            onPressed: () {},
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit flow coming soon'))),
+            icon: const Icon(LucideIcons.edit2),
+          ),
+          IconButton(
+            onPressed: () => _showDeleteConfirmation(context, ref, member),
             icon: const Icon(LucideIcons.trash2, color: AppColors.expired),
           ),
         ],
@@ -48,9 +53,65 @@ class MemberDetailScreen extends ConsumerWidget {
             const SizedBox(height: 32),
             _buildInfoGrid(member),
             const SizedBox(height: 32),
-            _buildActionButtons(context, member),
+            _buildActionButtons(context, ref, member),
             const SizedBox(height: 32),
             _buildPaymentHistory(memberPayments),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, WidgetRef ref, MemberSnapshot member) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bg2,
+        title: const Text('Delete Member'),
+        content: Text('Are you sure you want to remove ${member.name}? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              ref.read(membersProvider.notifier).deleteMember(member.memberId);
+              Navigator.pop(ctx);
+              context.pop(); // Go back to list
+            },
+            child: const Text('Delete', style: TextStyle(color: AppColors.expired)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPlanSelector(BuildContext context, WidgetRef ref, MemberSnapshot member) {
+    final plans = Hive.box<Plan>('plans').values.toList();
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bg2,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Select Renewal Plan', style: AppTextStyles.cardTitle),
+            const SizedBox(height: 16),
+            ...plans.map((plan) => ListTile(
+              leading: const Icon(LucideIcons.package, color: AppColors.primary),
+              title: Text(plan.name, style: AppTextStyles.label),
+              subtitle: Text('₹${plan.totalPrice.toStringAsFixed(0)} • ${plan.durationMonths} Months'),
+              onTap: () async {
+                await ref.read(membersProvider.notifier).renewMember(
+                  memberId: member.memberId,
+                  planId: plan.id,
+                  method: 'Cash',
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+            )),
           ],
         ),
       ),
@@ -128,17 +189,12 @@ class MemberDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, MemberSnapshot member) {
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref, MemberSnapshot member) {
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {
-              // Renewal flow placeholder
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Renewal flow coming soon')),
-              );
-            },
+            onPressed: () => _showPlanSelector(context, ref, member),
             icon: const Icon(LucideIcons.creditCard),
             label: const Text('Renew'),
             style: ElevatedButton.styleFrom(
