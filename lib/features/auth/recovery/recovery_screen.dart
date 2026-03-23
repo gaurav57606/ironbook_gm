@@ -46,8 +46,8 @@ class _RecoveryScreenState extends ConsumerState<RecoveryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: WillPopScope(
-        onWillPop: () async => false, // Block navigation away
+      body: PopScope(
+        canPop: false,
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(40.0),
