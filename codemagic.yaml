@@ -9,6 +9,10 @@ workflows:
       flutter: 3.24.5
       java: 17
     scripts:
+      - name: Clean workspace
+        script: |
+          flutter clean
+          cd android && ./gradlew clean
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build Android APK
