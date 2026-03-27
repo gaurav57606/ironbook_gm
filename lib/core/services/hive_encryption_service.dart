@@ -1,14 +1,13 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 class HiveEncryptionService {
-  static FlutterSecureStorage storage = const FlutterSecureStorage();
+  static const FlutterSecureStorage storage = FlutterSecureStorage();
+  static const String _encKeyName = 'hive_encryption_key';
 
   static Future<HiveAesCipher?> getOrCreateCipher() async {
-    // Disable encryption on emulator for debugging sync issues
-    return null;
-    
-    /* Original logic commented out for debugging
     if (kIsWeb) {
       return null; 
     }
@@ -22,6 +21,5 @@ class HiveEncryptionService {
     }
 
     return HiveAesCipher(base64Decode(keyBase64));
-    */
   }
 }
