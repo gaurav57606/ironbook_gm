@@ -1,0 +1,17 @@
+# Render Blueprint configuration for Flutter Web Static Site
+# For more info: https://render.com/docs/blueprints
+services:
+  - type: static
+    name: ironbook-gm-web
+    env: static
+    # Command used to build your app. 
+    # Use our custom build script to install Flutter and build.
+    buildCommand: "./render_build.sh"
+    # Directory containing the static files to serve. 
+    # Flutter builds web apps into build/web.
+    publishPath: "build/web"
+    # Ensure build scripts are executable during the build process
+    # Note: Render runs on Linux, so we ensure Bash runs the script.
+    
+    # Custom domains and branch settings can be added via Render dashboard
+    # or expanded here if needed.
