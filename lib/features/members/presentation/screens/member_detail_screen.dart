@@ -49,12 +49,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     final members = ref.watch(membersProvider);
     
     // Find member or return null
-    MemberSnapshot? member;
-    try {
-      member = members.firstWhere((m) => m.memberId == widget.memberId);
-    } catch (_) {
-      member = null;
-    }
+    final member = members.where((m) => m.memberId == widget.memberId).firstOrNull;
 
     if (member == null) {
       return Scaffold(
@@ -153,7 +148,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -253,7 +248,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       margin: const EdgeInsets.only(left: 6),
       decoration: BoxDecoration(
-        color: AppColors.orange.withOpacity(0.15),
+        color: AppColors.orange.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(3),
       ),
       child: const Row(
