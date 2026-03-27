@@ -1,9 +1,18 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async'; // Added for StreamSubscription
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hive/hive.dart';
+import 'package:uuid/uuid.dart';
+import 'package:ironbook_gm/sync/recovery_service.dart';
 import '../data/local/models/owner_profile_model.dart';
 import '../data/local/models/app_settings_model.dart';
+import '../data/sync_worker.dart';
+import '../data/local/models/domain_event_model.dart';
+import '../data/repositories/event_repository.dart';
 import '../security/pin_service.dart';
+import '../security/entitlement_guard.dart';
 
 class AuthState {
   final bool isLoading;
@@ -50,27 +59,90 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  final _storage = const FlutterSecureStorage();
-  final _pinService = PinService();
+  final FlutterSecureStorage _storage;
+  final PinService _pinService;
+  final fb.FirebaseAuth? _firebaseAuth;
+  final SyncWorker _syncWorker;
+  final IEventRepository _eventRepo;
+  final Ref _ref;
+  final String _deviceId = 'device-${const Uuid().v4().substring(0, 8)}';
 
-  AuthNotifier() : super(AuthState(settings: AppSettings())) {
+  StreamSubscription<fb.User?>? _authSubscription;
+
+  AuthNotifier(this._storage, this._pinService, this._firebaseAuth,
+      this._eventRepo, this._syncWorker, this._ref)
+      : super(AuthState(settings: AppSettings())) {
     _init();
+    _syncWorker.startPeriodicSync(const Duration(seconds: 30));
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _init() async {
-    // Check PIN setup in secure storage
     final pinHash = await _storage.read(key: 'pin_hash');
     final onboardingDone = await _storage.read(key: 'onboarding_done');
-    
-    fb.FirebaseAuth.instance.authStateChanges().listen((user) {
+
+    // Load Hive state
+    late OwnerProfile? owner;
+    late AppSettings settings;
+    try {
+      final ownerBox = Hive.box<OwnerProfile>('owner');
+      owner = ownerBox.isEmpty ? null : ownerBox.values.first;
+
+      final settingsBox = Hive.box<AppSettings>('settings');
+      settings = settingsBox.isEmpty
+          ? AppSettings()
+          : settingsBox.get('app_settings') ?? AppSettings();
+    } catch (e) {
+      debugPrint('AuthNotifier Hive Init Error: $e');
+      owner = null;
+      settings = AppSettings();
+    }
+
+    if (settings.auditMode || kIsWeb) {
       state = state.copyWith(
-        user: user,
-        isAuthenticated: user != null,
+        user: null,
+        isAuthenticated: true, // Auto-auth in audit mode
         isFirstLaunch: onboardingDone != 'true',
+        unlocked: true, // Keep unlocked for easy web testing
         isPinSetup: pinHash != null,
+        owner: owner,
+        settings: settings.copyWith(auditMode: true),
         isLoading: false,
       );
+      return;
+    }
+
+    _authSubscription = _firebaseAuth?.authStateChanges().listen((user) {
+      if (mounted) {
+        state = state.copyWith(
+          user: user,
+          isAuthenticated: user != null,
+          owner: owner,
+          settings: settings,
+          isLoading: false,
+        );
+      }
     });
+
+    // Trigger recovery if signed in
+    if (_firebaseAuth?.currentUser != null) {
+      _ref.read(recoveryServiceProvider).recoverAll();
+    }
+
+    if (mounted) {
+      state = state.copyWith(
+        isFirstLaunch: onboardingDone != 'true',
+        isPinSetup: pinHash != null,
+        owner: owner,
+        settings: settings,
+        isLoading: false,
+      );
+    }
   }
 
   Future<void> completeOnboarding() async {
@@ -97,10 +169,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> loginWithBiometrics() => unlockWithBiometrics();
+
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true);
     try {
-      await fb.FirebaseAuth.instance.signInWithEmailAndPassword(
+      await _firebaseAuth!.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -112,14 +185,57 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> signUp(String email, String password, {String? gymName, String? ownerName, String? phone}) async {
+  Future<void> signOut() async {
+    state = state.copyWith(isLoading: true);
+    await _performFullLogout();
+    state = state.copyWith(isLoading: false);
+  }
+
+  Future<void> _performFullLogout() async {
+    try {
+      await _firebaseAuth!.signOut();
+      await _storage.deleteAll();
+
+      // CRITICAL: Wipe all local Hive data for isolation
+      final boxes = [
+        'snapshots',
+        'events',
+        'payments',
+        'plans',
+        'owner',
+        'settings',
+        'invoice_sequences'
+      ];
+      for (final name in boxes) {
+        try {
+          await Hive.box(name).clear();
+        } catch (e) {
+          debugPrint('Error clearing box $name: $e');
+        }
+      }
+
+      state = AuthState(
+        isAuthenticated: false,
+        unlocked: false,
+        isPinSetup: false,
+        isFirstLaunch: true,
+        isLoading: false,
+        settings: AppSettings(),
+      );
+    } catch (e) {
+      debugPrint('Logout Error: $e');
+    }
+  }
+
+  Future<bool> signUp(String email, String password,
+      {String? gymName, String? ownerName, String? phone}) async {
     state = state.copyWith(isLoading: true);
     try {
-      final credential = await fb.FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final credential = await _firebaseAuth!.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       if (credential.user != null && gymName != null) {
         final owner = OwnerProfile(
           gymName: gymName,
@@ -127,6 +243,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
           phone: phone ?? '',
           address: '',
         );
+        await Hive.box<OwnerProfile>('owner').add(owner);
+
+        // Data Pipeline: Queue for Sync
+        final event = DomainEvent(
+          entityId: 'owner',
+          eventType: 'ownerProfileCreated',
+          deviceId: _deviceId,
+          payload: {
+            'gymName': gymName,
+            'ownerName': ownerName ?? '',
+            'phone': phone ?? '',
+          },
+        );
+        await _eventRepo.persist(event);
+        await _syncWorker.sync();
+
         state = state.copyWith(owner: owner);
       }
       return true;
@@ -137,38 +269,57 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> logout() async {
-    await fb.FirebaseAuth.instance.signOut();
-    state = state.copyWith(unlocked: false);
+  Future<void> updateOwner(OwnerProfile updated) async {
+    final box = Hive.box<OwnerProfile>('owner');
+    if (box.isEmpty) {
+      await box.add(updated);
+    } else {
+      await box.putAt(0, updated);
+    }
+    state = state.copyWith(owner: updated);
   }
 
-  Future<void> logOut() => logout();
+  Future<void> logout() => _performFullLogout();
+  Future<void> logOut() => _performFullLogout();
 
   Future<void> setPin(String pin) async {
     await _pinService.setPin(pin);
-    state = state.copyWith(isPinSetup: true);
+    state = state.copyWith(isPinSetup: true, unlocked: true);
   }
 
   Future<void> setBiometricOptIn(bool enabled) async {
-    final settings = state.settings;
-    // Update settings in state (In real app, save to Hive)
-    state = state.copyWith(
-      settings: AppSettings(
-        gstRate: settings.gstRate,
-        expiryReminderDays: settings.expiryReminderDays,
-        whatsappReminders: settings.whatsappReminders,
-        biometricEnabled: enabled,
-        useBiometrics: enabled,
-        businessType: settings.businessType,
-      ),
+    final settings = state.settings.copyWith(
+      biometricEnabled: enabled,
+      useBiometrics: enabled,
     );
+
+    await Hive.box<AppSettings>('settings').put('app_settings', settings);
+    state = state.copyWith(settings: settings);
+  }
+
+  Future<void> updateSettings(AppSettings settings) async {
+    await Hive.box<AppSettings>('settings').put('app_settings', settings);
+    state = state.copyWith(settings: settings);
   }
 
   Future<void> sendPasswordReset(String email) async {
-    await fb.FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+    await _firebaseAuth!.sendPasswordResetEmail(email: email);
   }
 }
 
+final firebaseAuthProvider = Provider<fb.FirebaseAuth?>((ref) {
+  if (kIsWeb) return null;
+  return fb.FirebaseAuth.instance;
+});
+
+final entitlementProvider =
+    Provider<EntitlementGuard>((ref) => EntitlementGuard.instance);
+
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier();
+  const storage = FlutterSecureStorage();
+  final pinService = ref.watch(pinServiceProvider);
+  final repo = ref.watch(eventRepositoryProvider);
+  final syncWorker = ref.watch(syncWorkerProvider);
+  final firebaseAuth = ref.watch(firebaseAuthProvider);
+  return AuthNotifier(storage, pinService, firebaseAuth, repo, syncWorker, ref);
 });

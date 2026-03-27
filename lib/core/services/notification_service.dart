@@ -13,13 +13,15 @@ class NotificationService {
   static Future<void> sendMemberAlert({
     required MemberSnapshot snapshot,
     required String dedupKey,
+    DateTime? now,
   }) async {
+    final now0 = now ?? DateTime.now();
     final notifId = dedupKey.hashCode.abs();
     await _plugin.cancel(notifId);
 
-    final title = snapshot.status == MemberStatus.expired
+    final title = snapshot.getStatus(now0) == MemberStatus.expired
         ? '${snapshot.name} — Membership Expired'
-        : '${snapshot.name} — Expiring in ${snapshot.daysRemaining} days';
+        : '${snapshot.name} — Expiring in ${snapshot.getDaysRemaining(now0)} days';
 
     const androidDetails = AndroidNotificationDetails(
       'member_alerts',

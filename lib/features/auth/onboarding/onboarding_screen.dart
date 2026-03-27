@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../providers/auth_provider.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -18,21 +19,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   final List<OnboardingData> _pages = [
     OnboardingData(
-      title: 'Manage Members',
-      description: 'Track memberships, renewals, and expired status easily.',
-      icon: LucideIcons.users,
+      title: 'Track every member',
+      subtitle: 'See who\'s active, expiring, and due — at a glance every morning.',
     ),
     OnboardingData(
-      title: 'Own Your Data',
-      description: 'Your data stays on your device. Secured with AES encryption.',
-      icon: LucideIcons.shieldCheck,
+      title: 'Instant invoices',
+      subtitle: 'Generate and share professional GST invoices via WhatsApp in seconds.',
     ),
     OnboardingData(
-      title: 'Offline First',
-      description: "Work anywhere, even without internet. Sync when you're back.",
-      icon: LucideIcons.zapOff,
+      title: 'Your gym, your rules',
+      subtitle: 'Set your own plans, pricing, and components. Everything in one place.',
     ),
   ];
+
+  String _getIllustration() {
+    switch (_currentPage) {
+      case 0:
+        return 'assets/images/onb_1.png';
+      case 1:
+        return 'assets/images/onb_2.png';
+      case 2:
+        return 'assets/images/onb_3.png';
+      default:
+        return 'assets/images/onb_1.png';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,54 +52,137 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: () => context.go('/signup'),
-                child: Text('Skip', style: AppTextStyles.label.copyWith(color: AppColors.primary)),
-              ),
-            ),
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                onPageChanged: (idx) => setState(() => _currentPage = idx),
                 itemCount: _pages.length,
-                itemBuilder: (ctx, idx) => OnboardingPage(data: _pages[idx]),
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPage = index;
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final data = _pages[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Illustration
+                        Container(
+                          width: 360,
+                          height: 360,
+                          decoration: BoxDecoration(
+                            color: AppColors.bg3,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.05),
+                                blurRadius: 40,
+                                spreadRadius: -10,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Image.asset(
+                              _getIllustration(),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Title
+                        Text(
+                          data.title,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Subtitle
+                        Text(
+                          data.subtitle,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            color: AppColors.text2,
+                            height: 1.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
+            // Bottom Controls
             Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
                 children: [
+                  // Indicators
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
                       _pages.length,
-                      (idx) => AnimatedContainer(
+                      (index) => AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.only(right: 8),
-                        height: 8,
-                        width: _currentPage == idx ? 24 : 8,
+                        margin: const EdgeInsets.only(right: 5),
+                        height: 5,
+                        width: _currentPage == index ? 16 : 5,
                         decoration: BoxDecoration(
-                          color: _currentPage == idx ? AppColors.primary : AppColors.bg4,
-                          borderRadius: BorderRadius.circular(4),
+                          color: _currentPage == index ? AppColors.orange : AppColors.text3,
+                          borderRadius: BorderRadius.circular(
+                            _currentPage == index ? 3 : 50,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  FloatingActionButton(
-                    onPressed: () {
+                  const SizedBox(height: 16),
+                  // Button
+                  AppButton(
+                    text: _currentPage == _pages.length - 1 ? 'Get started' : 'Next',
+                    onPressed: () async {
                       if (_currentPage < _pages.length - 1) {
                         _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeIn);
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.ease,
+                        );
                       } else {
-                        context.go('/signup');
+                        debugPrint('Onboarding: Mark complete and navigating to /signup');
+                        final router = GoRouter.of(context);
+                        await ref.read(authProvider.notifier).completeOnboarding();
+                        if (mounted) {
+                          debugPrint('Onboarding: router.go(/signup)');
+                          router.go('/signup');
+                        }
                       }
                     },
-                    backgroundColor: AppColors.primary,
-                    child: Icon(_currentPage == _pages.length - 1 ? LucideIcons.check : LucideIcons.arrowRight),
                   ),
+                  const SizedBox(height: 10),
+                  // Skip Link
+                  if (_currentPage < _pages.length - 1)
+                    GestureDetector(
+                      onTap: () async {
+                        final router = GoRouter.of(context);
+                        await ref.read(authProvider.notifier).completeOnboarding();
+                        if (mounted) router.go('/signup');
+                      },
+                      child: Text(
+                        'Skip',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          color: AppColors.text3,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 12), // Placeholder to keep layout stable
                 ],
               ),
             ),
@@ -101,32 +195,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
 class OnboardingData {
   final String title;
-  final String description;
-  final IconData icon;
+  final String subtitle;
 
-  OnboardingData({required this.title, required this.description, required this.icon});
-}
-
-class OnboardingPage extends StatelessWidget {
-  final OnboardingData data;
-  const OnboardingPage({super.key, required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(40.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(data.icon, size: 100, color: AppColors.primary),
-          const SizedBox(height: 48),
-          Text(data.title, style: AppTextStyles.cardTitle.copyWith(fontSize: 24)),
-          const SizedBox(height: 16),
-          Text(data.description,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
-        ],
-      ),
-    );
-  }
+  OnboardingData({
+    required this.title,
+    required this.subtitle,
+  });
 }

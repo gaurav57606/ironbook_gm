@@ -42,7 +42,7 @@ class InvoiceService {
 
           // Member info
           _buildRow('Member', member.name),
-          _buildRow('Phone', member.phone),
+          _buildRow('Phone', member.phone ?? 'N/A'),
           _buildRow('Date', _formatDate(payment.date)),
           _buildRow('Period', '${_formatDate(payment.date)} - ${_formatDate(member.expiryDate ?? payment.date.add(const Duration(days: 30)))}'),
           pw.Divider(),

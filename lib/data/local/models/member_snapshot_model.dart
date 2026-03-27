@@ -10,7 +10,7 @@ class MemberSnapshot extends HiveObject {
   late String name;
 
   @HiveField(2)
-  late String phone;
+  String? phone;
 
   @HiveField(3)
   late DateTime joinDate;
@@ -25,7 +25,7 @@ class MemberSnapshot extends HiveObject {
   DateTime? expiryDate; // STORED fact
 
   @HiveField(7)
-  late double totalPaid;
+  late int totalPaid; // Stored in paise (integer)
 
   @HiveField(8)
   late List<String> paymentIds;
@@ -39,39 +39,82 @@ class MemberSnapshot extends HiveObject {
   @HiveField(11)
   late DateTime lastUpdated;
 
+  @HiveField(12)
+  String? gender;
+
+  @HiveField(13)
+  int? age;
+
+  @HiveField(14)
+  String? checkInPin;
+
   MemberSnapshot({
     required this.memberId,
     required this.name,
-    required this.phone,
+    this.phone,
     required this.joinDate,
     this.planId,
     this.planName,
     this.expiryDate,
-    this.totalPaid = 0.0,
+    this.totalPaid = 0,
     List<String>? paymentIds,
     List<JoinDateChange>? joinDateHistory,
     this.archived = false,
     DateTime? lastUpdated,
+    this.gender,
+    this.age,
+    this.checkInPin,
   }) {
     this.paymentIds = paymentIds ?? [];
     this.joinDateHistory = joinDateHistory ?? [];
     this.lastUpdated = lastUpdated ?? DateTime.now();
   }
 
-  // ── COMPUTED ──
-  int get daysRemaining {
+  // ── COMPUTED (Now deterministic) ──
+  int getDaysRemaining(DateTime relativeTo) {
     if (expiryDate == null) return 0;
-    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
     final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
     return expiry.difference(today).inDays;
   }
 
-  MemberStatus get status {
+  MemberStatus getStatus(DateTime relativeTo) {
     if (expiryDate == null) return MemberStatus.pending;
-    final d = daysRemaining;
+    final d = getDaysRemaining(relativeTo);
     if (d < 0) return MemberStatus.expired;
     if (d <= 7) return MemberStatus.expiring;
     return MemberStatus.active;
+  }
+
+  MemberSnapshot copyWith({
+    String? name,
+    String? phone,
+    DateTime? expiryDate,
+    int? totalPaid,
+    List<String>? paymentIds,
+    bool? archived,
+    DateTime? lastUpdated,
+    String? gender,
+    int? age,
+    String? checkInPin,
+  }) {
+    return MemberSnapshot(
+      memberId: memberId,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      joinDate: joinDate,
+      planId: planId,
+      planName: planName,
+      expiryDate: expiryDate ?? this.expiryDate,
+      totalPaid: totalPaid ?? this.totalPaid,
+      paymentIds: paymentIds ?? List.from(this.paymentIds),
+      joinDateHistory: List.from(joinDateHistory),
+      archived: archived ?? this.archived,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      gender: gender ?? this.gender,
+      age: age ?? this.age,
+      checkInPin: checkInPin ?? this.checkInPin,
+    );
   }
 
   factory MemberSnapshot.fromPayload(String id, Map<String, dynamic> payload) {
@@ -83,7 +126,72 @@ class MemberSnapshot extends HiveObject {
       planId: payload['planId'],
       planName: payload['planName'],
       expiryDate: payload['expiryDate'] != null ? DateTime.parse(payload['expiryDate']) : null,
+      totalPaid: payload['totalPaid'] ?? 0,
+      gender: payload['gender'],
+      age: payload['age'],
+      checkInPin: payload['checkInPin'],
     );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemberSnapshot &&
+          runtimeType == other.runtimeType &&
+          memberId == other.memberId &&
+          name == other.name &&
+          phone == other.phone &&
+          joinDate == other.joinDate &&
+          totalPaid == other.totalPaid &&
+          planId == other.planId &&
+          expiryDate == other.expiryDate &&
+          _listEquals(paymentIds, other.paymentIds) &&
+          _listEquals(joinDateHistory, other.joinDateHistory) &&
+          archived == other.archived;
+
+  @override
+  int get hashCode => Object.hash(
+        memberId,
+        name,
+        phone,
+        joinDate,
+        totalPaid,
+        planId,
+        expiryDate,
+        Object.hashAll(paymentIds),
+        Object.hashAll(joinDateHistory),
+        archived,
+      );
+
+  bool _listEquals(List? a, List? b) {
+    if (a == null || b == null) return a == b;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  String toString() {
+    return 'MemberSnapshot(id: $memberId, name: $name, paid: $totalPaid, expiry: $expiryDate)';
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'memberId': memberId,
+      'name': name,
+      'phone': phone,
+      'joinDate': joinDate.toIso8601String(),
+      'planId': planId,
+      'planName': planName,
+      'expiryDate': expiryDate?.toIso8601String(),
+      'totalPaid': totalPaid,
+      'paymentIds': paymentIds,
+      'archived': archived,
+      'lastUpdated': lastUpdated.toIso8601String(),
+      'checkInPin': checkInPin,
+    };
   }
 }
 

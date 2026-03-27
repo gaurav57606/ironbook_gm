@@ -62,7 +62,7 @@ class Payment extends HiveObject {
   });
 }
 
-@HiveType(typeId: 8)
+@HiveType(typeId: 13)
 class PlanComponentSnapshot extends HiveObject {
   @HiveField(0)
   late String name;

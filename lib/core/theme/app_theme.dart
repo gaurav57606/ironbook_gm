@@ -1,68 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../constants/app_colors.dart';
+import '../constants/colors.dart';
 
 class AppTheme {
-  static ThemeData get darkTheme {
-    return ThemeData(
-      useMaterial3: true,
+  static ThemeData darkTheme({bool useGoogleFonts = true}) {
+    final baseTheme = ThemeData(
       brightness: Brightness.dark,
+      primaryColor: AppColors.orange,
       scaffoldBackgroundColor: AppColors.bg,
-      primaryColor: AppColors.primary,
       colorScheme: const ColorScheme.dark(
-        primary: AppColors.primary,
-        secondary: AppColors.primary,
-        surface: AppColors.bg2,
-        error: AppColors.expired,
-      ),
-      textTheme: GoogleFonts.outfitTextTheme(
-        const TextTheme(
-          displayLarge: TextStyle(color: AppColors.textPrimary),
-          bodyLarge: TextStyle(color: AppColors.textPrimary),
-          bodyMedium: TextStyle(color: AppColors.textSecondary),
-          bodySmall: TextStyle(color: AppColors.textMuted),
-        ),
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.bg,
-        elevation: 0,
-        centerTitle: false,
-        titleTextStyle: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      cardTheme: const CardThemeData(
-        color: AppColors.bg2,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-        ),
+        primary: AppColors.orange,
+        secondary: AppColors.orangeD,
+        surface: AppColors.bg3,
+        error: AppColors.red,
       ),
       dividerTheme: const DividerThemeData(
-        color: AppColors.divider,
+        color: AppColors.border,
         thickness: 1,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.bg4,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        fillColor: AppColors.bg3,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.primary),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.orange),
         ),
-        labelStyle: const TextStyle(color: AppColors.textSecondary),
-        hintStyle: const TextStyle(color: AppColors.textMuted),
+        labelStyle: const TextStyle(color: AppColors.text2, fontSize: 11),
+        hintStyle: const TextStyle(color: AppColors.text3, fontSize: 11),
+      ),
+    );
+
+    if (!useGoogleFonts) return baseTheme;
+
+    return baseTheme.copyWith(
+      textTheme: GoogleFonts.outfitTextTheme(
+        const TextTheme(
+          displayLarge: TextStyle(color: AppColors.text, fontWeight: FontWeight.w800),
+          displayMedium: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
+          bodyLarge: TextStyle(color: AppColors.text, fontWeight: FontWeight.w400),
+          bodyMedium: TextStyle(color: AppColors.text2, fontWeight: FontWeight.w400),
+          labelSmall: TextStyle(color: AppColors.text3, fontWeight: FontWeight.w600, letterSpacing: 2),
+        ),
       ),
     );
   }

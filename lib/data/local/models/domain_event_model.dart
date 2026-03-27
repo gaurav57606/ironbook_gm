@@ -54,6 +54,30 @@ class DomainEvent extends HiveObject {
     };
   }
 
+  /// Filters payload for essential data only (Cloud Privacy Policy)
+  Map<String, dynamic> toEssentialFirestore() {
+    final essentialPayload = Map<String, dynamic>.from(payload);
+    
+    // Whitelist only essential fields for cloud storage
+    final whitelist = {
+      'memberId', 'name', 'phone', 'joinDate', 'planId', 
+      'amount', 'paymentId', 'newExpiry', 'archived'
+    };
+    
+    essentialPayload.removeWhere((key, value) => !whitelist.contains(key));
+
+    return {
+      'id': id,
+      'entityId': entityId,
+      'eventType': eventType,
+      'payload': essentialPayload,
+      'deviceTimestamp': deviceTimestamp.toIso8601String(),
+      'synced': true,
+      'hmacSignature': hmacSignature,
+      'deviceId': deviceId,
+    };
+  }
+
   factory DomainEvent.fromFirestore(Map<String, dynamic> data) {
     return DomainEvent(
       id: data['id'],
@@ -76,6 +100,9 @@ enum EventType {
   joinDateEdited,
   invoiceGenerated,
   settingsChanged,
+  ownerProfileCreated,
   ownerProfileUpdated,
+  plansUpdated,
   memberArchived,
+  memberUpdated,
 }

@@ -43,3 +43,32 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Keystore and keys
+/ironbook_release.jks
+/android/key.properties
+
+# Android build artifacts
+android/app/build/
+android/.gradle/
+android/gradle_build.txt
+
+# Web build artifacts
+web_dist/
+build_output.txt
+
+# Log files and others
+analysis_*.txt
+port.txt
+
+# Android more
+android/.kotlin/
+android/app/build/
+android/.gradle/
+android/gradle_build.txt
+android/app/src/debug/res/xml/
+android/app/src/main/res/xml/
+android/app/src/profile/res/xml/
+**/google-services.json
+**/firebase_options.dart
+

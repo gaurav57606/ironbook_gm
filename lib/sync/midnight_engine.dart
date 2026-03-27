@@ -3,7 +3,9 @@ import 'package:workmanager/workmanager.dart';
 import '../data/local/hive_init.dart';
 import '../data/local/models/member_snapshot_model.dart';
 import '../core/services/notification_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'sync_engine.dart';
+
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -27,7 +29,7 @@ Future<void> runMidnightTask() async {
   for (final snapshot in snapshots.values) {
     if (snapshot.archived) continue;
 
-    final status = snapshot.status;
+    final status = snapshot.getStatus(today);
     if (status == MemberStatus.expiring || status == MemberStatus.expired) {
       await NotificationService.sendMemberAlert(
         snapshot: snapshot,
@@ -36,5 +38,7 @@ Future<void> runMidnightTask() async {
     }
   }
 
-  await SyncEngine.pushPendingEvents();
+  final container = ProviderContainer();
+  await container.read(syncEngineProvider).pushPendingEvents();
 }
+

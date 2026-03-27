@@ -68,7 +68,7 @@ class FirestoreRecovery {
         final snap = snapshotBox.get(event.entityId);
         if (snap == null) break;
         snap.expiryDate = DateTime.parse(event.payload['newExpiryDate']);
-        snap.totalPaid += (event.payload['amount'] as num).toDouble();
+        snap.totalPaid += (event.payload['amount'] as num).toInt();
         snap.paymentIds.add(event.payload['paymentId']);
         snap.lastUpdated = event.deviceTimestamp;
         await snap.save();

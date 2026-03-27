@@ -3,6 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTextStyles {
+  // Sizing Constants from FrontUI
+  static const double h1Size = 11.0;
+  static const double h2Size = 24.0;
+  static const double bodySize = 12.0;
+  static const double smallSize = 10.0;
+  static const double tinySize = 9.0;
+  static const double microSize = 8.0;
+
   static TextStyle heroNumber = GoogleFonts.outfit(
     fontSize: 48,
     fontWeight: FontWeight.w900,
@@ -10,7 +18,7 @@ class AppTextStyles {
   );
 
   static TextStyle sectionTitle = GoogleFonts.outfit(
-    fontSize: 11,
+    fontSize: tinySize,
     fontWeight: FontWeight.w700,
     color: AppColors.textSecondary,
     textStyle: const TextStyle(
@@ -32,19 +40,19 @@ class AppTextStyles {
   );
 
   static TextStyle body = GoogleFonts.outfit(
-    fontSize: 14,
+    fontSize: bodySize,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
   );
 
   static TextStyle bodySmall = GoogleFonts.outfit(
-    fontSize: 12,
+    fontSize: smallSize,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
 
   static TextStyle label = GoogleFonts.outfit(
-    fontSize: 11,
+    fontSize: smallSize,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );

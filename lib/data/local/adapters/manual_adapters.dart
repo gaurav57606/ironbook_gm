@@ -8,6 +8,8 @@ import '../models/invoice_sequence.dart';
 import '../models/owner_profile_model.dart';
 import '../models/app_settings_model.dart';
 import '../models/join_date_change_model.dart';
+import '../models/product_model.dart';
+import '../models/sale_model.dart';
 
 class DomainEventAdapter extends TypeAdapter<DomainEvent> {
   @override
@@ -16,14 +18,14 @@ class DomainEventAdapter extends TypeAdapter<DomainEvent> {
   @override
   DomainEvent read(BinaryReader reader) {
     return DomainEvent(
-      id: reader.read(),
-      entityId: reader.read(),
-      eventType: reader.read(),
+      id: reader.read() as String,
+      entityId: reader.read() as String,
+      eventType: reader.read() as String,
       payload: Map<String, dynamic>.from(reader.read()),
-      deviceTimestamp: DateTime.fromMillisecondsSinceEpoch(reader.read()),
-      synced: reader.read(),
-      hmacSignature: reader.read(),
-      deviceId: reader.read(),
+      deviceTimestamp: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+      synced: reader.read() as bool,
+      hmacSignature: reader.read() as String,
+      deviceId: reader.read() as String,
     );
   }
 
@@ -46,19 +48,40 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
 
   @override
   MemberSnapshot read(BinaryReader reader) {
+    final memberId = reader.read() as String;
+    final name = reader.read() as String;
+    final phone = reader.read() as String;
+    final joinDate = DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt());
+    final planId = reader.read() as String?;
+    final planName = reader.read() as String?;
+    final expiryTs = reader.read() as num?;
+    final expiryDate = expiryTs != null ? DateTime.fromMillisecondsSinceEpoch(expiryTs.toInt()) : null;
+    
+    final totalPaid = (reader.read() as num).toInt();
+    final paymentIds = List<String>.from(reader.read());
+    final joinDateHistory = List<JoinDateChange>.from(reader.read());
+    final archived = reader.read() as bool;
+    final lastUpdated = DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt());
+    final gender = reader.read() as String?;
+    final age = (reader.read() as num?)?.toInt();
+    final checkInPin = reader.read() as String?;
+    
     return MemberSnapshot(
-      memberId: reader.read(),
-      name: reader.read(),
-      phone: reader.read(),
-      joinDate: DateTime.fromMillisecondsSinceEpoch(reader.read()),
-      planId: reader.read(),
-      planName: reader.read(),
-      expiryDate: reader.read() != null ? DateTime.fromMillisecondsSinceEpoch(reader.read()) : null,
-      totalPaid: reader.read(),
-      paymentIds: List<String>.from(reader.read()),
-      joinDateHistory: List<JoinDateChange>.from(reader.read()),
-      archived: reader.read(),
-      lastUpdated: DateTime.fromMillisecondsSinceEpoch(reader.read()),
+      memberId: memberId,
+      name: name,
+      phone: phone,
+      joinDate: joinDate,
+      planId: planId,
+      planName: planName,
+      expiryDate: expiryDate,
+      totalPaid: totalPaid,
+      paymentIds: paymentIds,
+      joinDateHistory: joinDateHistory,
+      archived: archived,
+      lastUpdated: lastUpdated,
+      gender: gender,
+      age: age,
+      checkInPin: checkInPin,
     );
   }
 
@@ -76,6 +99,9 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
     writer.write(obj.joinDateHistory);
     writer.write(obj.archived);
     writer.write(obj.lastUpdated.millisecondsSinceEpoch);
+    writer.write(obj.gender);
+    writer.write(obj.age);
+    writer.write(obj.checkInPin);
   }
 }
 
@@ -86,20 +112,20 @@ class PaymentAdapter extends TypeAdapter<Payment> {
   @override
   Payment read(BinaryReader reader) {
     return Payment(
-      id: reader.read(),
-      memberId: reader.read(),
-      date: DateTime.fromMillisecondsSinceEpoch(reader.read()),
-      amount: reader.read(),
-      method: reader.read(),
-      reference: reader.read(),
-      planId: reader.read(),
-      planName: reader.read(),
+      id: reader.read() as String,
+      memberId: reader.read() as String,
+      date: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+      amount: (reader.read() as num).toDouble(),
+      method: reader.read() as String,
+      reference: reader.read() as String?,
+      planId: reader.read() as String,
+      planName: reader.read() as String,
       components: List<PlanComponentSnapshot>.from(reader.read()),
-      invoiceNumber: reader.read(),
-      subtotal: reader.read(),
-      gstAmount: reader.read(),
-      gstRate: reader.read(),
-      durationMonths: reader.read(),
+      invoiceNumber: reader.read() as String,
+      subtotal: (reader.read() as num).toDouble(),
+      gstAmount: (reader.read() as num).toDouble(),
+      gstRate: (reader.read() as num).toDouble(),
+      durationMonths: (reader.read() as num).toInt(),
     );
   }
 
@@ -129,11 +155,11 @@ class PlanAdapter extends TypeAdapter<Plan> {
   @override
   Plan read(BinaryReader reader) {
     return Plan(
-      id: reader.read(),
-      name: reader.read(),
-      durationMonths: reader.read(),
+      id: reader.read() as String,
+      name: reader.read() as String,
+      durationMonths: (reader.read() as num).toInt(),
       components: List<PlanComponent>.from(reader.read()),
-      active: reader.read(),
+      active: reader.read() as bool,
     );
   }
 
@@ -154,9 +180,9 @@ class PlanComponentAdapter extends TypeAdapter<PlanComponent> {
   @override
   PlanComponent read(BinaryReader reader) {
     return PlanComponent(
-      id: reader.read(),
-      name: reader.read(),
-      price: reader.read(),
+      id: reader.read() as String,
+      name: reader.read() as String,
+      price: (reader.read() as num).toDouble(),
     );
   }
 
@@ -170,13 +196,13 @@ class PlanComponentAdapter extends TypeAdapter<PlanComponent> {
 
 class PlanComponentSnapshotAdapter extends TypeAdapter<PlanComponentSnapshot> {
   @override
-  final int typeId = 8;
+  final int typeId = 13;
 
   @override
   PlanComponentSnapshot read(BinaryReader reader) {
     return PlanComponentSnapshot(
-      name: reader.read(),
-      price: reader.read(),
+      name: reader.read() as String,
+      price: (reader.read() as num).toDouble(),
     );
   }
 
@@ -194,10 +220,10 @@ class JoinDateChangeAdapter extends TypeAdapter<JoinDateChange> {
   @override
   JoinDateChange read(BinaryReader reader) {
     return JoinDateChange(
-      previousDate: DateTime.fromMillisecondsSinceEpoch(reader.read()),
-      newDate: DateTime.fromMillisecondsSinceEpoch(reader.read()),
-      reason: reader.read(),
-      changedAt: DateTime.fromMillisecondsSinceEpoch(reader.read()),
+      previousDate: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+      newDate: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+      reason: reader.read() as String,
+      changedAt: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
     );
   }
 
@@ -252,11 +278,13 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
   @override
   AppSettings read(BinaryReader reader) {
     return AppSettings(
-      gstRate: reader.read(),
-      expiryReminderDays: reader.read(),
-      whatsappReminders: reader.read(),
-      biometricEnabled: reader.read(),
-      businessType: reader.read(),
+      gstRate: (reader.read() as num).toDouble(),
+      expiryReminderDays: (reader.read() as num).toInt(),
+      whatsappReminders: reader.read() as bool,
+      biometricEnabled: reader.read() as bool,
+      businessType: reader.read() as String,
+      useBiometrics: reader.read() as bool,
+      auditMode: reader.read() as bool,
     );
   }
 
@@ -267,6 +295,8 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
     writer.write(obj.whatsappReminders);
     writer.write(obj.biometricEnabled);
     writer.write(obj.businessType);
+    writer.write(obj.useBiometrics);
+    writer.write(obj.auditMode);
   }
 }
 
@@ -277,8 +307,8 @@ class InvoiceSequenceAdapter extends TypeAdapter<InvoiceSequence> {
   @override
   InvoiceSequence read(BinaryReader reader) {
     return InvoiceSequence(
-      prefix: reader.read(),
-      nextNumber: reader.read(),
+      prefix: reader.read() as String,
+      nextNumber: (reader.read() as num).toInt(),
     );
   }
 
@@ -286,5 +316,80 @@ class InvoiceSequenceAdapter extends TypeAdapter<InvoiceSequence> {
   void write(BinaryWriter writer, InvoiceSequence obj) {
     writer.write(obj.prefix);
     writer.write(obj.nextNumber);
+  }
+}
+
+class ProductAdapter extends TypeAdapter<Product> {
+  @override
+  final int typeId = 14;
+
+  @override
+  Product read(BinaryReader reader) {
+    return Product(
+      id: reader.read() as String,
+      name: reader.read() as String,
+      price: (reader.read() as num).toDouble(),
+      category: reader.read() as String,
+      iconCodePoint: (reader.read() as num).toInt(),
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Product obj) {
+    writer.write(obj.id);
+    writer.write(obj.name);
+    writer.write(obj.price);
+    writer.write(obj.category);
+    writer.write(obj.iconCodePoint);
+  }
+}
+
+class SaleAdapter extends TypeAdapter<Sale> {
+  @override
+  final int typeId = 15;
+
+  @override
+  Sale read(BinaryReader reader) {
+    return Sale(
+      id: reader.read() as String,
+      date: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+      totalAmount: (reader.read() as num).toDouble(),
+      paymentMethod: reader.read() as String,
+      items: List<SaleItem>.from(reader.read()),
+      invoiceNumber: reader.read() as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Sale obj) {
+    writer.write(obj.id);
+    writer.write(obj.date.millisecondsSinceEpoch);
+    writer.write(obj.totalAmount);
+    writer.write(obj.paymentMethod);
+    writer.write(obj.items);
+    writer.write(obj.invoiceNumber);
+  }
+}
+
+class SaleItemAdapter extends TypeAdapter<SaleItem> {
+  @override
+  final int typeId = 16;
+
+  @override
+  SaleItem read(BinaryReader reader) {
+    return SaleItem(
+      productId: reader.read() as String,
+      productName: reader.read() as String,
+      price: (reader.read() as num).toDouble(),
+      quantity: (reader.read() as num).toInt(),
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, SaleItem obj) {
+    writer.write(obj.productId);
+    writer.write(obj.productName);
+    writer.write(obj.price);
+    writer.write(obj.quantity);
   }
 }

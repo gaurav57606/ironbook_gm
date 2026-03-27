@@ -20,4 +20,18 @@ class JoinDateChange extends HiveObject {
     required this.reason,
     required this.changedAt,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is JoinDateChange &&
+          runtimeType == other.runtimeType &&
+          previousDate == other.previousDate &&
+          newDate == other.newDate &&
+          reason == other.reason &&
+          changedAt == other.changedAt;
+
+  @override
+  int get hashCode =>
+      previousDate.hashCode ^ newDate.hashCode ^ reason.hashCode ^ changedAt.hashCode;
 }
