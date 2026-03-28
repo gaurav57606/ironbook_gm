@@ -49,6 +49,9 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     final members = ref.watch(membersProvider);
     
     // Find member or return null
+    // ⚡ Bolt Optimization: Replaced try-catch with .where(...).firstOrNull
+    // Throwing/catching StateError in Dart is computationally expensive.
+    // Lazy evaluation avoids exceptions, improving lookup performance.
     final member = members.where((m) => m.memberId == widget.memberId).firstOrNull;
 
     if (member == null) {

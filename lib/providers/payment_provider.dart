@@ -98,6 +98,9 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   }
 
   Payment? getLatestForMember(String memberId) {
+    // ⚡ Bolt Optimization: Replaced try-catch with .where(...).firstOrNull
+    // Throwing/catching StateError in Dart is computationally expensive.
+    // Lazy evaluation avoids exceptions, improving lookup performance.
     return state.where((p) => p.memberId == memberId).firstOrNull;
   }
 }

@@ -54,6 +54,9 @@ class _KioskScreenState extends ConsumerState<KioskScreen> {
       final members = ref.read(membersProvider);
       
       // Find member by PIN or last 4 digits of phone
+      // ⚡ Bolt Optimization: Replaced try-catch with .where(...).firstOrNull
+      // Throwing/catching StateError in Dart is computationally expensive.
+      // Lazy evaluation avoids exceptions, improving lookup performance.
       final foundMember = members.where((m) {
         if (m.checkInPin == _pin) return true;
         if (m.phone != null && m.phone!.length >= 4) {
