@@ -47,14 +47,12 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
-    
+
     // Find member or return null
-    MemberSnapshot? member;
-    try {
-      member = members.firstWhere((m) => m.memberId == widget.memberId);
-    } catch (_) {
-      member = null;
-    }
+    // ⚡ Bolt: Replaced expensive try-catch with firstWhere to .where(...).firstOrNull
+    // catching StateError is computationally expensive, .firstOrNull avoids it.
+    final member =
+        members.where((m) => m.memberId == widget.memberId).firstOrNull;
 
     if (member == null) {
       return Scaffold(
@@ -63,9 +61,16 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.person_off_outlined, size: 48, color: AppColors.text3),
+              const Icon(
+                Icons.person_off_outlined,
+                size: 48,
+                color: AppColors.text3,
+              ),
               const SizedBox(height: 12),
-              const Text('Member not found', style: TextStyle(color: AppColors.text)),
+              const Text(
+                'Member not found',
+                style: TextStyle(color: AppColors.text),
+              ),
               const SizedBox(height: 20),
               AppButton(
                 text: 'Go Back',
@@ -108,7 +113,12 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, MemberSnapshot member, Color color, String status) {
+  Widget _buildAppBar(
+    BuildContext context,
+    MemberSnapshot member,
+    Color color,
+    String status,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
@@ -123,7 +133,11 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(Icons.chevron_left, size: 18, color: AppColors.text),
+              child: const Icon(
+                Icons.chevron_left,
+                size: 18,
+                color: AppColors.text,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -136,8 +150,14 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             ),
             alignment: Alignment.center,
             child: Text(
-              member.name.isNotEmpty ? member.name.substring(0, 1).toUpperCase() : '?',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color),
+              member.name.isNotEmpty
+                  ? member.name.substring(0, 1).toUpperCase()
+                  : '?',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -145,8 +165,18 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(member.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
-                Text(member.phone ?? 'No phone', style: const TextStyle(fontSize: 10, color: AppColors.text2)),
+                Text(
+                  member.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                Text(
+                  member.phone ?? 'No phone',
+                  style: const TextStyle(fontSize: 10, color: AppColors.text2),
+                ),
               ],
             ),
           ),
@@ -158,9 +188,23 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             ),
             child: Row(
               children: [
-                Container(width: 4, height: 4, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
                 const SizedBox(width: 4),
-                Text(status, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color)),
+                Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
               ],
             ),
           ),
@@ -197,7 +241,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
               text: 'WhatsApp',
               style: AppButtonStyle.secondary,
               onPressed: () {
-                 // Future: Open WhatsApp with member.phone
+                // Future: Open WhatsApp with member.phone
               },
             ),
           ),
@@ -221,7 +265,11 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildSubscriptionCard(MemberSnapshot member, Color color, String status) {
+  Widget _buildSubscriptionCard(
+    MemberSnapshot member,
+    Color color,
+    String status,
+  ) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.all(10),
@@ -234,11 +282,17 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
         children: [
           _buildInfoRow('Plan', member.planName ?? 'N/A'),
           const Divider(height: 20),
-          _buildInfoRow('Join Date', DateFormatter.format(member.joinDate), suffix: _buildLockedEdit()),
+          _buildInfoRow(
+            'Join Date',
+            DateFormatter.format(member.joinDate),
+            suffix: _buildLockedEdit(),
+          ),
           const Divider(height: 20),
           _buildInfoRow(
             'Expiry',
-            member.expiryDate != null ? DateFormatter.format(member.expiryDate!) : 'N/A',
+            member.expiryDate != null
+                ? DateFormatter.format(member.expiryDate!)
+                : 'N/A',
             valueColor: color,
           ),
           const Divider(height: 20),
@@ -261,7 +315,14 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
         children: [
           Icon(Icons.lock, size: 8, color: AppColors.orange),
           SizedBox(width: 2),
-          Text('Edit', style: TextStyle(fontSize: 9, color: AppColors.orange, fontWeight: FontWeight.w600)),
+          Text(
+            'Edit',
+            style: TextStyle(
+              fontSize: 9,
+              color: AppColors.orange,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -278,7 +339,14 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
       ),
       child: Column(
         children: [
-          _buildInfoRow('Total Contribution', CurrencyFormatter.format(member.totalPaid / 100.0), valueColor: AppColors.orange, valueSize: 13, labelColor: AppColors.text, labelWeight: FontWeight.w700),
+          _buildInfoRow(
+            'Total Contribution',
+            CurrencyFormatter.format(member.totalPaid / 100.0),
+            valueColor: AppColors.orange,
+            valueSize: 13,
+            labelColor: AppColors.text,
+            labelWeight: FontWeight.w700,
+          ),
           const Divider(height: 20),
           _buildInfoRow('Payments Count', member.paymentIds.length.toString()),
         ],
@@ -286,14 +354,36 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {Color? valueColor, double valueSize = 10, Color? labelColor, FontWeight? labelWeight, Widget? suffix}) {
+  Widget _buildInfoRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    double valueSize = 10,
+    Color? labelColor,
+    FontWeight? labelWeight,
+    Widget? suffix,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 10, color: labelColor ?? AppColors.text2, fontWeight: labelWeight)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: labelColor ?? AppColors.text2,
+            fontWeight: labelWeight,
+          ),
+        ),
         Row(
           children: [
-            Text(value, style: TextStyle(fontSize: valueSize, fontWeight: FontWeight.w600, color: valueColor ?? AppColors.text)),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: valueSize,
+                fontWeight: FontWeight.w600,
+                color: valueColor ?? AppColors.text,
+              ),
+            ),
             if (suffix != null) suffix,
           ],
         ),
@@ -303,17 +393,24 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
 
   Widget _buildPaymentHistory() {
     if (_isLoadingHistory) {
-      return const Center(child: Padding(
-        padding: EdgeInsets.all(20),
-        child: CircularProgressIndicator(),
-      ));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
 
     if (_history.isEmpty) {
-      return const Center(child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Text('No history found', style: TextStyle(fontSize: 10, color: AppColors.text3)),
-      ));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text(
+            'No history found',
+            style: TextStyle(fontSize: 10, color: AppColors.text3),
+          ),
+        ),
+      );
     }
 
     return Padding(
@@ -322,11 +419,13 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
         children: List.generate(_history.length, (index) {
           final event = _history[index];
           final isLast = index == _history.length - 1;
-          
+
           String title = event.eventType.replaceAll('_', ' ');
           String amountSpan = '';
           if (event.payload['amount'] != null) {
-            amountSpan = CurrencyFormatter.format((event.payload['amount'] as int) / 100.0);
+            amountSpan = CurrencyFormatter.format(
+              (event.payload['amount'] as int) / 100.0,
+            );
           }
 
           return _buildTimelineItem(
@@ -342,7 +441,14 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildTimelineItem(String title, String subtitle, String amount, {bool isOrange = false, bool isGreen = false, bool isLast = false}) {
+  Widget _buildTimelineItem(
+    String title,
+    String subtitle,
+    String amount, {
+    bool isOrange = false,
+    bool isGreen = false,
+    bool isLast = false,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -352,14 +458,15 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
               width: 8,
               height: 8,
               margin: const EdgeInsets.only(top: 4),
-              decoration: BoxDecoration(color: isOrange ? AppColors.orange : (isGreen ? AppColors.green : AppColors.text3), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: isOrange
+                    ? AppColors.orange
+                    : (isGreen ? AppColors.green : AppColors.text3),
+                shape: BoxShape.circle,
+              ),
             ),
             if (!isLast)
-              Container(
-                width: 1,
-                height: 40,
-                color: AppColors.border,
-              ),
+              Container(width: 1, height: 40, color: AppColors.border),
           ],
         ),
         const SizedBox(width: 8),
@@ -369,12 +476,29 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.text)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
                 const SizedBox(height: 1),
-                Text(subtitle, style: const TextStyle(fontSize: 9, color: AppColors.text2)),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 9, color: AppColors.text2),
+                ),
                 if (amount.isNotEmpty) ...[
                   const SizedBox(height: 1),
-                  Text(amount, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.orange)),
+                  Text(
+                    amount,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.orange,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -386,10 +510,14 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
 
   Color _getStatusColor(MemberStatus status) {
     switch (status) {
-      case MemberStatus.active: return AppColors.green;
-      case MemberStatus.expiring: return AppColors.amber;
-      case MemberStatus.expired: return AppColors.red;
-      case MemberStatus.pending: return AppColors.text3;
+      case MemberStatus.active:
+        return AppColors.green;
+      case MemberStatus.expiring:
+        return AppColors.amber;
+      case MemberStatus.expired:
+        return AppColors.red;
+      case MemberStatus.pending:
+        return AppColors.text3;
     }
   }
 
