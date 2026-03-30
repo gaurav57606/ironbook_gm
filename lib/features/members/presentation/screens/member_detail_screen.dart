@@ -49,12 +49,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     final members = ref.watch(membersProvider);
     
     // Find member or return null
-    MemberSnapshot? member;
-    try {
-      member = members.firstWhere((m) => m.memberId == widget.memberId);
-    } catch (_) {
-      member = null;
-    }
+    final member = members.where((m) => m.memberId == widget.memberId).firstOrNull;
 
     if (member == null) {
       return Scaffold(

@@ -98,11 +98,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   }
 
   Payment? getLatestForMember(String memberId) {
-    try {
-      return state.firstWhere((p) => p.memberId == memberId);
-    } catch (_) {
-      return null;
-    }
+    return state.where((p) => p.memberId == memberId).firstOrNull;
   }
 }
 
