@@ -54,18 +54,13 @@ class _KioskScreenState extends ConsumerState<KioskScreen> {
       final members = ref.read(membersProvider);
       
       // Find member by PIN or last 4 digits of phone
-      MemberSnapshot? foundMember;
-      try {
-        foundMember = members.firstWhere((m) {
-          if (m.checkInPin == _pin) return true;
-          if (m.phone != null && m.phone!.length >= 4) {
-            return m.phone!.substring(m.phone!.length - 4) == _pin;
-          }
-          return false;
-        });
-      } catch (_) {
-        foundMember = null;
-      }
+      final MemberSnapshot? foundMember = members.where((m) {
+        if (m.checkInPin == _pin) return true;
+        if (m.phone != null && m.phone!.length >= 4) {
+          return m.phone!.substring(m.phone!.length - 4) == _pin;
+        }
+        return false;
+      }).firstOrNull;
 
       if (foundMember != null) {
         final status = foundMember.getStatus(DateTime.now());

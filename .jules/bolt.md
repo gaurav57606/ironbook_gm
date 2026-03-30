@@ -1,0 +1,3 @@
+## 2024-05-30 - Replace `firstWhere` try-catch blocks with `firstOrNull` (or similar)
+**Learning:** Found multiple instances where collections are searched using `.firstWhere()` wrapped in a `try-catch` block to handle items not being found. This is a common but expensive anti-pattern. Catching `StateError` dynamically is inefficient, especially when using Dart 3+ where `.where().firstOrNull` provides a clean, fast way to return an element or `null` without throwing exceptions. This improves both execution speed and readability.
+**Action:** Replace `firstWhere` wrapped in `try-catch` with `.where(...).firstOrNull` throughout the codebase.
