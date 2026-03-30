@@ -45,7 +45,10 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String? ?: ""
             keyPassword = keystoreProperties["keyPassword"] as String? ?: ""
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            val storeFileProperty = keystoreProperties["storeFile"] as String?
+            if (storeFileProperty != null) {
+                storeFile = file(storeFileProperty)
+            }
             storePassword = keystoreProperties["storePassword"] as String? ?: ""
         }
     }
