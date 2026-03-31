@@ -49,12 +49,9 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     final members = ref.watch(membersProvider);
     
     // Find member or return null
-    MemberSnapshot? member;
-    try {
-      member = members.firstWhere((m) => m.memberId == widget.memberId);
-    } catch (_) {
-      member = null;
-    }
+    // ⚡ Bolt: Using where().firstOrNull avoids expensive StateError exceptions
+    // when a member is not found, making rendering faster and more stable.
+    MemberSnapshot? member = members.where((m) => m.memberId == widget.memberId).firstOrNull;
 
     if (member == null) {
       return Scaffold(

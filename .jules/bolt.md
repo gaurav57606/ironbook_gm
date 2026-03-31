@@ -1,0 +1,3 @@
+## 2025-02-28 - Optimizing `firstWhere` lookups
+**Learning:** Dart's `Iterable.firstWhere` throws a `StateError` if no element satisfies the condition. Using `try { firstWhere(...) } catch (_) { return null; }` is a performance anti-pattern because throwing and catching exceptions in Dart is an expensive operation that interrupts normal execution flow. This can be particularly slow if triggered frequently, such as during rendering.
+**Action:** Always prefer the `Iterable.where(...).firstOrNull` pattern (available in Dart 3.0+) when an element might not exist. This performs a clean iteration without exception overhead and safely returns `null` when no matching element is found.
