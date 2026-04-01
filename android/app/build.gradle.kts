@@ -16,8 +16,8 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.ironbook.ironbook_gm"
-    compileSdk = 35
-    ndkVersion = "26.3.11579264"
+    compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -34,7 +34,7 @@ android {
         applicationId = "com.ironbook.ironbook_gm"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 24
+        minSdk = flutter.minSdkVersion
         multiDexEnabled = true
         targetSdk = 34
         versionCode = flutter.versionCode
