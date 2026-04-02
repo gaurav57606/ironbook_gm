@@ -20,7 +20,7 @@ class _KioskScreenState extends ConsumerState<KioskScreen> {
 
   void _onKeyPress(String key) {
     if (_status != 'idle' && _status != 'error') return;
-    
+
     setState(() {
       if (key == '⌫') {
         if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
@@ -46,43 +46,43 @@ class _KioskScreenState extends ConsumerState<KioskScreen> {
       _status = 'verifying';
       _message = 'Verifying...';
     });
-    
+
     // Safety delay for UX
     Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
-      
+
       final members = ref.read(membersProvider);
-      
+
       // Find member by PIN or last 4 digits of phone
-      MemberSnapshot? foundMember;
-      try {
-        foundMember = members.firstWhere((m) {
-          if (m.checkInPin == _pin) return true;
-          if (m.phone != null && m.phone!.length >= 4) {
-            return m.phone!.substring(m.phone!.length - 4) == _pin;
-          }
-          return false;
-        });
-      } catch (_) {
-        foundMember = null;
-      }
+      // ⚡ Bolt Performance Optimization:
+      // Replaced expensive try-catch around firstWhere with where(...).firstOrNull
+      // to avoid overhead of creating a StateError when no member is found.
+      final MemberSnapshot? foundMember = members.where((m) {
+        if (m.checkInPin == _pin) return true;
+        if (m.phone != null && m.phone!.length >= 4) {
+          return m.phone!.substring(m.phone!.length - 4) == _pin;
+        }
+        return false;
+      }).firstOrNull;
 
       if (foundMember != null) {
         final status = foundMember.getStatus(DateTime.now());
         if (status == MemberStatus.expired) {
           setState(() {
             _status = 'error';
-            _message = 'Plan Expired for ${foundMember!.name}';
+            _message = 'Plan Expired for ${foundMember.name}';
           });
           Future.delayed(const Duration(seconds: 4), _reset);
         } else {
           setState(() {
             _status = 'success';
-            _message = 'Welcome, ${foundMember!.name}!';
+            _message = 'Welcome, ${foundMember.name}!';
           });
-          
-          ref.read(membersProvider.notifier).recordAttendance(foundMember.memberId);
-          
+
+          ref
+              .read(membersProvider.notifier)
+              .recordAttendance(foundMember.memberId);
+
           Future.delayed(const Duration(seconds: 4), _reset);
         }
       } else {
@@ -124,7 +124,8 @@ class _KioskScreenState extends ConsumerState<KioskScreen> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: _status == 'error' ? AppColors.red : AppColors.text,
+                      color:
+                          _status == 'error' ? AppColors.red : AppColors.text,
                     ),
                   ),
                 ),
@@ -152,7 +153,7 @@ class _KioskScreenState extends ConsumerState<KioskScreen> {
   Widget _buildStatusIndicator() {
     Color color = AppColors.bg3;
     IconData icon = Icons.timer_outlined;
-    
+
     if (_status == 'success') {
       color = AppColors.green;
       icon = Icons.check_circle_outline;
@@ -173,9 +174,10 @@ class _KioskScreenState extends ConsumerState<KioskScreen> {
         border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
       ),
       child: Center(
-        child: _status == 'verifying' 
-          ? const CircularProgressIndicator(color: AppColors.orange, strokeWidth: 3)
-          : Icon(icon, color: color, size: 48),
+        child: _status == 'verifying'
+            ? const CircularProgressIndicator(
+                color: AppColors.orange, strokeWidth: 3)
+            : Icon(icon, color: color, size: 48),
       ),
     );
   }
@@ -209,7 +211,8 @@ class _KioskScreenState extends ConsumerState<KioskScreen> {
         crossAxisSpacing: 20,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          ...['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => _buildKey(k)),
+          ...['1', '2', '3', '4', '5', '6', '7', '8', '9']
+              .map((k) => _buildKey(k)),
           const SizedBox(),
           _buildKey('0'),
           _buildKey('⌫'),

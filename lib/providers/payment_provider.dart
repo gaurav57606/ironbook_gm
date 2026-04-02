@@ -40,7 +40,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     }
 
     final invoiceNumber = sequence.nextInvoiceId;
-    
+
     // 2. Increment Sequence
     sequence.nextNumber++;
     await sequence.save();
@@ -68,10 +68,12 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       subtotal: subtotal,
       gstAmount: gstAmount,
       gstRate: gstRate,
-      components: plan.components.map((c) => PlanComponentSnapshot(
-        name: c.name,
-        price: c.price,
-      )).toList(),
+      components: plan.components
+          .map((c) => PlanComponentSnapshot(
+                name: c.name,
+                price: c.price,
+              ))
+          .toList(),
     );
 
     // 5. Persist Locally
@@ -98,22 +100,24 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   }
 
   Payment? getLatestForMember(String memberId) {
-    try {
-      return state.firstWhere((p) => p.memberId == memberId);
-    } catch (_) {
-      return null;
-    }
+    // ⚡ Bolt Performance Optimization:
+    // Replaced expensive try-catch around firstWhere with where(...).firstOrNull
+    // Catching StateError is slow due to stack trace generation.
+    return state.where((p) => p.memberId == memberId).firstOrNull;
   }
 }
 
-final paymentBoxProvider = Provider<Box<Payment>>((ref) => Hive.box<Payment>('payments'));
-final sequenceBoxProvider = Provider<Box<InvoiceSequence>>((ref) => Hive.box<InvoiceSequence>('invoice_sequences'));
+final paymentBoxProvider =
+    Provider<Box<Payment>>((ref) => Hive.box<Payment>('payments'));
+final sequenceBoxProvider = Provider<Box<InvoiceSequence>>(
+    (ref) => Hive.box<InvoiceSequence>('invoice_sequences'));
 
-final paymentProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((ref) {
+final paymentProvider =
+    StateNotifierProvider<PaymentNotifier, List<Payment>>((ref) {
   final paymentBox = ref.watch(paymentBoxProvider);
   final sequenceBox = ref.watch(sequenceBoxProvider);
   final eventRepo = ref.watch(eventRepositoryProvider);
-  
+
   const deviceId = 'device-billing-v1';
 
   return PaymentNotifier(paymentBox, sequenceBox, eventRepo, deviceId);
