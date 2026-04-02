@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "dummy-project",
-    "storage_bucket": "dummy-project.appspot.com"
+    "project_number": "1090040053163",
+    "project_id": "ironbook-gm-prod",
+    "storage_bucket": "ironbook-gm-prod.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:1090040053163:android:1e1b0d62aac554b97966ee",
         "android_client_info": {
           "package_name": "com.ironbook.ironbook_gm"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "dummy-api-key"
+          "current_key": "AIzaSyAjK-WgcK87jL87o-0qiPi6vVA7_Xv5Ykk"
         }
       ],
       "services": {

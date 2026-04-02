@@ -70,6 +70,10 @@ class MemberSnapshot extends HiveObject {
     this.lastUpdated = lastUpdated ?? DateTime.now();
   }
 
+  // ── GETTERS (Convenience for UI using today's date) ──
+  int get daysRemaining => getDaysRemaining(DateTime.now());
+  MemberStatus get status => getStatus(DateTime.now());
+
   // ── COMPUTED (Now deterministic) ──
   int getDaysRemaining(DateTime relativeTo) {
     if (expiryDate == null) return 0;

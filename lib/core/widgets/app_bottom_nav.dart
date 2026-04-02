@@ -24,10 +24,12 @@ class AppBottomNavBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(0, Icons.grid_view_rounded, 'Home'),
-          _buildNavItem(1, Icons.people_outline, 'Members'),
+          _buildNavItem(1, Icons.people_outline, 'Gym'),
+          _buildNavItem(2, Icons.restaurant_menu_rounded, 'Diet'),
           _buildFab(context),
-          _buildNavItem(2, Icons.description_outlined, 'Invoice'),
-          _buildNavItem(4, Icons.settings_outlined, 'Settings'),
+          _buildNavItem(3, Icons.description_outlined, 'POS'),
+          _buildNavItem(4, Icons.analytics_outlined, 'Data'),
+          _buildNavItem(6, Icons.settings_outlined, 'Settings'),
         ],
       ),
     );
@@ -64,7 +66,7 @@ class AppBottomNavBar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         GestureDetector(
-          onTap: () => context.push('/members/quick-add'),
+          onTap: () => context.push('/gym/add-member'),
           child: Transform.translate(
             offset: const Offset(0, -14),
             child: Container(
@@ -75,7 +77,7 @@ class AppBottomNavBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(13),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.orange.withOpacity(0.4),
+                    color: AppColors.orange.withValues(alpha: 0.4),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),

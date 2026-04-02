@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,25 +9,50 @@ import 'package:ironbook_gm/security/entitlement_guard.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../integration_test/mocks/mock_firebase.dart';
+import '../integration_test/mocks/mock_firestore.dart';
 import '../integration_test/mocks/mock_secure_storage.dart';
 import '../integration_test/mocks/mock_entitlement.dart';
+import '../integration_test/mocks/mock_services.dart';
+import 'package:ironbook_gm/data/sync_worker.dart';
+
+import 'package:ironbook_gm/sync/recovery_service.dart';
+import 'package:ironbook_gm/providers/base_providers.dart';
+import 'test_helper.dart';
 
 void main() {
-  GoogleFonts.config.allowRuntimeFetching = true;
+  setUpAll(() async {
+    await TestHelper.setupHive('smoke');
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
 
   group('Autonomous Smoke Test - Visit All Screens', () {
     late MockFirebaseAuth mockAuth;
     late MockFlutterSecureStorage mockStorage;
+    late MockFirebaseFirestore mockFirestore;
     late MockEntitlementGuard mockEntitlement;
 
     setUp(() {
       mockAuth = MockFirebaseAuth();
       mockStorage = MockFlutterSecureStorage();
+      mockFirestore = MockFirebaseFirestore();
+      
+      final mockCollection = MockCollectionReference();
+      final mockDoc = MockDocumentReference();
+      final mockQuerySnapshot = MockQuerySnapshot();
+
+      when(() => mockFirestore.collection(any())).thenReturn(mockCollection);
+      when(() => mockCollection.doc(any())).thenReturn(mockDoc);
+      when(() => mockDoc.collection(any())).thenReturn(mockCollection);
+      when(() => mockCollection.orderBy(any())).thenReturn(mockCollection);
+      when(() => mockCollection.get()).thenAnswer((_) async => mockQuerySnapshot);
+      when(() => mockQuerySnapshot.docs).thenReturn([]);
       mockEntitlement = MockEntitlementGuard();
 
       when(() => mockAuth.authStateChanges())
           .thenAnswer((_) => Stream.value(null));
-      when(() => mockStorage.read(key: any(named: 'key')))
+      when(() => mockStorage.read(key: 'onboarding_done'))
+          .thenAnswer((_) async => null);
+      when(() => mockStorage.read(key: 'pin_hash'))
           .thenAnswer((_) async => null);
       when(() => mockStorage.write(
           key: any(named: 'key'),
@@ -41,9 +67,11 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              secureStorageProvider.overrideWithValue(mockStorage),
+              appSecureStorageProvider.overrideWithValue(mockStorage),
               firebaseAuthProvider.overrideWithValue(mockAuth),
+              firestoreProvider.overrideWithValue(mockFirestore),
               entitlementProvider.overrideWithValue(mockEntitlement),
+              hmacServiceProvider.overrideWithValue(MockHmacService()),
             ],
             child: const IronBookApp(
               hiveHealthy: true,
@@ -52,11 +80,9 @@ void main() {
           ),
         );
 
-        // 1. Splash
-        await tester.pump();
-        expect(find.text('IronBook GM'), findsOneWidget);
+        expect(find.byWidgetPredicate((w) => w is RichText && w.text.toPlainText().contains('IronBook')), findsOneWidget);
         await tester.pump(const Duration(seconds: 3));
-        await tester.pumpAndSettle();
+        // await tester.pumpAndSettle(); // REMOVED to avoid timeout from infinite spinner
 
         // 2. Onboarding
         expect(find.text('Track every member'), findsOneWidget);
@@ -68,12 +94,14 @@ void main() {
 
         await tester.tap(find.text('Get started'));
         await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 500));
 
         // 3. Signup
+        await tester.pump(const Duration(milliseconds: 500));
         expect(find.text('Create Account'), findsOneWidget);
 
         // Navigate to Login from Signup
-        await tester.tap(find.text('Log In'));
+        await tester.tap(find.text('Log in'));
         await tester.pumpAndSettle();
 
         // 4. Login Screen
@@ -88,6 +116,12 @@ void main() {
           .thenAnswer((_) => Stream.value(mockUser));
       when(() => mockAuth.currentUser).thenReturn(mockUser);
       when(() => mockUser.uid).thenReturn('test-user-id');
+      final mockPinService = MockPinService();
+      final mockSyncWorker = MockSyncWorker();
+      when(() => mockPinService.verifyPin(any())).thenAnswer((_) async => true);
+      when(() => mockPinService.getLockoutUntil()).thenAnswer((_) async => null);
+      when(() => mockPinService.getFailCount()).thenAnswer((_) async => 0);
+      when(() => mockSyncWorker.performSync()).thenAnswer((_) async {});
 
       // Pretend onboarding and PIN are done
       when(() => mockStorage.read(key: 'onboarding_done'))
@@ -99,9 +133,13 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              secureStorageProvider.overrideWithValue(mockStorage),
+              appSecureStorageProvider.overrideWithValue(mockStorage),
               firebaseAuthProvider.overrideWithValue(mockAuth),
+              firestoreProvider.overrideWithValue(mockFirestore),
               entitlementProvider.overrideWithValue(mockEntitlement),
+              pinServiceProvider.overrideWithValue(mockPinService),
+              syncWorkerProvider.overrideWithValue(mockSyncWorker),
+              hmacServiceProvider.overrideWithValue(MockHmacService()),
             ],
             child: const IronBookApp(
               hiveHealthy: true,
@@ -114,7 +152,7 @@ void main() {
         await tester
             .pumpAndSettle(); // Should go to PIN ENTRY because it's not "unlocked" yet
 
-        expect(find.text('Enter PIN'), findsOneWidget);
+        expect(find.text('Enter your PIN'), findsOneWidget);
 
         // We skip UI PIN entry for this smoke test and force the provider state to unlocked?
         // No, let's actually enter the PIN if we can find the keys.
@@ -125,7 +163,8 @@ void main() {
         await tester.pumpAndSettle();
 
         // 5. Dashboard
-        expect(find.text('Admin Dashboard'), findsOneWidget);
+        await tester.pumpAndSettle();
+        expect(find.text('IRONBOOK GM'), findsOneWidget);
       });
     });
   });

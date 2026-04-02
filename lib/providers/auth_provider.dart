@@ -13,6 +13,7 @@ import '../data/local/models/domain_event_model.dart';
 import '../data/repositories/event_repository.dart';
 import '../security/pin_service.dart';
 import '../security/entitlement_guard.dart';
+import 'base_providers.dart';
 
 class AuthState {
   final bool isLoading;
@@ -25,7 +26,7 @@ class AuthState {
   final bool unlocked;
 
   AuthState({
-    this.isLoading = false,
+    this.isLoading = true,
     this.isFirstLaunch = true,
     this.user,
     this.isAuthenticated = false,
@@ -178,7 +179,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
       );
       return true;
+    } on fb.FirebaseAuthException catch (e) {
+      debugPrint('AuthNotifier Login Error [${e.code}]: ${e.message}');
+      return false;
     } catch (e) {
+      debugPrint('AuthNotifier Login Error: $e');
       return false;
     } finally {
       state = state.copyWith(isLoading: false);
@@ -257,12 +262,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
           },
         );
         await _eventRepo.persist(event);
-        await _syncWorker.sync();
+        _ref.read(syncWorkerProvider).performSync();
 
         state = state.copyWith(owner: owner);
       }
       return true;
+    } on fb.FirebaseAuthException catch (e) {
+      debugPrint('AuthNotifier SignUp Error [${e.code}]: ${e.message}');
+      return false;
     } catch (e) {
+      debugPrint('AuthNotifier SignUp Error: $e');
       return false;
     } finally {
       state = state.copyWith(isLoading: false);
@@ -307,16 +316,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final firebaseAuthProvider = Provider<fb.FirebaseAuth?>((ref) {
-  if (kIsWeb) return null;
-  return fb.FirebaseAuth.instance;
+final entitlementProvider = Provider<EntitlementGuard>((ref) {
+  final storage = ref.watch(appSecureStorageProvider);
+  final auth = ref.watch(firebaseAuthProvider)!;
+  final firestore = ref.watch(firestoreProvider);
+  return EntitlementGuard(storage, auth, firestore);
 });
 
-final entitlementProvider =
-    Provider<EntitlementGuard>((ref) => EntitlementGuard.instance);
-
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  const storage = FlutterSecureStorage();
+  final storage = ref.watch(appSecureStorageProvider);
   final pinService = ref.watch(pinServiceProvider);
   final repo = ref.watch(eventRepositoryProvider);
   final syncWorker = ref.watch(syncWorkerProvider);

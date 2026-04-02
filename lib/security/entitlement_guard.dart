@@ -6,13 +6,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 enum EntitlementStatus { valid, grace, expired }
 
 class EntitlementGuard {
-  static final EntitlementGuard _instance = EntitlementGuard.internal();
-  factory EntitlementGuard() => _instance;
-  EntitlementGuard.internal();
+  final FlutterSecureStorage _storage;
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
 
-  static EntitlementGuard instance = _instance; // Allow overriding for tests
-
-  static const _storage = FlutterSecureStorage();
+  EntitlementGuard(this._storage, this._auth, this._firestore);
 
   Future<EntitlementStatus> checkEntitlement() async {
     final expiryRaw = await _storage.read(key: 'ent_expiry');
@@ -36,10 +34,10 @@ class EntitlementGuard {
     if (kIsWeb) return EntitlementStatus.valid;
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = _auth.currentUser;
       if (user == null) return EntitlementStatus.expired;
 
-      final doc = await FirebaseFirestore.instance
+      final doc = await _firestore
           .collection('entitlements')
           .doc(user.uid)
           .get();

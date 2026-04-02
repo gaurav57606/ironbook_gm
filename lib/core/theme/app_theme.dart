@@ -45,9 +45,13 @@ class AppTheme {
         const TextTheme(
           displayLarge: TextStyle(color: AppColors.text, fontWeight: FontWeight.w800),
           displayMedium: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
+          headlineLarge: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w800),
+          titleLarge: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700),
           bodyLarge: TextStyle(color: AppColors.text, fontWeight: FontWeight.w400),
-          bodyMedium: TextStyle(color: AppColors.text2, fontWeight: FontWeight.w400),
-          labelSmall: TextStyle(color: AppColors.text3, fontWeight: FontWeight.w600, letterSpacing: 2),
+          bodyMedium: TextStyle(color: AppColors.text2, fontWeight: FontWeight.w400, height: 1.6),
+          bodySmall: TextStyle(color: AppColors.text2, fontSize: 11, fontWeight: FontWeight.w400, height: 1.6),
+          labelMedium: TextStyle(color: AppColors.text2, fontSize: 11, fontWeight: FontWeight.w400),
+          labelSmall: TextStyle(color: AppColors.text3, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 2),
         ),
       ),
     );

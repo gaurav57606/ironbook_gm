@@ -38,7 +38,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     );
 
     await _eventRepo.persist(event);
-    await _syncWorker.sync();
+    await _syncWorker.performSync();
   }
 
   Future<void> updatePlan(Plan plan) async {
@@ -58,7 +58,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
       }).toList()},
     );
     await _eventRepo.persist(event);
-    await _syncWorker.sync();
+    await _syncWorker.performSync();
   }
 }
 

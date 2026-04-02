@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/services/hmac_service.dart';
 import '../../core/utils/event_bus.dart';
 import '../local/models/domain_event_model.dart';
+import '../../providers/base_providers.dart';
 
 abstract class IEventRepository {
   Future<void> persist(DomainEvent event);
@@ -17,14 +18,15 @@ abstract class IEventRepository {
 class HiveEventRepository implements IEventRepository {
   final Box<DomainEvent> _box;
   final EventBus _eventBus;
+  final HmacService _hmacService;
 
-  HiveEventRepository(this._box, this._eventBus);
+  HiveEventRepository(this._box, this._eventBus, this._hmacService);
 
   @override
   Future<void> persist(DomainEvent event) async {
     debugPrint('HiveEventRepository: Persisting event ${event.eventType} (ID: ${event.id})...');
     // 1. Sign the event (Security Enforcement)
-    event.hmacSignature = await HmacService.sign(event);
+    event.hmacSignature = await _hmacService.sign(event);
     debugPrint('HiveEventRepository: HMAC generated.');
     
     // 2. Write-Ahead Log (WAL)
@@ -67,5 +69,6 @@ class HiveEventRepository implements IEventRepository {
 final eventRepositoryProvider = Provider<IEventRepository>((ref) {
   final box = Hive.box<DomainEvent>('events');
   final bus = ref.watch(eventBusProvider);
-  return HiveEventRepository(box, bus);
+  final hmac = ref.watch(hmacServiceProvider);
+  return HiveEventRepository(box, bus, hmac);
 });

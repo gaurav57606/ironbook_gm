@@ -17,7 +17,7 @@ class IronBookApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'IronBook GM',
-      theme: AppTheme.darkTheme(useGoogleFonts: true),
+      theme: AppTheme.darkTheme(useGoogleFonts: useGoogleFonts),
       routerConfig: ref.watch(routerProvider(hiveHealthy)),
       debugShowCheckedModeBanner: false,
     );

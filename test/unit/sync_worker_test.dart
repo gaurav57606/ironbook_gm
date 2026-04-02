@@ -28,7 +28,7 @@ void main() {
     await mockRepo.persist(event);
     
     // First run
-    await syncWorker.sync();
+    await syncWorker.performSync();
     
     expect(mockFirestore.exists('users/user-1/events', 'event-1'), isTrue);
     expect(mockFirestore.writeCount, 1);
@@ -41,7 +41,7 @@ void main() {
     
     // Actually, I'll modify FakeFirestore to fail on count 2.
     // Or just manually:
-    await syncWorker.sync(); // Both unsynced. 
+    await syncWorker.performSync(); // Both unsynced. 
     // Wait, in SyncWorker.sync(), it iterates through ALL unsynced.
     // If I want the second to fail, I'll update FakeFirestore.
   });
@@ -53,13 +53,13 @@ void main() {
     await mockRepo.persist(e2);
 
     mockFirestore.failNextWrite = true; // First one fails immediately
-    await syncWorker.sync();
+    await syncWorker.performSync();
     
     expect(mockRepo.getAllUnsynced().length, 2, reason: 'Failures should prevent local sync mark');
     expect(mockFirestore.writeCount, 0);
 
     mockFirestore.failNextWrite = false; 
-    await syncWorker.sync();
+    await syncWorker.performSync();
     
     expect(mockRepo.getAllUnsynced().isEmpty, isTrue, reason: 'Resume should clear all pending');
     expect(mockFirestore.writeCount, 2, reason: 'Both should be written eventually');

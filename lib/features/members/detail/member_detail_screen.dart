@@ -131,7 +131,7 @@ class MemberDetailScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Text(member.name, style: AppTextStyles.cardTitle.copyWith(fontSize: 24)),
-        Text(member.phone, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+        Text(member.phone ?? 'No phone', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
       ],
     );
   }

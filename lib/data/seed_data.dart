@@ -11,7 +11,7 @@ class SeedData {
 
   static Future<void> seedIfEmpty() async {
     final plansBox = Hive.box<Plan>('plans');
-    final membersBox = Hive.box<MemberSnapshot>('members');
+    final membersBox = Hive.box<MemberSnapshot>('snapshots');
     final ownerBox = Hive.box<OwnerProfile>('owner');
     final settingsBox = Hive.box<AppSettings>('settings');
 

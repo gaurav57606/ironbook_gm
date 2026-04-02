@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:collection/collection.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -22,8 +23,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   double _calculateTotal(List<Product> products) {
     double total = 0;
     _cart.forEach((productId, qty) {
-      final product = products.firstWhere((p) => p.id == productId);
-      total += product.price * qty;
+      final product = products.firstWhereOrNull((p) => p.id == productId);
+      if (product != null) {
+        total += product.price * qty;
+      }
     });
     return total;
   }
@@ -185,7 +188,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             child: ListView(
               padding: const EdgeInsets.all(8),
               children: _cart.entries.map((entry) {
-                final product = products.firstWhere((p) => p.id == entry.key);
+                final product = products.firstWhereOrNull((p) => p.id == entry.key);
+                if (product == null) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
@@ -237,13 +241,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     try {
       final List<SaleItem> items = [];
       _cart.forEach((productId, qty) {
-        final product = products.firstWhere((p) => p.id == productId);
-        items.add(SaleItem(
-          productId: productId,
-          productName: product.name,
-          price: product.price,
-          quantity: qty,
-        ));
+        final product = products.firstWhereOrNull((p) => p.id == productId);
+        if (product != null) {
+          items.add(SaleItem(
+            productId: productId,
+            productName: product.name,
+            price: product.price,
+            quantity: qty,
+          ));
+        }
       });
 
       await ref.read(saleProvider.notifier).recordSale(

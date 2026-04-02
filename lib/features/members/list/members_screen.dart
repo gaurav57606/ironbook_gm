@@ -23,7 +23,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
         ? allMembers 
         : allMembers.where((m) => 
             m.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-            m.phone.contains(_searchQuery)).toList();
+            (m.phone != null && m.phone!.contains(_searchQuery))).toList();
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -97,7 +97,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                 children: [
                   Text(name, style: AppTextStyles.cardTitle.copyWith(fontSize: 16)),
                   const SizedBox(height: 4),
-                  Text(member.phone, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+                  Text(member.phone ?? 'No phone', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
                 ],
               ),
             ),

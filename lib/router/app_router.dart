@@ -17,7 +17,6 @@ import '../features/members/presentation/screens/members_list_screen.dart';
 import '../features/members/presentation/screens/member_detail_screen.dart';
 import '../features/members/presentation/screens/quick_add_member_screen.dart';
 import '../features/billing/presentation/screens/pos_screen.dart';
-import '../features/attendance/presentation/screens/kiosk_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
 import '../features/settings/presentation/screens/profile_screen.dart';
 import '../features/settings/presentation/screens/security_settings_screen.dart';
@@ -27,8 +26,16 @@ import '../features/settings/presentation/screens/subscription_screen.dart';
 import '../features/settings/presentation/screens/tax_billing_screen.dart';
 import '../features/settings/presentation/screens/help_center_screen.dart';
 import '../features/settings/presentation/screens/about_screen.dart';
+import '../features/settings/presentation/screens/plan_management_screen.dart';
+import '../features/settings/presentation/screens/profile_edit_screen.dart';
 import '../features/auth/recovery/recovery_screen.dart';
 import '../features/home/presentation/widgets/main_shell.dart';
+
+// Newly Added Screens
+import '../features/analytics/presentation/screens/analytics_screen.dart';
+import '../features/nutrition/presentation/screens/nutrition_screen.dart';
+import '../features/notifications/presentation/screens/notifications_hub_screen.dart';
+import '../features/character_creation/presentation/screens/character_creation_screen.dart';
 
 import '../providers/auth_provider.dart';
 
@@ -37,6 +44,11 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
 
   return GoRouter(
     initialLocation: '/',
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(
+        child: Text('Page not found: ${state.matchedLocation}'),
+      ),
+    ),
     redirect: (context, state) {
       if (authState.isLoading) return null;
 
@@ -66,12 +78,12 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       if (onboardingDone && isOnboarding) return '/';
 
       // 3. Auth logic
-      if (!isAuth && !isLoggingIn) return '/login';
+      if (!isAuth && !isLoggingIn && !isOnboarding) return '/login';
       if (isAuth && isLoggingIn) return '/';
 
       // 4. PIN logic
       if (isAuth && onboardingDone) {
-        if (!isPinSetup && !isPinSetupPath && state.matchedLocation != '/settings') {
+        if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
           return '/setup-pin';
         }
         if (isPinSetup && !unlocked && !isPinEntryPath) {
@@ -114,6 +126,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
         path: '/recovery',
         builder: (context, state) => const RecoveryScreen(),
       ),
+      GoRoute(
+        path: '/character-creation',
+        builder: (context, state) => const CharacterCreationScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainShell(navigationShell: navigationShell);
@@ -130,20 +146,34 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/members',
+                path: '/gym',
                 builder: (context, state) => const MembersListScreen(),
                 routes: [
                   GoRoute(
-                    path: 'quick-add',
+                    path: 'add-member',
                     builder: (context, state) => const QuickAddMemberScreen(),
                   ),
                   GoRoute(
-                    path: ':id',
+                    path: 'member-details/:id',
+                    builder: (context, state) => MemberDetailScreen(
+                      memberId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'member-edit/:id',
                     builder: (context, state) => MemberDetailScreen(
                       memberId: state.pathParameters['id']!,
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/nutrition',
+                builder: (context, state) => const NutritionScreen(),
               ),
             ],
           ),
@@ -158,8 +188,16 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/attendance',
-                builder: (context, state) => const KioskScreen(),
+                path: '/analytics',
+                builder: (context, state) => const AnalyticsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/notifications',
+                builder: (context, state) => const NotificationsHubScreen(),
               ),
             ],
           ),
@@ -174,6 +212,14 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
                     builder: (context, state) => const ProfileScreen(),
                   ),
                   GoRoute(
+                    path: 'profile/owner',
+                    builder: (context, state) => const ProfileEditScreen(isGymProfile: false),
+                  ),
+                  GoRoute(
+                    path: 'profile/gym',
+                    builder: (context, state) => const ProfileEditScreen(isGymProfile: true),
+                  ),
+                  GoRoute(
                     path: 'security',
                     builder: (context, state) => const SecuritySettingsScreen(),
                   ),
@@ -184,6 +230,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
                   GoRoute(
                     path: 'gym-profile',
                     builder: (context, state) => const GymProfileScreen(),
+                  ),
+                  GoRoute(
+                    path: 'plans',
+                    builder: (context, state) => const PlanManagementScreen(),
                   ),
                   GoRoute(
                     path: 'subscription',

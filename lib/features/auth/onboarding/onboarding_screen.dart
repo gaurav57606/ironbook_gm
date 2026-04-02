@@ -96,9 +96,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         Text(
                           data.title,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: Colors.white,
                           ),
                         ),
@@ -107,11 +105,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         Text(
                           data.subtitle,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                            fontSize: 11,
-                            color: AppColors.text2,
-                            height: 1.6,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),
@@ -175,7 +169,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       },
                       child: Text(
                         'Skip',
-                        style: GoogleFonts.outfit(
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           fontSize: 10,
                           color: AppColors.text3,
                         ),

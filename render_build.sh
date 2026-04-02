@@ -22,9 +22,11 @@ flutter precache --web
 # Check Flutter version
 flutter --version
 
-# Build the web application in release mode
-# Note: Using --no-tree-shake-icons as it was used in previous sessions
 echo "Building Flutter Web..."
 flutter build web --release --no-tree-shake-icons
+
+echo "Publishing APK to distribution directory..."
+mkdir -p build/web/dist
+cp downloads/ironbook_gm_latest.apk build/web/dist/
 
 echo "Build complete. Ready to publish build/web directory."

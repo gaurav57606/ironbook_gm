@@ -63,7 +63,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
       );
 
       // Record financial transaction
-      await ref.read(paymentProvider.notifier).recordMemberPayment(
+      await ref.read(paymentsProvider.notifier).recordMemberPayment(
         memberId: memberId,
         plan: selectedPlan,
         method: payments[_selectedPayment],

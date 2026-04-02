@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local/models/domain_event_model.dart';
 import '../data/repositories/event_repository.dart';
+import '../providers/auth_provider.dart';
+import '../providers/base_providers.dart';
 
 class RecoveryService {
   final FirebaseFirestore _firestore;
@@ -65,8 +67,8 @@ class RecoveryService {
 }
 
 final recoveryServiceProvider = Provider<RecoveryService>((ref) {
-  final firestore = FirebaseFirestore.instance;
-  final auth = FirebaseAuth.instance;
+  final firestore = ref.watch(firestoreProvider);
+  final auth = ref.watch(firebaseAuthProvider)!;
   final eventRepo = ref.watch(eventRepositoryProvider);
   return RecoveryService(firestore, auth, eventRepo);
 });

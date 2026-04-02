@@ -15,7 +15,7 @@ class SyncWorker {
 
   SyncWorker(this._repo, this._recordPusher, this._currentUserId);
 
-  Future<void> sync() async {
+  Future<void> performSync() async {
     if (_isSyncing) {
       debugPrint('SyncWorker: already syncing, skipping...');
       return;
@@ -52,7 +52,7 @@ class SyncWorker {
 
   /// Starts a periodic sync timer.
   void startPeriodicSync(Duration interval) {
-    Timer.periodic(interval, (_) => sync());
+    Timer.periodic(interval, (_) => performSync());
   }
 }
 

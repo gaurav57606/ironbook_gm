@@ -72,3 +72,35 @@ android/app/src/profile/res/xml/
 **/google-services.json
 **/firebase_options.dart
 
+# IronBook Storage & Logs
+*.hive
+*.lock
+*_log.txt
+test_output.txt
+test_output_utf8.txt
+test_results.txt
+test_results_utf8.txt
+web_build_output.txt
+view.xml
+test_hive/
+build_log.txt
+build_log_utf8.txt
+status_full.txt
+status_full_utf8.txt
+findings.md
+initial_logcat.txt
+initial_screen.png
+gradle_full_retry.txt
+initial_logcat_utf8.txt
+build_error_full.txt
+retry3_log.txt
+server_log.txt
+view.xml
+test_results.txt
+test_results_utf8.txt
+test_output.txt
+test_output_utf8.txt
+web_build_output.txt
+*.hive
+*.lock
+

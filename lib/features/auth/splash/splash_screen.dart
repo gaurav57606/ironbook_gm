@@ -81,7 +81,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
+                    color: AppColors.primary.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -102,9 +102,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             RichText(
               textAlign: TextAlign.center,
               text: TextSpan(
-                style: GoogleFonts.outfit(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: AppColors.textPrimary,
                 ),
                 children: const [
@@ -119,10 +117,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             const SizedBox(height: 4),
             Text(
               'Gym Management · Solo Owner Edition',
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                color: AppColors.text2,
-              ),
+              style: Theme.of(context).textTheme.labelMedium,
             ),
             const SizedBox(height: 32),
             // Loading Spinner
@@ -158,10 +153,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 const SizedBox(height: 8),
                 Text(
                   'Loading...',
-                  style: GoogleFonts.outfit(
-                    fontSize: 10,
-                    color: AppColors.text3,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall,
                 ),
               ],
             ),

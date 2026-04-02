@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:collection/collection.dart';
 import '../data/local/models/payment_model.dart';
 import '../data/local/models/invoice_sequence.dart';
 import '../data/local/models/domain_event_model.dart';
@@ -98,18 +99,14 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   }
 
   Payment? getLatestForMember(String memberId) {
-    try {
-      return state.firstWhere((p) => p.memberId == memberId);
-    } catch (_) {
-      return null;
-    }
+    return state.firstWhereOrNull((p) => p.memberId == memberId);
   }
 }
 
 final paymentBoxProvider = Provider<Box<Payment>>((ref) => Hive.box<Payment>('payments'));
 final sequenceBoxProvider = Provider<Box<InvoiceSequence>>((ref) => Hive.box<InvoiceSequence>('invoice_sequences'));
 
-final paymentProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((ref) {
+final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((ref) {
   final paymentBox = ref.watch(paymentBoxProvider);
   final sequenceBox = ref.watch(sequenceBoxProvider);
   final eventRepo = ref.watch(eventRepositoryProvider);
@@ -117,4 +114,9 @@ final paymentProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((r
   const deviceId = 'device-billing-v1';
 
   return PaymentNotifier(paymentBox, sequenceBox, eventRepo, deviceId);
+});
+
+final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, memberId) {
+  final payments = ref.watch(paymentsProvider);
+  return payments.firstWhereOrNull((p) => p.memberId == memberId);
 });

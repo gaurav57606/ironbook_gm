@@ -22,14 +22,32 @@ class FcmService {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   static Future<void> init() async {
-    // 1. Foreground
+    // 1. Request Permissions (Required for Android 13+)
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      debugPrint('User granted notification permissions');
+      
+      // 2. Get Token for backend targeting
+      final token = await messaging.getToken();
+      debugPrint('FCM Token: $token');
+    } else {
+      debugPrint('User declined or has not yet granted notification permissions');
+    }
+
+    // 3. Foreground
     FirebaseMessaging.onMessage.listen(processKillSignal);
 
-    // 2. Background (handled by top-level function)
+    // 4. Background (handled by top-level function)
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    // 3. Terminated
-    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    // 5. Terminated
+    final initial = await messaging.getInitialMessage();
     if (initial != null) await processKillSignal(initial);
   }
 

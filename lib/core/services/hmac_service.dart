@@ -10,23 +10,21 @@ import '../../data/local/models/domain_event_model.dart';
 import '../utils/canonical_json.dart';
 
 class HmacService {
+  final FlutterSecureStorage _storage;
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
+  
   static const _keyStorageName = 'hmac_device_key';
-  static const _storage = FlutterSecureStorage();
+  
+  HmacService(this._storage, this._auth, this._firestore);
   
   static String? _testKey;
 
-  static Future<void> init() async {
+  Future<void> init() async {
     await _getOrCreateKey();
   }
-  
-  /// For unit tests only.
-  static void setKeyForTest(String key) {
-    _testKey = key;
-  }
 
-  static Future<String> _getOrCreateKey() async {
-    if (_testKey != null) return _testKey!;
-    
+  Future<String> _getOrCreateKey() async {
     var key = await _storage.read(key: _keyStorageName);
     if (key == null) {
       final bytes = List.generate(32, (_) => Random.secure().nextInt(256));
@@ -37,7 +35,7 @@ class HmacService {
     return key;
   }
 
-  static Future<String> _getInstallationId() async {
+  Future<String> _getInstallationId() async {
     const idKey = 'installation_id';
     var id = await _storage.read(key: idKey);
     if (id == null) {
@@ -47,13 +45,13 @@ class HmacService {
     return id;
   }
 
-  static Future<void> _backupKeyToFirestore(String key) async {
-    final user = FirebaseAuth.instance.currentUser;
+  Future<void> _backupKeyToFirestore(String key) async {
+    final user = _auth.currentUser;
     if (user == null) return;
     
     final installationId = await _getInstallationId(); 
     
-    await FirebaseFirestore.instance
+    await _firestore
         .collection('users')
         .doc(user.uid)
         .collection('device_keys')
@@ -65,7 +63,7 @@ class HmacService {
         });
   }
 
-  static Future<String> sign(DomainEvent event) async {
+  Future<String> sign(DomainEvent event) async {
     debugPrint('HmacService: Generating signature for event ${event.id}...');
     final keyStr = await _getOrCreateKey();
     debugPrint('HmacService: Key retrieved.');
@@ -84,18 +82,18 @@ class HmacService {
     return sig;
   }
 
-  static Future<bool> verify(DomainEvent event) async {
+  Future<bool> verify(DomainEvent event) async {
     if (event.hmacSignature.isEmpty) return false;
     final expected = await sign(event);
     return expected == event.hmacSignature;
   }
 
-  static Future<bool> restoreKeyFromFirestore(String deviceId) async {
+  Future<bool> restoreKeyFromFirestore(String deviceId) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = _auth.currentUser;
       if (user == null) return false;
       
-      final doc = await FirebaseFirestore.instance
+      final doc = await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('device_keys')

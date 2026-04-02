@@ -81,20 +81,40 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildHeader(AuthState auth) {
     return Padding(
       padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            GreetingFormatter.greeting(),
-            style: const TextStyle(fontSize: 11, color: AppColors.text2),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                GreetingFormatter.greeting(),
+                style: const TextStyle(fontSize: 11, color: AppColors.text2),
+              ),
+              Text(
+                auth.owner?.gymName ?? 'Raj\'s Fitness',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.text),
+              ),
+              Text(
+                DateFormatter.format(DateTime.now()),
+                style: const TextStyle(fontSize: 10, color: AppColors.text3),
+              ),
+            ],
           ),
-          Text(
-            auth.owner?.gymName ?? 'Raj\'s Fitness',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.text),
-          ),
-          Text(
-            DateFormatter.format(DateTime.now()),
-            style: const TextStyle(fontSize: 10, color: AppColors.text3),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.bg3,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            padding: const EdgeInsets.all(6),
+            child: Image.asset(
+              'assets/images/logo.png',
+              fit: BoxFit.contain,
+              errorBuilder: (c, e, s) => const Icon(Icons.fitness_center, size: 20, color: AppColors.orange),
+            ),
           ),
         ],
       ),
@@ -138,7 +158,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
           if (action != null)
             GestureDetector(
-              onTap: () => context.go('/members'),
+              onTap: () => context.go('/gym'),
               child: Text(
                 action,
                 style: const TextStyle(

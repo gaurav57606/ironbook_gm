@@ -4,7 +4,7 @@ import '../../../../core/constants/colors.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../sync/recovery_service.dart';
-import '../../../../sync/sync_engine.dart';
+import '../../../../data/sync_worker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 
@@ -42,7 +42,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildSettingsRow(Icons.fitness_center, 'Gym Profile',
                       auth.owner?.gymName ?? 'Raj\'s Fitness', onTap: () => context.push('/settings/gym-profile')),
                   _buildSettingsRow(Icons.layers_outlined, 'Subscription Plans',
-                      'Live Sync Active', onTap: () => context.push('/settings/subscription')),
+                      'Configure Plans', onTap: () => context.push('/settings/plans')),
                   _buildSettingsRow(
                       Icons.receipt_long_outlined, 'Tax & Billing', 'GST 18%',
                       onTap: () => context.push('/settings/tax-billing')),
@@ -55,9 +55,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     final messenger = ScaffoldMessenger.of(context);
                     messenger.showSnackBar(const SnackBar(
                         content: Text('Starting cloud sync...')));
-                    await ref.read(syncEngineProvider).pushPendingEvents();
-                    messenger.showSnackBar(
+                    await ref.read(syncWorkerProvider).performSync();
+                    if (context.mounted) {
+                      messenger.showSnackBar(
                         const SnackBar(content: Text('Sync completed.')));
+                    }
                   }),
                   _buildSettingsRow(
                       Icons.cloud_download_outlined,

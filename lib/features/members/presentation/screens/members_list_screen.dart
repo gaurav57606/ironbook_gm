@@ -49,7 +49,7 @@ class MembersListScreen extends ConsumerWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
           ),
           GestureDetector(
-             onTap: () => context.push('/quick-add'),
+             onTap: () => context.push('/gym/add-member'),
              child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -234,7 +234,7 @@ class MembersListScreen extends ConsumerWidget {
 
   Widget _buildMemberItem(BuildContext context, MemberSnapshot member, String initials, String subtitle, String status, Color color, {bool isLast = false}) {
     return GestureDetector(
-      onTap: () => context.push('/member-detail/${member.memberId}'),
+      onTap: () => context.push('/gym/member-details/${member.memberId}'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(

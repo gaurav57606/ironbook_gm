@@ -22,12 +22,12 @@ class InvoiceScreen extends ConsumerStatefulWidget {
 class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
   @override
   Widget build(BuildContext context) {
-    final payments = ref.watch(paymentProvider);
+    final payments = ref.watch(paymentsProvider);
     final memberId = widget.memberId;
     
     Payment? payment;
     if (memberId != null) {
-      payment = ref.read(paymentProvider.notifier).getLatestForMember(memberId);
+      payment = ref.read(paymentsProvider.notifier).getLatestForMember(memberId);
     } else if (payments.isNotEmpty) {
       payment = payments.first;
     }

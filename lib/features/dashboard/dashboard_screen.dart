@@ -18,7 +18,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    SyncEngine.pushPendingEvents();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncEngineProvider).pushPendingEvents();
+    });
   }
 
   @override

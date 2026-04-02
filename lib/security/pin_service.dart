@@ -4,8 +4,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../providers/base_providers.dart';
 
 class PinService {
+  final FirebaseAuth _auth;
   final FlutterSecureStorage _storage;
   static const _pinHashKey = 'pin_hash';
   static const _editPwHashKey = 'edit_pw_hash';
@@ -14,7 +16,7 @@ class PinService {
   
   final _localAuth = LocalAuthentication();
 
-  PinService(this._storage);
+  PinService(this._storage, this._auth);
 
   Future<void> savePin(String pin) async {
     final hash = sha256.convert(utf8.encode(pin)).toString();
@@ -57,7 +59,7 @@ class PinService {
         await _storage.delete(key: _pinHashKey);
         await _storage.delete(key: _failCountKey);
         await _storage.delete(key: _lockoutUntilKey);
-        await FirebaseAuth.instance.signOut();
+        await _auth.signOut();
         return false;
       }
 
@@ -106,9 +108,8 @@ class PinService {
   }
 }
 
-final secureStorageProvider = Provider<FlutterSecureStorage>((ref) => const FlutterSecureStorage());
-
 final pinServiceProvider = Provider<PinService>((ref) {
-  final storage = ref.watch(secureStorageProvider);
-  return PinService(storage);
+  final storage = ref.watch(appSecureStorageProvider);
+  final auth = ref.watch(firebaseAuthProvider)!;
+  return PinService(storage, auth);
 });
