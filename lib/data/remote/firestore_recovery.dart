@@ -33,6 +33,10 @@ class FirestoreRecovery {
     final eventBox = Hive.box<DomainEvent>('events');
     final snapshotBox = Hive.box<MemberSnapshot>('snapshots');
 
+    // Bolt Optimization: Batch Hive writes to reduce disk I/O operations and speed up data recovery.
+    // Expected Impact: Significantly reduces time taken for restore operations, especially on large datasets.
+    final Map<String, DomainEvent> eventsToBatch = {};
+
     // 3. Replay
     for (int i = 0; i < total; i++) {
       onProgress(i + 1, total);
@@ -47,9 +51,13 @@ class FirestoreRecovery {
       }
 
       event.synced = true;
-      await eventBox.put(event.id, event);
+      eventsToBatch[event.id] = event;
 
       await _applyEventToSnapshot(event, snapshotBox);
+    }
+
+    if (eventsToBatch.isNotEmpty) {
+      await eventBox.putAll(eventsToBatch);
     }
   }
 
