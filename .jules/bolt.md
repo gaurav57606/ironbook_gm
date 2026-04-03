@@ -1,0 +1,3 @@
+## 2024-05-24 - Single Pass Status Counts over `.where().length`
+**Learning:** In Dart/Flutter, repeated calls to `list.where(condition).length` and `list.where(condition).take(n).map(...)` on the same list (especially in `build` methods) result in multiple O(N) traversals of the list. This pattern was prevalent in member dashboard and list screens for calculating status counts.
+**Action:** When calculating multiple derived statistics or sub-lists based on an item's state (e.g., active, expiring, expired members), always use a single manual iteration (e.g., a `for` loop with a `switch` statement) rather than chaining multiple `.where()` filters. This guarantees a single O(N) traversal and significantly reduces CPU overhead during rendering.
