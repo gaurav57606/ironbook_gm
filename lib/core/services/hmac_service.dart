@@ -20,8 +20,24 @@ class HmacService {
   
   static String? _testKey;
 
-  Future<void> init() async {
-    await _getOrCreateKey();
+  static Future<void> init() async {
+    // We only need to ensure the key is generated if it doesn't exist
+    // However since the instance methods use `_getOrCreateKey()`,
+    // it will lazily be created anyway.
+    // For legacy compat with `main.dart` calling `HmacService.init()`,
+    // we can provide a static method that just initializes the key using
+    // default instances if necessary, but actually in this codebase
+    // it seems `main.dart` doesn't need to do anything since the
+    // DI injects it. But wait, `main.dart` is calling `HmacService.init()`.
+    // Let's implement a static init that just checks/creates the key.
+    final storage = const FlutterSecureStorage();
+    var key = await storage.read(key: _keyStorageName);
+    if (key == null) {
+      final bytes = List.generate(32, (_) => Random.secure().nextInt(256));
+      key = base64Encode(bytes);
+      await storage.write(key: _keyStorageName, value: key);
+      // Backup to firestore will happen lazily when needed
+    }
   }
 
   Future<String> _getOrCreateKey() async {
