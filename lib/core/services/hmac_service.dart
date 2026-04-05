@@ -20,6 +20,10 @@ class HmacService {
   
   static String? _testKey;
 
+  static void setKeyForTest(String key) {
+    _testKey = key;
+  }
+
   Future<void> init() async {
     await _getOrCreateKey();
   }

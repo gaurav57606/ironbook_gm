@@ -34,6 +34,8 @@ class FirestoreRecovery {
     final snapshotBox = Hive.box<MemberSnapshot>('snapshots');
 
     // 3. Replay
+    final Map<String, DomainEvent> eventsToSave = {};
+
     for (int i = 0; i < total; i++) {
       onProgress(i + 1, total);
 
@@ -47,9 +49,13 @@ class FirestoreRecovery {
       }
 
       event.synced = true;
-      await eventBox.put(event.id, event);
+      eventsToSave[event.id] = event;
 
       await _applyEventToSnapshot(event, snapshotBox);
+    }
+
+    if (eventsToSave.isNotEmpty) {
+      await eventBox.putAll(eventsToSave);
     }
   }
 
