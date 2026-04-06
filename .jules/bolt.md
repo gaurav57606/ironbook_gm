@@ -1,0 +1,3 @@
+## 2024-05-24 - Single Pass Operations
+**Learning:** Chaining multiple `.where().length` and `.take()` calls inside Riverpod `build` methods triggers O(N*K) iterations over potentially large lists of members, combined with redundant computations like `DateTime.now()` and status derivation, impacting frontend performance.
+**Action:** When calculating multiple derived values (e.g. counts for different statuses) from a single list, always use a single manual iteration (e.g. `for` loop with `switch`) instead of chaining multiple `.where()` calls. Cache expensive derivations like `DateTime.now()` outside the loop.

@@ -20,11 +20,16 @@ class HmacService {
   
   static String? _testKey;
 
+  static void setKeyForTest(String key) {
+    _testKey = key;
+  }
+
   Future<void> init() async {
     await _getOrCreateKey();
   }
 
   Future<String> _getOrCreateKey() async {
+    if (_testKey != null) return _testKey!;
     var key = await _storage.read(key: _keyStorageName);
     if (key == null) {
       final bytes = List.generate(32, (_) => Random.secure().nextInt(256));

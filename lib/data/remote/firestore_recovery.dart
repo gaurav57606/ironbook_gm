@@ -8,7 +8,11 @@ import '../local/models/join_date_change_model.dart';
 import '../../core/services/hmac_service.dart';
 
 class FirestoreRecovery {
-  static Future<void> restoreAll({
+  final HmacService hmacService;
+
+  FirestoreRecovery(this.hmacService);
+
+  Future<void> restoreAll({
     required void Function(int done, int total) onProgress,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -17,7 +21,7 @@ class FirestoreRecovery {
     // 1. Restore HMAC key
     // Note: getDeviceId should return the same ID used during backup
     final deviceId = user.uid; // Simplified for this logic
-    await HmacService.restoreKeyFromFirestore(deviceId);
+    await hmacService.restoreKeyFromFirestore(deviceId);
 
     // 2. Fetch events
     final query = await FirebaseFirestore.instance
@@ -40,7 +44,7 @@ class FirestoreRecovery {
       final data = eventsDocs[i].data();
       final event = DomainEvent.fromFirestore(data);
 
-      final isValid = await HmacService.verify(event);
+      final isValid = await hmacService.verify(event);
       if (!isValid) {
         debugPrint('HMAC mismatch on event ${event.id} — skipping');
         continue;
