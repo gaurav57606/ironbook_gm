@@ -6,12 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local/models/domain_event_model.dart';
 import '../core/services/hmac_service.dart';
 
+import '../providers/base_providers.dart';
+
 class SyncEngine {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final Box<DomainEvent> _eventBox;
+  final HmacService _hmacService;
 
-  SyncEngine(this._firestore, this._auth, this._eventBox);
+  SyncEngine(this._firestore, this._auth, this._eventBox, this._hmacService);
 
   Future<void> pushPendingEvents() async {
     final user = _auth.currentUser;
@@ -24,7 +27,7 @@ class SyncEngine {
 
     for (final event in unsynced) {
       try {
-        if (!await HmacService.verify(event)) {
+        if (!await _hmacService.verify(event)) {
           debugPrint('HMAC mismatch on event ${event.id} — not syncing');
           continue;
         }
@@ -49,6 +52,7 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
   final firestore = FirebaseFirestore.instance;
   final auth = FirebaseAuth.instance;
   final box = Hive.box<DomainEvent>('events');
-  return SyncEngine(firestore, auth, box);
+  final hmacService = ref.watch(hmacServiceProvider);
+  return SyncEngine(firestore, auth, box, hmacService);
 });
 

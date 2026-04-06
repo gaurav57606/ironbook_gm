@@ -1,13 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/utils/canonical_json.dart';
 
+class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+class MockFirebaseAuth extends Mock implements FirebaseAuth {}
+class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
+
 void main() {
   group('HMAC Security & Canonicalization', () {
     const testKey = 'dGhpcy1pcy1hLXZlcnktc2VjdXJlLTMyLWJ5dGUta2V5'; // base64 encoded test key
+    late HmacService hmacService;
 
     setUp(() {
+      final storage = MockFlutterSecureStorage();
+      final auth = MockFirebaseAuth();
+      final firestore = MockFirebaseFirestore();
+      hmacService = HmacService(storage, auth, firestore);
       HmacService.setKeyForTest(testKey);
     });
 
@@ -32,10 +45,10 @@ void main() {
         payload: {'amount': 500, 'note': 'test'},
       );
 
-      final signature = await HmacService.sign(event);
+      final signature = await hmacService.sign(event);
       event.hmacSignature = signature;
 
-      final isValid = await HmacService.verify(event);
+      final isValid = await hmacService.verify(event);
       expect(isValid, isTrue);
     });
 
@@ -49,13 +62,13 @@ void main() {
         payload: {'amount': 500},
       );
 
-      final signature = await HmacService.sign(event);
+      final signature = await hmacService.sign(event);
       event.hmacSignature = signature;
 
       // Tamper with the payload
       event.payload['amount'] = 501;
 
-      final isValid = await HmacService.verify(event);
+      final isValid = await hmacService.verify(event);
       expect(isValid, isFalse);
     });
 
@@ -69,13 +82,13 @@ void main() {
         payload: {'amount': 500},
       );
 
-      final signature = await HmacService.sign(event);
+      final signature = await hmacService.sign(event);
       event.hmacSignature = signature;
 
       // Tamper with timestamp
       event.deviceTimestamp = event.deviceTimestamp.add(const Duration(seconds: 1));
 
-      final isValid = await HmacService.verify(event);
+      final isValid = await hmacService.verify(event);
       expect(isValid, isFalse);
     });
   });

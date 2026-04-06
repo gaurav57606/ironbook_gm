@@ -2,6 +2,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:mockito/mockito.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ironbook_gm/providers/base_providers.dart';
 import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
 import 'package:ironbook_gm/providers/member_provider.dart';
 import 'package:ironbook_gm/core/utils/clock.dart';
@@ -12,9 +17,14 @@ import 'package:ironbook_gm/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/data/local/models/plan_component_model.dart';
 import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
 
+class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+class MockFirebaseAuth extends Mock implements FirebaseAuth {}
+class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
+
 void main() {
   late Directory tempDir;
   late ProviderContainer container;
+  late HmacService hmacService;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('ironbook_test');
@@ -33,9 +43,14 @@ void main() {
     }
 
     HmacService.setKeyForTest('dGhpcy1pcy1hLXZlcnktc2VjdXJlLTMyLWJ5dGUta2V5');
+    final storage = MockFlutterSecureStorage();
+    final auth = MockFirebaseAuth();
+    final firestore = MockFirebaseFirestore();
+    hmacService = HmacService(storage, auth, firestore);
 
     container = ProviderContainer(
       overrides: [
+        hmacServiceProvider.overrideWithValue(hmacService),
         clockProvider.overrideWithValue(FrozenClock(DateTime(2024, 3, 25))),
       ],
     );
@@ -94,7 +109,7 @@ void main() {
 
     // 4. Verify HMAC Integrity on Persisted Events
     for (final event in eventBox.values) {
-      final isValid = await HmacService.verify(event);
+      final isValid = await hmacService.verify(event);
       expect(isValid, isTrue, reason: 'Event ${event.eventType} should have valid HMAC');
     }
   });
