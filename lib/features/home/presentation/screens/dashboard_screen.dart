@@ -22,12 +22,28 @@ class DashboardScreen extends ConsumerWidget {
     final now = DateTime.now();
     final auth = ref.watch(authProvider);
     
-    final activeCount = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.getStatus(now) == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.getStatus(now) == MemberStatus.expired).length;
+    // ⚡ Bolt: single iteration optimization to prevent multiple O(N) passes and redundant getStatus(now) evaluations
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+    final List<String> recentExpired = [];
+    final List<String> recentExpiring = [];
+
+    for (final m in members) {
+      final status = m.getStatus(now);
+      if (status == MemberStatus.active) {
+        activeCount++;
+      } else if (status == MemberStatus.expiring) {
+        expiringCount++;
+        if (recentExpiring.length < 3) recentExpiring.add(m.name);
+      } else if (status == MemberStatus.expired) {
+        expiredCount++;
+        if (recentExpired.length < 3) recentExpired.add(m.name);
+      }
+    }
     
-    final expiredMembers = members.where((m) => m.getStatus(now) == MemberStatus.expired).take(3).map((m) => m.name).join(', ');
-    final expiringMembers = members.where((m) => m.getStatus(now) == MemberStatus.expiring).take(3).map((m) => m.name).join(', ');
+    final expiredMembers = recentExpired.join(', ');
+    final expiringMembers = recentExpiring.join(', ');
 
     return Column(
       children: [
