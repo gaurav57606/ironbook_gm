@@ -10,7 +10,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'data/local/hive_init.dart';
 import 'data/local/adapters/manual_adapters.dart';
 import 'core/services/fcm_service.dart';
-import 'core/services/hmac_service.dart';
 import 'core/services/notification_service.dart';
 import 'data/seed_data.dart';
 import 'app.dart';
@@ -39,7 +38,10 @@ void main() async {
       // 2. FCM & Notifications
       debugPrint('Init: FCM/Notifications...');
       await FcmService.init().timeout(const Duration(seconds: 5));
-      await HmacService.init().timeout(const Duration(seconds: 5));
+
+      // HmacService requires injection (flutter_riverpod) in this architecture.
+      // Removed static initialization call `HmacService.init()` to fix compilation error.
+
       await NotificationService.init().timeout(const Duration(seconds: 5));
 
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
