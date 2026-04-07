@@ -1,0 +1,3 @@
+## 2024-04-07 - Excessive O(N) operations in Build Methods
+**Learning:** Calculating derived values (like active/expiring/expired counts) from a list using multiple `.where().length` and `.take().map()` iterations inside a Flutter `build` method leads to O(K*N) complexity. Furthermore, evaluating getter methods like `getStatus()` or `.status` dynamically allocates multiple objects (e.g. `DateTime`) per iteration, which causes a combinatorial explosion of memory allocation on every render frame.
+**Action:** Always compute derived collections or aggregations in a single manual iteration (a single `for` loop) caching the result of expensive accessors once per element. Replace multiple `where` passes with a loop to significantly reduce GC pressure.
