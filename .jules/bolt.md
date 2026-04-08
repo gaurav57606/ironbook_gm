@@ -1,0 +1,3 @@
+## 2024-05-24 - Batching Hive Writes for Mass Inserts
+**Learning:** Performing multiple sequential Hive `put()` and `snap.save()` operations inside loops (e.g., in recovery/sync routines restoring thousands of items) becomes a severe disk I/O bottleneck.
+**Action:** When calculating derived state from an event stream or importing thousands of items, accumulate changes into a memory Map (`{}`) and execute `box.putAll(map)` once after the loop, which provides a massive speedup by reducing disk accesses. Furthermore, when batching, only read existing items from the database when specifically mutating them inside the loop, rather than loading the entire unedited database into memory unnecessarily.

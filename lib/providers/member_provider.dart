@@ -81,10 +81,17 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
        final events = _repo.getAllUnsynced(); // Simple check for demo/test
        // In a real prod app, we'd also check synced events if we had them locally
        if (events.isNotEmpty) {
+         // ⚡ Bolt Optimization: Batch memory writes to avoid sequential disk I/O
+         final Map<String, MemberSnapshot> batchMap = {};
          for (final event in events) {
-           final current = box.get(event.entityId);
+           final current = batchMap[event.entityId] ?? box.get(event.entityId);
            final updated = SnapshotBuilder.apply(current, event);
-           if (updated != null) await box.put(event.entityId, updated);
+           if (updated != null) {
+              batchMap[event.entityId] = updated;
+           }
+         }
+         if (batchMap.isNotEmpty) {
+           await box.putAll(batchMap);
          }
          state = box.values.toList();
        }

@@ -57,7 +57,7 @@ void main() {
       // 1. Add some events to the repo
       repo.events.add(DomainEvent(
         entityId: 'm1',
-        eventType: 'MEMBER_CREATED',
+        eventType: EventType.memberCreated.name,
         deviceId: 'd1',
         deviceTimestamp: DateTime.now(),
         payload: {'name': 'Survivor', 'joinDate': DateTime.now().toIso8601String()},
@@ -66,6 +66,9 @@ void main() {
       // 2. Initialize Notifier with empty snapshots box
       final notifier = MemberNotifier(repo, clock);
       
+      // Allow async initialisation of the state (member recovery awaits)
+      await Future.delayed(const Duration(milliseconds: 50));
+
       // 3. Verify recovery
       expect(notifier.state.length, 1);
       expect(notifier.state.first.name, 'Survivor');
