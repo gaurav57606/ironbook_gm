@@ -1,0 +1,3 @@
+## 2024-04-09 - Costly DateTime derivation inside O(n) rendering paths
+**Learning:** Calling `.where()` multiple times on a single list of objects (like `members.where((m) => m.status == ...).length`) while `m.status` internally calls `DateTime.now()` creates an O(n * filters) number of redundant, relatively expensive date instantiations and calculations.
+**Action:** When calculating multiple derived values from a single list, especially if derivations rely on time (`DateTime.now()`), always cache `DateTime.now()` beforehand and use a single iteration loop to compute all derived values simultaneously, avoiding multiple `.where()` calls.
