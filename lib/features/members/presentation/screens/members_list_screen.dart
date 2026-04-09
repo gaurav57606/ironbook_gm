@@ -128,9 +128,29 @@ class MembersListScreen extends ConsumerWidget {
     final all = ref.watch(membersProvider);
     final selectedTab = ref.watch(memberTabProvider);
     
-    final activeCount = all.where((m) => m.getStatus(DateTime.now()) == MemberStatus.active).length;
-    final expiringCount = all.where((m) => m.getStatus(DateTime.now()) == MemberStatus.expiring).length;
-    final expiredCount = all.where((m) => m.getStatus(DateTime.now()) == MemberStatus.expired).length;
+    // ⚡ Bolt Optimization: Aggregating all counts in a single O(N) loop
+    // to eliminate 3x redundant iterations and getStatus() evaluations.
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+
+    final now = DateTime.now();
+    for (final m in all) {
+      final status = m.getStatus(now);
+      switch (status) {
+        case MemberStatus.active:
+          activeCount++;
+          break;
+        case MemberStatus.expiring:
+          expiringCount++;
+          break;
+        case MemberStatus.expired:
+          expiredCount++;
+          break;
+        case MemberStatus.pending:
+          break;
+      }
+    }
 
     final tabs = [
       'All ${all.length}',
