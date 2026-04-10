@@ -25,33 +25,27 @@ class DashboardScreen extends ConsumerWidget {
     int activeCount = 0;
     int expiringCount = 0;
     int expiredCount = 0;
-    final List<String> _expiredNames = [];
-    final List<String> _expiringNames = [];
+    final List<String> expiredNames = [];
+    final List<String> expiringNames = [];
 
     // ⚡ Bolt Performance Optimization
     // Replaced multiple O(n) `.where()` iterations with a single loop.
     // Prevents redundant status evaluation and derived values calculation.
     for (final m in members) {
       final status = m.getStatus(now);
-      switch (status) {
-        case MemberStatus.active:
-          activeCount++;
-          break;
-        case MemberStatus.expiring:
-          expiringCount++;
-          if (_expiringNames.length < 3) _expiringNames.add(m.name);
-          break;
-        case MemberStatus.expired:
-          expiredCount++;
-          if (_expiredNames.length < 3) _expiredNames.add(m.name);
-          break;
-        case MemberStatus.pending:
-          break;
+      if (status == MemberStatus.active) {
+        activeCount++;
+      } else if (status == MemberStatus.expiring) {
+        expiringCount++;
+        if (expiringNames.length < 3) expiringNames.add(m.name);
+      } else if (status == MemberStatus.expired) {
+        expiredCount++;
+        if (expiredNames.length < 3) expiredNames.add(m.name);
       }
     }
     
-    final expiredMembers = _expiredNames.join(', ');
-    final expiringMembers = _expiringNames.join(', ');
+    final expiredMembers = expiredNames.join(', ');
+    final expiringMembers = expiringNames.join(', ');
 
     return Column(
       children: [
