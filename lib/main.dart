@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 // Background worker logic moved to dedicated file for mobile-only use
@@ -39,7 +42,13 @@ void main() async {
       // 2. FCM & Notifications
       debugPrint('Init: FCM/Notifications...');
       await FcmService.init().timeout(const Duration(seconds: 5));
-      await HmacService.init().timeout(const Duration(seconds: 5));
+      // Temporarily init HmacService to generate device keys early.
+      final tempHmac = HmacService(
+        const FlutterSecureStorage(),
+        FirebaseAuth.instance,
+        FirebaseFirestore.instance,
+      );
+      await tempHmac.init().timeout(const Duration(seconds: 5));
       await NotificationService.init().timeout(const Duration(seconds: 5));
 
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

@@ -26,25 +26,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
-
-    // ⚡ Bolt Performance Optimization
-    // Cache DateTime.now() and use a single loop to avoid multiple iterations
-    // and redundant time calculations inside the m.status getter.
-    final now = DateTime.now();
-    int activeCount = 0;
-    int expiringCount = 0;
-    int expiredCount = 0;
-
-    for (final m in members) {
-      final status = m.getStatus(now);
-      if (status == MemberStatus.active) {
-        activeCount++;
-      } else if (status == MemberStatus.expiring) {
-        expiringCount++;
-      } else if (status == MemberStatus.expired) {
-        expiredCount++;
-      }
-    }
+    final activeCount = members.where((m) => m.status == MemberStatus.active).length;
+    final expiringCount = members.where((m) => m.status == MemberStatus.expiring).length;
+    final expiredCount = members.where((m) => m.status == MemberStatus.expired).length;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
