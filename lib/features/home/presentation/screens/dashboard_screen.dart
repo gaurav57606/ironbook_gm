@@ -22,12 +22,28 @@ class DashboardScreen extends ConsumerWidget {
     final now = DateTime.now();
     final auth = ref.watch(authProvider);
     
-    final activeCount = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.getStatus(now) == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.getStatus(now) == MemberStatus.expired).length;
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
     
-    final expiredMembers = members.where((m) => m.getStatus(now) == MemberStatus.expired).take(3).map((m) => m.name).join(', ');
-    final expiringMembers = members.where((m) => m.getStatus(now) == MemberStatus.expiring).take(3).map((m) => m.name).join(', ');
+    final List<String> expiredList = [];
+    final List<String> expiringList = [];
+
+    for (final m in members) {
+      final status = m.getStatus(now);
+      if (status == MemberStatus.active) {
+        activeCount++;
+      } else if (status == MemberStatus.expiring) {
+        expiringCount++;
+        if (expiringList.length < 3) expiringList.add(m.name);
+      } else if (status == MemberStatus.expired) {
+        expiredCount++;
+        if (expiredList.length < 3) expiredList.add(m.name);
+      }
+    }
+
+    final expiredMembers = expiredList.join(', ');
+    final expiringMembers = expiringList.join(', ');
 
     return Column(
       children: [
