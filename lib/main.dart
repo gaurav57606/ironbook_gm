@@ -39,7 +39,7 @@ void main() async {
       // 2. FCM & Notifications
       debugPrint('Init: FCM/Notifications...');
       await FcmService.init().timeout(const Duration(seconds: 5));
-      await HmacService.init().timeout(const Duration(seconds: 5));
+      // HmacService must be initialized via Riverpod Provider later
       await NotificationService.init().timeout(const Duration(seconds: 5));
 
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
