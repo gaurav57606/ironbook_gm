@@ -1,0 +1,3 @@
+## 2024-04-12 - Single-Pass Iteration for Derived Counts
+**Learning:** In Dart/Flutter, using multiple `list.where(condition).length` or `list.where(condition).take(N)` calls to calculate several derived metrics (e.g. active, expiring, expired member counts) triggers multiple O(N) traversals of the same list. Furthermore, calling expensive methods like `DateTime.now()` inside the closure makes it O(N * M) or highly repetitive.
+**Action:** Always replace chained/multiple `where().length` list traversals with a single `for` loop (single-pass O(N)), caching expensive operations like `DateTime.now()` outside the loop, and using `switch` statements to increment manual counters.
