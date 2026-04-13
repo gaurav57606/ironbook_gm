@@ -46,11 +46,14 @@ class MembersListScreen extends ConsumerWidget {
         children: [
           const Text(
             'Members',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text),
           ),
           GestureDetector(
-             onTap: () => context.push('/gym/add-member'),
-             child: Container(
+            onTap: () => context.push('/gym/add-member'),
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.orange,
@@ -60,7 +63,11 @@ class MembersListScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.add, size: 14, color: Colors.white),
                   SizedBox(width: 4),
-                  Text('Add', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                  Text('Add',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white)),
                 ],
               ),
             ),
@@ -83,12 +90,14 @@ class MembersListScreen extends ConsumerWidget {
               border: Border.all(color: AppColors.border),
             ),
             child: TextField(
-              onChanged: (value) => ref.read(memberSearchQueryProvider.notifier).state = value,
+              onChanged: (value) =>
+                  ref.read(memberSearchQueryProvider.notifier).state = value,
               style: const TextStyle(fontSize: 11, color: AppColors.text),
               decoration: const InputDecoration(
                 hintText: 'Search name or phone...',
                 hintStyle: TextStyle(fontSize: 11, color: AppColors.text3),
-                prefixIcon: Icon(Icons.search, size: 14, color: AppColors.text3),
+                prefixIcon:
+                    Icon(Icons.search, size: 14, color: AppColors.text3),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(vertical: 10),
               ),
@@ -100,7 +109,8 @@ class MembersListScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Row(
             children: [
-              const Text('Sort by', style: TextStyle(fontSize: 9, color: AppColors.text2)),
+              const Text('Sort by',
+                  style: TextStyle(fontSize: 9, color: AppColors.text2)),
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -111,9 +121,11 @@ class MembersListScreen extends ConsumerWidget {
                 ),
                 child: const Row(
                   children: [
-                    Text('Expiry (soonest)', style: TextStyle(fontSize: 9, color: AppColors.text)),
+                    Text('Expiry (soonest)',
+                        style: TextStyle(fontSize: 9, color: AppColors.text)),
                     SizedBox(width: 4),
-                    Icon(Icons.arrow_drop_down, size: 14, color: AppColors.text),
+                    Icon(Icons.arrow_drop_down,
+                        size: 14, color: AppColors.text),
                   ],
                 ),
               ),
@@ -127,10 +139,28 @@ class MembersListScreen extends ConsumerWidget {
   Widget _buildPillTabs(WidgetRef ref) {
     final all = ref.watch(membersProvider);
     final selectedTab = ref.watch(memberTabProvider);
-    
-    final activeCount = all.where((m) => m.getStatus(DateTime.now()) == MemberStatus.active).length;
-    final expiringCount = all.where((m) => m.getStatus(DateTime.now()) == MemberStatus.expiring).length;
-    final expiredCount = all.where((m) => m.getStatus(DateTime.now()) == MemberStatus.expired).length;
+    final now = DateTime.now();
+
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+
+    // Single pass to calculate all status metrics, avoiding multiple O(N) traversals
+    for (final m in all) {
+      switch (m.getStatus(now)) {
+        case MemberStatus.active:
+          activeCount++;
+          break;
+        case MemberStatus.expiring:
+          expiringCount++;
+          break;
+        case MemberStatus.expired:
+          expiredCount++;
+          break;
+        case MemberStatus.pending:
+          break;
+      }
+    }
 
     final tabs = [
       'All ${all.length}',
@@ -138,7 +168,7 @@ class MembersListScreen extends ConsumerWidget {
       'Expiring $expiringCount',
       'Expired $expiredCount'
     ];
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.all(2),
@@ -176,12 +206,14 @@ class MembersListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMemberListContainer(BuildContext context, List<MemberSnapshot> members) {
+  Widget _buildMemberListContainer(
+      BuildContext context, List<MemberSnapshot> members) {
     if (members.isEmpty) {
       return Container(
         height: 200,
         alignment: Alignment.center,
-        child: const Text('No members found', style: TextStyle(color: AppColors.text3)),
+        child: const Text('No members found',
+            style: TextStyle(color: AppColors.text3)),
       );
     }
 
@@ -196,7 +228,7 @@ class MembersListScreen extends ConsumerWidget {
           final m = members[index];
           final statusMsg = _getStatusMessage(m);
           final statusColor = _getStatusColor(m);
-          
+
           return _buildMemberItem(
             context,
             m,
@@ -223,22 +255,30 @@ class MembersListScreen extends ConsumerWidget {
   Color _getStatusColor(MemberSnapshot m) {
     final status = m.getStatus(DateTime.now());
     switch (status) {
-      case MemberStatus.active: return AppColors.green;
-      case MemberStatus.expiring: return AppColors.amber;
-      case MemberStatus.expired: return AppColors.red;
-      case MemberStatus.pending: return AppColors.text3;
+      case MemberStatus.active:
+        return AppColors.green;
+      case MemberStatus.expiring:
+        return AppColors.amber;
+      case MemberStatus.expired:
+        return AppColors.red;
+      case MemberStatus.pending:
+        return AppColors.text3;
     }
   }
 
   String _formatDate(DateTime d) => DateFormatter.formatShort(d);
 
-  Widget _buildMemberItem(BuildContext context, MemberSnapshot member, String initials, String subtitle, String status, Color color, {bool isLast = false}) {
+  Widget _buildMemberItem(BuildContext context, MemberSnapshot member,
+      String initials, String subtitle, String status, Color color,
+      {bool isLast = false}) {
     return GestureDetector(
       onTap: () => context.push('/gym/member-details/${member.memberId}'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.border)),
+          border: isLast
+              ? null
+              : const Border(bottom: BorderSide(color: AppColors.border)),
         ),
         child: Row(
           children: [
@@ -246,13 +286,14 @@ class MembersListScreen extends ConsumerWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(9),
               ),
               alignment: Alignment.center,
               child: Text(
                 initials,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: color),
               ),
             ),
             const SizedBox(width: 8),
@@ -260,9 +301,15 @@ class MembersListScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(member.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
+                  Text(member.name,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text)),
                   const SizedBox(height: 1),
-                  Text(subtitle, style: const TextStyle(fontSize: 9, color: AppColors.text2)),
+                  Text(subtitle,
+                      style:
+                          const TextStyle(fontSize: 9, color: AppColors.text2)),
                 ],
               ),
             ),
@@ -274,11 +321,16 @@ class MembersListScreen extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Container(width: 4, height: 4, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                  Container(
+                      width: 4,
+                      height: 4,
+                      decoration:
+                          BoxDecoration(color: color, shape: BoxShape.circle)),
                   const SizedBox(width: 4),
                   Text(
                     status,
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color),
+                    style: TextStyle(
+                        fontSize: 9, fontWeight: FontWeight.w600, color: color),
                   ),
                 ],
               ),
