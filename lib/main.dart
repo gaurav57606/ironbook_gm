@@ -39,7 +39,7 @@ void main() async {
       // 2. FCM & Notifications
       debugPrint('Init: FCM/Notifications...');
       await FcmService.init().timeout(const Duration(seconds: 5));
-      await HmacService.init().timeout(const Duration(seconds: 5));
+      // Removing HmacService.init() as it requires an injected instance now.
       await NotificationService.init().timeout(const Duration(seconds: 5));
 
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
