@@ -21,13 +21,35 @@ class DashboardScreen extends ConsumerWidget {
     final members = ref.watch(membersProvider);
     final now = DateTime.now();
     final auth = ref.watch(authProvider);
-    
-    final activeCount = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.getStatus(now) == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.getStatus(now) == MemberStatus.expired).length;
-    
-    final expiredMembers = members.where((m) => m.getStatus(now) == MemberStatus.expired).take(3).map((m) => m.name).join(', ');
-    final expiringMembers = members.where((m) => m.getStatus(now) == MemberStatus.expiring).take(3).map((m) => m.name).join(', ');
+
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+    final expiredNames = <String>[];
+    final expiringNames = <String>[];
+
+    // Performance Optimization: Calculate derived statuses in a single pass
+    for (final m in members) {
+      final status = m.getStatus(now);
+      switch (status) {
+        case MemberStatus.active:
+          activeCount++;
+          break;
+        case MemberStatus.expiring:
+          expiringCount++;
+          if (expiringNames.length < 3) expiringNames.add(m.name);
+          break;
+        case MemberStatus.expired:
+          expiredCount++;
+          if (expiredNames.length < 3) expiredNames.add(m.name);
+          break;
+        case MemberStatus.pending:
+          break;
+      }
+    }
+
+    final expiredMembers = expiredNames.join(', ');
+    final expiringMembers = expiringNames.join(', ');
 
     return Column(
       children: [
@@ -43,7 +65,12 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(auth),
-                  _buildStatsGrid(members.length, activeCount, expiringCount, expiredCount),
+                  _buildStatsGrid(
+                    members.length,
+                    activeCount,
+                    expiringCount,
+                    expiredCount,
+                  ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: MemberHealthDonut(
@@ -56,13 +83,15 @@ class DashboardScreen extends ConsumerWidget {
                   if (expiredCount > 0)
                     AlertBanner(
                       title: '$expiredCount memberships expired',
-                      subtitle: '$expiredMembers${expiredCount > 3 ? " +${expiredCount - 3}" : ""}',
+                      subtitle:
+                          '$expiredMembers${expiredCount > 3 ? " +${expiredCount - 3}" : ""}',
                       isError: true,
                     ),
                   if (expiringCount > 0)
                     AlertBanner(
                       title: '$expiringCount expiring in 7 days',
-                      subtitle: '$expiringMembers${expiringCount > 3 ? " +${expiringCount - 3}" : ""}',
+                      subtitle:
+                          '$expiringMembers${expiringCount > 3 ? " +${expiringCount - 3}" : ""}',
                       isError: false,
                     ),
                   _buildSectionHeader(context, 'Due Today', 'See all'),
@@ -93,7 +122,11 @@ class DashboardScreen extends ConsumerWidget {
               ),
               Text(
                 auth.owner?.gymName ?? 'Raj\'s Fitness',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.text),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
               ),
               Text(
                 DateFormatter.format(DateTime.now()),
@@ -113,7 +146,11 @@ class DashboardScreen extends ConsumerWidget {
             child: Image.asset(
               'assets/images/logo.png',
               fit: BoxFit.contain,
-              errorBuilder: (c, e, s) => const Icon(Icons.fitness_center, size: 20, color: AppColors.orange),
+              errorBuilder: (c, e, s) => const Icon(
+                Icons.fitness_center,
+                size: 20,
+                color: AppColors.orange,
+              ),
             ),
           ),
         ],
@@ -132,16 +169,36 @@ class DashboardScreen extends ConsumerWidget {
         crossAxisSpacing: 8,
         childAspectRatio: 1.8,
         children: [
-          StatsCard(value: total.toString(), label: 'Total Members', isPrimary: true),
-          StatsCard(value: active.toString(), label: 'Active', valueColor: AppColors.green),
-          StatsCard(value: expiring.toString(), label: 'Expiring Soon', valueColor: AppColors.amber),
-          StatsCard(value: expired.toString(), label: 'Expired', valueColor: AppColors.red),
+          StatsCard(
+            value: total.toString(),
+            label: 'Total Members',
+            isPrimary: true,
+          ),
+          StatsCard(
+            value: active.toString(),
+            label: 'Active',
+            valueColor: AppColors.green,
+          ),
+          StatsCard(
+            value: expiring.toString(),
+            label: 'Expiring Soon',
+            valueColor: AppColors.amber,
+          ),
+          StatsCard(
+            value: expired.toString(),
+            label: 'Expired',
+            valueColor: AppColors.red,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title, String? action) {
+  Widget _buildSectionHeader(
+    BuildContext context,
+    String title,
+    String? action,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
@@ -183,7 +240,10 @@ class DashboardScreen extends ConsumerWidget {
       return Container(
         height: 60,
         alignment: Alignment.center,
-        child: const Text('Nothing due today', style: TextStyle(fontSize: 10, color: AppColors.text3)),
+        child: const Text(
+          'Nothing due today',
+          style: TextStyle(fontSize: 10, color: AppColors.text3),
+        ),
       );
     }
 
@@ -199,12 +259,19 @@ class DashboardScreen extends ConsumerWidget {
           final m = due[index];
           final days = m.getDaysRemaining(now);
           final status = m.getStatus(now);
-          final color = status == MemberStatus.expired ? AppColors.red : (status == MemberStatus.expiring ? AppColors.amber : AppColors.green);
+          final color = status == MemberStatus.expired
+              ? AppColors.red
+              : (status == MemberStatus.expiring
+                    ? AppColors.amber
+                    : AppColors.green);
 
           return MemberRow(
             name: m.name,
-            initials: m.name.isNotEmpty ? m.name.substring(0, 1).toUpperCase() : '?',
-            subtitle: '${m.planName ?? "N/A"} · ${CurrencyFormatter.format(m.totalPaid.toDouble())}',
+            initials: m.name.isNotEmpty
+                ? m.name.substring(0, 1).toUpperCase()
+                : '?',
+            subtitle:
+                '${m.planName ?? "N/A"} · ${CurrencyFormatter.format(m.totalPaid.toDouble())}',
             daysLeft: days.toString(),
             statusColor: color,
           );
@@ -215,7 +282,7 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildRevenueCard(List<MemberSnapshot> members) {
     final totalRevenue = members.fold<int>(0, (sum, m) => sum + m.totalPaid);
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.all(12),
@@ -241,7 +308,9 @@ class DashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                CurrencyFormatter.format(totalRevenue / 100.0), // Assuming totalPaid is in paise
+                CurrencyFormatter.format(
+                  totalRevenue / 100.0,
+                ), // Assuming totalPaid is in paise
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -251,10 +320,7 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 2),
               const Text(
                 '↑ 12% vs last month',
-                style: TextStyle(
-                  fontSize: 9,
-                  color: AppColors.green,
-                ),
+                style: TextStyle(fontSize: 9, color: AppColors.green),
               ),
             ],
           ),
