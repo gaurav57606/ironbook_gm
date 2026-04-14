@@ -1,0 +1,3 @@
+## 2024-04-14 - Hive Batch Writes
+**Learning:** For local Hive database operations (e.g., in `FirestoreRecovery`), sequential `.put()` and `.save()` operations inside loops can cause significant performance overhead due to repeated disk I/O.
+**Action:** Always accumulate records into memory Maps (`eventsToSave`, `snapshotsToSave`) and use `.putAll()` outside the loop. When accumulating, only fetch existing items from Hive if you need to mutate them to avoid loading the entire box into memory. Also, use `.where(...).firstOrNull` instead of `.firstWhere` to avoid throwing and catching exceptions on miss.

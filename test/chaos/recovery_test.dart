@@ -57,7 +57,7 @@ void main() {
       // 1. Add some events to the repo
       repo.events.add(DomainEvent(
         entityId: 'm1',
-        eventType: 'MEMBER_CREATED',
+        eventType: EventType.memberCreated.name,
         deviceId: 'd1',
         deviceTimestamp: DateTime.now(),
         payload: {'name': 'Survivor', 'joinDate': DateTime.now().toIso8601String()},
@@ -67,6 +67,8 @@ void main() {
       final notifier = MemberNotifier(repo, clock);
       
       // 3. Verify recovery
+      await Future.delayed(Duration(milliseconds: 100)); // wait for checkAndRecover to finish
+
       expect(notifier.state.length, 1);
       expect(notifier.state.first.name, 'Survivor');
       
