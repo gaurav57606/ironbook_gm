@@ -26,9 +26,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
-    final activeCount = members.where((m) => m.status == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.status == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.status == MemberStatus.expired).length;
+
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+
+    // Performance Optimization: Calculate derived statuses in a single pass
+    for (final m in members) {
+      switch (m.status) {
+        case MemberStatus.active:
+          activeCount++;
+          break;
+        case MemberStatus.expiring:
+          expiringCount++;
+          break;
+        case MemberStatus.expired:
+          expiredCount++;
+          break;
+        case MemberStatus.pending:
+          break;
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -46,13 +64,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Text('Recent Members', style: AppTextStyles.cardTitle),
                   const SizedBox(height: 16),
                   if (members.isEmpty)
-                    Center(child: Padding(
-                      padding: const EdgeInsets.all(40.0),
-                      child: Text('No members yet.', style: AppTextStyles.bodySmall),
-                    ))
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40.0),
+                        child: Text(
+                          'No members yet.',
+                          style: AppTextStyles.bodySmall,
+                        ),
+                      ),
+                    )
                   else
-                    ...members.take(10).map((m) => _buildMemberCard(context, m)),
-                  const SizedBox(height: 80), 
+                    ...members
+                        .take(10)
+                        .map((m) => _buildMemberCard(context, m)),
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
@@ -63,7 +88,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         onPressed: () => context.push('/add'),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: Text('Quick Add', style: AppTextStyles.label.copyWith(color: Colors.white)),
+        label: Text(
+          'Quick Add',
+          style: AppTextStyles.label.copyWith(color: Colors.white),
+        ),
       ),
     );
   }
@@ -75,7 +103,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-        title: Text('IRONBOOK GM', style: AppTextStyles.cardTitle.copyWith(fontSize: 18, letterSpacing: 1.2)),
+        title: Text(
+          'IRONBOOK GM',
+          style: AppTextStyles.cardTitle.copyWith(
+            fontSize: 18,
+            letterSpacing: 1.2,
+          ),
+        ),
         background: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -120,9 +154,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: AppTextStyles.heroNumber.copyWith(color: color, fontSize: 28)),
+            Text(
+              value,
+              style: AppTextStyles.heroNumber.copyWith(
+                color: color,
+                fontSize: 28,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(label, style: AppTextStyles.label.copyWith(fontSize: 10, color: AppColors.textMuted)),
+            Text(
+              label,
+              style: AppTextStyles.label.copyWith(
+                fontSize: 10,
+                color: AppColors.textMuted,
+              ),
+            ),
           ],
         ),
       ),
@@ -130,15 +176,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildMemberCard(BuildContext context, MemberSnapshot member) {
-    final statusColor = member.status == MemberStatus.active 
-        ? AppColors.active 
-        : (member.status == MemberStatus.expiring ? AppColors.expiring : AppColors.expired);
-    
+    final statusColor = member.status == MemberStatus.active
+        ? AppColors.active
+        : (member.status == MemberStatus.expiring
+              ? AppColors.expiring
+              : AppColors.expired);
+
     final statusText = member.status == MemberStatus.active
         ? 'Active'
-        : (member.status == MemberStatus.expiring 
-            ? 'Expiring in ${member.daysRemaining} days' 
-            : 'Expired ${member.daysRemaining.abs()} days ago');
+        : (member.status == MemberStatus.expiring
+              ? 'Expiring in ${member.daysRemaining} days'
+              : 'Expired ${member.daysRemaining.abs()} days ago');
 
     return InkWell(
       onTap: () => context.push('/members/${member.memberId}'),
@@ -160,16 +208,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 color: AppColors.bg3,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.person_outline, color: AppColors.textMuted),
+              child: const Icon(
+                Icons.person_outline,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(member.name, style: AppTextStyles.cardTitle.copyWith(fontSize: 16)),
+                  Text(
+                    member.name,
+                    style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+                  ),
                   const SizedBox(height: 4),
-                  Text(statusText, style: AppTextStyles.bodySmall.copyWith(color: statusColor, fontWeight: FontWeight.w600)),
+                  Text(
+                    statusText,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
