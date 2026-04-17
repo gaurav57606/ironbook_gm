@@ -54,7 +54,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return StatusBarWrapper(
       showHeader: false,
       child: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: AppColors.backgroundGradient,
         ),
         child: Scaffold(
@@ -65,101 +65,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'IG',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Welcome Back',
-                    style: AppTextStyles.h1.copyWith(fontSize: 28),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Log in to your gym account',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.textSecondary,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                  _buildHeader(),
                   const SizedBox(height: 48),
-                  AppTextField(
-                    label: 'Email Address',
-                    hint: 'raj@rajsfitness.com',
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 8),
-                  AppTextField(
-                    label: 'Password',
-                    hint: '••••••••',
-                    controller: _passwordController,
-                    isPassword: true,
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => context.push('/forgot-password'),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: Text(
-                        'Forgot password?',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  AppButton(
-                    text: _isLoading ? 'Logging In...' : 'Log In',
-                    onPressed: _isLoading ? null : _handleLogin,
-                  ),
-                  const SizedBox(height: 24),
-                  GestureDetector(
-                    onTap: () => context.go('/signup'),
-                    child: RichText(
-                      text: TextSpan(
-                        style: AppTextStyles.body.copyWith(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                        children: [
-                          const TextSpan(text: 'New here? '),
-                          TextSpan(
-                            text: 'Create an account',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _buildLoginForm(context),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -167,6 +75,114 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: const Text(
+            'IG',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -1,
+            ),
+          ),
+        ),
+        const SizedBox(height: 32),
+        Text(
+          'Welcome Back',
+          style: AppTextStyles.h1.copyWith(fontSize: 28),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Log in to your gym account',
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.textSecondary,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginForm(BuildContext context) {
+    return Column(
+      children: [
+        AppTextField(
+          label: 'Email Address',
+          hint: 'raj@rajsfitness.com',
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 8),
+        AppTextField(
+          label: 'Password',
+          hint: '••••••••',
+          controller: _passwordController,
+          isPassword: true,
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => context.push('/forgot-password'),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+            ),
+            child: Text(
+              'Forgot password?',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        AppButton(
+          text: _isLoading ? 'Logging In...' : 'Log In',
+          onPressed: _isLoading ? null : _handleLogin,
+        ),
+        const SizedBox(height: 24),
+        GestureDetector(
+          onTap: () => context.go('/signup'),
+          child: RichText(
+            text: TextSpan(
+              style: AppTextStyles.body.copyWith(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+              children: const [
+                TextSpan(text: 'New here? '),
+                TextSpan(
+                  text: 'Create an account',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
