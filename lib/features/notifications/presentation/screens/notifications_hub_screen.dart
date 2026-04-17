@@ -26,84 +26,99 @@ class NotificationsHubScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Notifications',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text('Mark all as read', style: TextStyle(color: AppColors.orange, fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildCategoryChip('All', true),
-                        _buildCategoryChip('Payments', false),
-                        _buildCategoryChip('System', false),
-                        _buildCategoryChip('Reminders', false),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildHeader(),
+                _buildCategoryFilter(),
                 const SizedBox(height: 16),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    children: [
-                      _buildNotificationItem(
-                        'Payment Successful',
-                        'Premium membership for John Doe renewed.',
-                        '2m ago',
-                        Icons.check_circle_rounded,
-                        Colors.green,
-                        true,
-                      ),
-                      _buildNotificationItem(
-                        'New Member Alert',
-                        'Sarah Jenkins joined with Elite Coaching plan.',
-                        '1h ago',
-                        Icons.person_add_rounded,
-                        AppColors.orange,
-                        true,
-                      ),
-                      _buildNotificationItem(
-                        'System Update',
-                        'Analytics engine updated for better insights.',
-                        '5h ago',
-                        Icons.system_update_rounded,
-                        Colors.blue,
-                        false,
-                      ),
-                      _buildNotificationItem(
-                        'Plan Expiry',
-                        'Mike Ross plan expires in 3 days.',
-                        '1d ago',
-                        Icons.warning_amber_rounded,
-                        Colors.amber,
-                        false,
-                      ),
-                    ],
-                  ),
-                ),
+                _buildNotificationsList(),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Notifications',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          TextButton(
+            onPressed: () {},
+            child: const Text(
+              'Mark all as read',
+              style: TextStyle(color: AppColors.orange, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryFilter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildCategoryChip('All', true),
+            _buildCategoryChip('Payments', false),
+            _buildCategoryChip('System', false),
+            _buildCategoryChip('Reminders', false),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationsList() {
+    return Expanded(
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        children: [
+          _buildNotificationItem(
+            'Payment Successful',
+            'Premium membership for John Doe renewed.',
+            '2m ago',
+            Icons.check_circle_rounded,
+            Colors.green,
+            true,
+          ),
+          _buildNotificationItem(
+            'New Member Alert',
+            'Sarah Jenkins joined with Elite Coaching plan.',
+            '1h ago',
+            Icons.person_add_rounded,
+            AppColors.orange,
+            true,
+          ),
+          _buildNotificationItem(
+            'System Update',
+            'Analytics engine updated for better insights.',
+            '5h ago',
+            Icons.system_update_rounded,
+            Colors.blue,
+            false,
+          ),
+          _buildNotificationItem(
+            'Plan Expiry',
+            'Mike Ross plan expires in 3 days.',
+            '1d ago',
+            Icons.warning_amber_rounded,
+            Colors.amber,
+            false,
+          ),
+        ],
       ),
     );
   }
@@ -115,7 +130,8 @@ class NotificationsHubScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: active ? AppColors.orange : AppColors.bg2,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: active ? Colors.transparent : AppColors.border),
+        border:
+            Border.all(color: active ? Colors.transparent : AppColors.border),
       ),
       child: Text(
         label,
@@ -128,14 +144,16 @@ class NotificationsHubScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNotificationItem(String title, String desc, String time, IconData icon, Color color, bool unread) {
+  Widget _buildNotificationItem(String title, String desc, String time,
+      IconData icon, Color color, bool unread) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.bg2,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: unread ? color.withValues(alpha: 0.3) : AppColors.border),
+        border: Border.all(
+            color: unread ? color.withValues(alpha: 0.3) : AppColors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,8 +174,14 @@ class NotificationsHubScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                    Text(time, style: const TextStyle(color: AppColors.text3, fontSize: 10)),
+                    Text(title,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold)),
+                    Text(time,
+                        style: const TextStyle(
+                            color: AppColors.text3, fontSize: 10)),
                   ],
                 ),
                 const SizedBox(height: 4),
