@@ -20,37 +20,56 @@ class HiveEventRepository implements IEventRepository {
   final LazyBox<DomainEvent> _box;
   final EventBus _eventBus;
   final HmacService _hmacService;
-  
+
   // Audit 6.2: In-memory index for performance (IDs only)
   final Set<String> _unsyncedIds = {};
+  final Map<String, List<String>> _entityIndex = {};
+  bool _isIndexLoaded = false;
+  Future<void>? _loadingIndex;
 
   HiveEventRepository(this._box, this._eventBus, this._hmacService) {
-    // We can't iterate values of LazyBox in constructor sync, 
+    // We can't iterate values of LazyBox in constructor sync,
     // but we can schedule a microtask or just rely on persist/markSynced
   }
 
-  // Helper to load unsynced index asynchronously
+  // Helper to load indexes asynchronously
   Future<void> ensureIndexLoaded() async {
-    if (_unsyncedIds.isNotEmpty) return;
+    if (_isIndexLoaded) return;
+    if (_loadingIndex != null) return _loadingIndex;
+
+    _loadingIndex = _loadIndex();
+    return _loadingIndex;
+  }
+
+  Future<void> _loadIndex() async {
+    _unsyncedIds.clear();
+    _entityIndex.clear();
     for (final key in _box.keys) {
       final event = await _box.get(key);
-      if (event != null && !event.synced) {
-        _unsyncedIds.add(event.id);
+      if (event != null) {
+        if (!event.synced) {
+          _unsyncedIds.add(event.id);
+        }
+        _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
       }
     }
+    _isIndexLoaded = true;
+    _loadingIndex = null;
   }
 
   @override
   Future<void> persist(DomainEvent event) async {
-    debugPrint('HiveEventRepository: Persisting event ${event.eventType} (ID: ${event.id})...');
+    debugPrint(
+        'HiveEventRepository: Persisting event ${event.eventType} (ID: ${event.id})...');
     // 1. Sign the event (Security Enforcement)
     event.hmacSignature = await _hmacService.signEvent(event);
     debugPrint('HiveEventRepository: HMAC generated.');
-    
+
     // 2. Write-Ahead Log (WAL)
     _unsyncedIds.add(event.id);
+    _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
     await _box.put(event.id, event);
-    
+
     // 3. Dispatch to internal bus for Snapshot rebuilding
     _eventBus.publish(event);
     debugPrint('HiveEventRepository: Event persisted: ${event.eventType}');
@@ -82,10 +101,12 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getByEntityId(String entityId) async {
+    await ensureIndexLoaded();
+    final eventIds = _entityIndex[entityId] ?? [];
     final List<DomainEvent> results = [];
-    for (final key in _box.keys) {
-      final e = await _box.get(key);
-      if (e?.entityId == entityId) results.add(e!);
+    for (final id in eventIds) {
+      final e = await _box.get(id);
+      if (e != null) results.add(e);
     }
     return results;
   }
