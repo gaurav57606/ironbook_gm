@@ -3,12 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 // Background worker logic moved to dedicated file for mobile-only use
 
 import 'data/local/hive_init.dart';
-import 'data/local/adapters/manual_adapters.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/hmac_service.dart';
 import 'core/services/notification_service.dart';
@@ -109,10 +107,4 @@ void main() async {
     runApp(MaterialApp(
         home: Scaffold(body: Center(child: Text('Init Error: $e')))));
   }
-}
-
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  FcmService.processKillSignal(message);
 }
