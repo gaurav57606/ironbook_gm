@@ -227,7 +227,7 @@ class NotificationsSettingsScreen extends ConsumerWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: AppColors.primary,
+            activeColor: AppColors.primary,
             activeTrackColor: AppColors.primary.withValues(alpha: 0.2),
             inactiveThumbColor: AppColors.textMuted,
             inactiveTrackColor: AppColors.border,
