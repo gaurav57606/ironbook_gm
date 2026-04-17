@@ -1,0 +1,10 @@
+Summary of changes in lib/features/settings/presentation/screens/settings_screen.dart:
+- Refactored the long `build` method by extracting logical settings groups into helper methods:
+  - `_buildAccountGroup`
+  - `_buildGymSettingsGroup`
+  - `_buildDataSyncGroup`
+  - `_buildSupportGroup`
+  - `_buildLogoutButton`
+- Improved readability and maintainability by reducing the complexity of the main build method.
+- Passed `BuildContext` to extracted methods where necessary to ensure `context.push` and `context.go` work correctly.
+- Maintained all existing functionality, including sync logic and the logout confirmation dialog.

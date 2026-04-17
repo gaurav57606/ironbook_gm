@@ -10,7 +10,6 @@ import '../../../../providers/member_provider.dart';
 import '../../../../core/services/csv_export_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../providers/payment_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb;
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -39,164 +38,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: [
                   if (unsyncedCount > 0) _buildSyncBanner(unsyncedCount),
                   _buildGymProfileCard(auth),
-                  _buildSettingsGroup('Account', [
-                    _buildSettingsRow(
-                      Icons.person_outline_rounded,
-                      'My Profile',
-                      auth.owner?.ownerName ?? 'Owner',
-                      onTap: () => context.push('/settings/profile'),
-                    ),
-                    _buildSettingsRow(
-                      Icons.lock_outline_rounded,
-                      'Security & PIN',
-                      auth.isPinSetup ? 'Set' : 'Not Set',
-                      onTap: () => context.push('/settings/security'),
-                    ),
-                    _buildSettingsRow(
-                      Icons.notifications_none_rounded,
-                      'Notifications',
-                      null,
-                      onTap: () => context.push('/settings/notifications'),
-                    ),
-                    _buildSettingsRow(
-                      Icons.transfer_within_a_station_rounded,
-                      'Transfer Ownership',
-                      'Business Handover',
-                      onTap: () => context.push('/settings/transfer'),
-                    ),
-                  ]),
-                  _buildSettingsGroup('Gym Settings', [
-                    _buildSettingsRow(
-                      Icons.fitness_center_rounded,
-                      'Gym Profile',
-                      auth.owner?.gymName ?? 'Raj\'s Fitness',
-                      onTap: () => context.push('/settings/gym-profile'),
-                    ),
-                    _buildSettingsRow(
-                      Icons.layers_outlined,
-                      'Subscription Plans',
-                      'Configure Plans',
-                      onTap: () => context.push('/settings/plans'),
-                    ),
-                    _buildSettingsRow(
-                      Icons.receipt_long_outlined,
-                      'Tax & Billing',
-                      'GST 18%',
-                      onTap: () => context.push('/settings/tax-billing'),
-                    ),
-                  ]),
-                  _buildSettingsGroup('Data & Sync', [
-                    _buildSettingsRow(
-                      Icons.cloud_upload_outlined,
-                      'Backup to Cloud',
-                      'Push pending changes',
-                      onTap: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        messenger.showSnackBar(const SnackBar(content: Text('Starting cloud sync...')));
-                        await ref.read(syncWorkerProvider).performSync();
-                        if (context.mounted) {
-                          messenger.showSnackBar(const SnackBar(content: Text('Sync completed.')));
-                        }
-                      },
-                    ),
-                    _buildSettingsRow(
-                      Icons.cloud_download_outlined,
-                      'Restore from Cloud',
-                      'Download all data',
-                      onTap: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        messenger.showSnackBar(const SnackBar(content: Text('Recovering events from Firestore...')));
-                        await ref.read(recoveryServiceProvider).recoverAll();
-                        messenger.showSnackBar(const SnackBar(content: Text('Recovery completed.')));
-                      },
-                    ),
-                    _buildSettingsRow(
-                      Icons.file_download_outlined,
-                      'Export Member List',
-                      'CSV Format',
-                      onTap: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        messenger.showSnackBar(const SnackBar(content: Text('Generating CSV...')));
-                        try {
-                          final members = ref.read(membersProvider);
-                          await CsvExportService.exportMembers(members);
-                        } catch (e) {
-                          messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
-                        }
-                      },
-                    ),
-                    _buildSettingsRow(
-                      Icons.payments_outlined,
-                      'Export Payment History',
-                      'CSV Format',
-                      onTap: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        messenger.showSnackBar(const SnackBar(content: Text('Generating Payments CSV...')));
-                        try {
-                          final payments = ref.read(paymentsProvider);
-                          await CsvExportService.exportPayments(payments);
-                        } catch (e) {
-                          messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
-                        }
-                      },
-                    ),
-                  ]),
-                  _buildSettingsGroup('Support', [
-                    _buildSettingsRow(Icons.help_outline_rounded, 'Help Center', null, onTap: () => context.push('/settings/help')),
-                    _buildSettingsRow(Icons.info_outline_rounded, 'About IronBook GM', 'v2.4.0', onTap: () => context.push('/settings/about')),
-                  ]),
+                  _buildAccountGroup(auth, context),
+                  _buildGymSettingsGroup(auth, context),
+                  _buildDataSyncGroup(context),
+                  _buildSupportGroup(context),
                   const SizedBox(height: 32),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: TextButton(
-                      onPressed: () async {
-                        final unsyncedCount = ref.read(unsyncedCountProvider).value ?? 0;
-                        if (unsyncedCount > 0) {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: AppColors.elevation2,
-                              title: Text('Unsynced Changes', style: AppTextStyles.cardTitle),
-                              content: Text(
-                                'You have $unsyncedCount unsynced changes. Loging out will WIPE all local data that hasn\'t been pushed to the cloud.\n\nAre you absolutely sure?',
-                                style: AppTextStyles.bodySmall,
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: Text('CANCEL', style: AppTextStyles.label),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: Text('LOGOUT & WIPE', style: AppTextStyles.label.copyWith(color: AppColors.expired)),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm != true) return;
-                        }
-
-                        await ref.read(authProvider.notifier).logout();
-                        if (!context.mounted) return;
-                        context.go('/login');
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.expired,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: AppColors.expired.withValues(alpha: 0.2)),
-                        ),
-                      ),
-                      child: Text(
-                        'Log Out',
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.expired,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildLogoutButton(context),
                 ],
               ),
             ),
@@ -212,15 +59,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: (isCritical ? AppColors.expired : AppColors.expiring).withValues(alpha: 0.1),
+        color: (isCritical ? AppColors.expired : AppColors.expiring)
+            .withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: (isCritical ? AppColors.expired : AppColors.expiring).withValues(alpha: 0.2)),
+        border: Border.all(
+            color: (isCritical ? AppColors.expired : AppColors.expiring)
+                .withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Icon(
-            isCritical ? Icons.warning_amber_rounded : Icons.sync_problem_rounded, 
-            color: isCritical ? AppColors.expired : AppColors.expiring, 
+            isCritical
+                ? Icons.warning_amber_rounded
+                : Icons.sync_problem_rounded,
+            color: isCritical ? AppColors.expired : AppColors.expiring,
             size: 24,
           ),
           const SizedBox(width: 12),
@@ -238,9 +90,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isCritical 
-                    ? 'You have $count unsynced changes. Uninstalling will result in PERMANENT data loss.'
-                    : '$count changes local-only. Backup to cloud for safety.',
+                  isCritical
+                      ? 'You have $count unsynced changes. Uninstalling will result in PERMANENT data loss.'
+                      : '$count changes local-only. Backup to cloud for safety.',
                   style: AppTextStyles.bodySmall.copyWith(
                     fontSize: 10,
                     color: AppColors.textPrimary,
@@ -270,7 +122,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildGymProfileCard(AuthState auth) {
-    final String initial = (auth.owner?.gymName ?? 'R').substring(0, 1).toUpperCase();
+    final String initial =
+        (auth.owner?.gymName ?? 'R').substring(0, 1).toUpperCase();
     return GestureDetector(
       onTap: () => context.push('/settings/gym-profile'),
       child: Container(
@@ -326,12 +179,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 2),
                   Text(
                     'Solo Owner Edition • Pro Plan',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textMuted),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, size: 24, color: AppColors.textMuted),
+            Icon(Icons.chevron_right_rounded,
+                size: 24, color: AppColors.textMuted),
           ],
         ),
       ),
@@ -366,14 +221,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildSettingsRow(IconData icon, String label, String? value, {VoidCallback? onTap}) {
+  Widget _buildSettingsRow(IconData icon, String label, String? value,
+      {VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
+          border: Border(
+              bottom:
+                  BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
         ),
         child: Row(
           children: [
@@ -399,11 +257,204 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             if (value != null)
               Text(
                 value,
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.textMuted),
               ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+            Icon(Icons.chevron_right_rounded,
+                size: 20, color: AppColors.textMuted),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountGroup(AuthState auth, BuildContext context) {
+    return _buildSettingsGroup('Account', [
+      _buildSettingsRow(
+        Icons.person_outline_rounded,
+        'My Profile',
+        auth.owner?.ownerName ?? 'Owner',
+        onTap: () => context.push('/settings/profile'),
+      ),
+      _buildSettingsRow(
+        Icons.lock_outline_rounded,
+        'Security & PIN',
+        auth.isPinSetup ? 'Set' : 'Not Set',
+        onTap: () => context.push('/settings/security'),
+      ),
+      _buildSettingsRow(
+        Icons.notifications_none_rounded,
+        'Notifications',
+        null,
+        onTap: () => context.push('/settings/notifications'),
+      ),
+      _buildSettingsRow(
+        Icons.transfer_within_a_station_rounded,
+        'Transfer Ownership',
+        'Business Handover',
+        onTap: () => context.push('/settings/transfer'),
+      ),
+    ]);
+  }
+
+  Widget _buildGymSettingsGroup(AuthState auth, BuildContext context) {
+    return _buildSettingsGroup('Gym Settings', [
+      _buildSettingsRow(
+        Icons.fitness_center_rounded,
+        'Gym Profile',
+        auth.owner?.gymName ?? 'Raj\'s Fitness',
+        onTap: () => context.push('/settings/gym-profile'),
+      ),
+      _buildSettingsRow(
+        Icons.layers_outlined,
+        'Subscription Plans',
+        'Configure Plans',
+        onTap: () => context.push('/settings/plans'),
+      ),
+      _buildSettingsRow(
+        Icons.receipt_long_outlined,
+        'Tax & Billing',
+        'GST 18%',
+        onTap: () => context.push('/settings/tax-billing'),
+      ),
+    ]);
+  }
+
+  Widget _buildDataSyncGroup(BuildContext context) {
+    return _buildSettingsGroup('Data & Sync', [
+      _buildSettingsRow(
+        Icons.cloud_upload_outlined,
+        'Backup to Cloud',
+        'Push pending changes',
+        onTap: () async {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.showSnackBar(
+              const SnackBar(content: Text('Starting cloud sync...')));
+          await ref.read(syncWorkerProvider).performSync();
+          if (context.mounted) {
+            messenger
+                .showSnackBar(const SnackBar(content: Text('Sync completed.')));
+          }
+        },
+      ),
+      _buildSettingsRow(
+        Icons.cloud_download_outlined,
+        'Restore from Cloud',
+        'Download all data',
+        onTap: () async {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.showSnackBar(const SnackBar(
+              content: Text('Recovering events from Firestore...')));
+          await ref.read(recoveryServiceProvider).recoverAll();
+          if (context.mounted) {
+            messenger.showSnackBar(
+                const SnackBar(content: Text('Recovery completed.')));
+          }
+        },
+      ),
+      _buildSettingsRow(
+        Icons.file_download_outlined,
+        'Export Member List',
+        'CSV Format',
+        onTap: () async {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger
+              .showSnackBar(const SnackBar(content: Text('Generating CSV...')));
+          try {
+            final members = ref.read(membersProvider);
+            await CsvExportService.exportMembers(members);
+          } catch (e) {
+            if (context.mounted) {
+              messenger
+                  .showSnackBar(SnackBar(content: Text('Export failed: $e')));
+            }
+          }
+        },
+      ),
+      _buildSettingsRow(
+        Icons.payments_outlined,
+        'Export Payment History',
+        'CSV Format',
+        onTap: () async {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.showSnackBar(
+              const SnackBar(content: Text('Generating Payments CSV...')));
+          try {
+            final payments = ref.read(paymentsProvider);
+            await CsvExportService.exportPayments(payments);
+          } catch (e) {
+            if (context.mounted) {
+              messenger
+                  .showSnackBar(SnackBar(content: Text('Export failed: $e')));
+            }
+          }
+        },
+      ),
+    ]);
+  }
+
+  Widget _buildSupportGroup(BuildContext context) {
+    return _buildSettingsGroup('Support', [
+      _buildSettingsRow(Icons.help_outline_rounded, 'Help Center', null,
+          onTap: () => context.push('/settings/help')),
+      _buildSettingsRow(
+          Icons.info_outline_rounded, 'About IronBook GM', 'v2.4.0',
+          onTap: () => context.push('/settings/about')),
+    ]);
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: TextButton(
+        onPressed: () async {
+          final unsyncedCount = ref.read(unsyncedCountProvider).value ?? 0;
+          if (unsyncedCount > 0) {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                backgroundColor: AppColors.elevation2,
+                title: Text('Unsynced Changes', style: AppTextStyles.cardTitle),
+                content: Text(
+                  'You have $unsyncedCount unsynced changes. Loging out will WIPE all local data that hasn\'t been pushed to the cloud.\n\nAre you absolutely sure?',
+                  style: AppTextStyles.bodySmall,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('CANCEL', style: AppTextStyles.label),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('LOGOUT & WIPE',
+                        style: AppTextStyles.label
+                            .copyWith(color: AppColors.expired)),
+                  ),
+                ],
+              ),
+            );
+            if (confirm != true) return;
+          }
+
+          await ref.read(authProvider.notifier).logout();
+          if (!context.mounted) return;
+          context.go('/login');
+        },
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.expired,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: AppColors.expired.withValues(alpha: 0.2)),
+          ),
+        ),
+        child: Text(
+          'Log Out',
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.expired,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
