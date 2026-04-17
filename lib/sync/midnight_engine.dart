@@ -10,7 +10,6 @@ import '../core/services/notification_service.dart';
 import '../core/services/sync_coordinator.dart';
 import '../data/sync_worker.dart';
 import '../core/utils/clock.dart';
-import '../providers/base_providers.dart';
 
 class MidnightEngine {
   /// The entry point for the Workmanager background task.
@@ -23,20 +22,22 @@ class MidnightEngine {
         // 1. Initialize core services in the background isolate
         await Firebase.initializeApp();
         await NotificationService.init();
-        
+
         // 2. Open storage and ensure adapters are registered
         HiveInit.registerAdapters();
         final healthy = await HiveInit.openWithCorruptionGuard();
         if (!healthy) {
-          debugPrint("MidnightEngine: Hive corruption detected. Aborting background task.");
+          debugPrint(
+              "MidnightEngine: Hive corruption detected. Aborting background task.");
           return true;
         }
 
         // 3. Acquire global sync lock to prevent foreground/background conflict
-        final holderId = 'background_midnight_engine';
+        const holderId = 'background_midnight_engine';
         if (!await SyncCoordinator.acquireLock(holderId)) {
-          debugPrint("MidnightEngine: Lock held by another process. Skipping current run.");
-          return true; 
+          debugPrint(
+              "MidnightEngine: Lock held by another process. Skipping current run.");
+          return true;
         }
 
         try {
@@ -53,36 +54,50 @@ class MidnightEngine {
             container.dispose();
           }
 
-          debugPrint("MidnightEngine: All background maintenance completed successfully.");
+          debugPrint(
+              "MidnightEngine: All background maintenance completed successfully.");
         } finally {
           await SyncCoordinator.releaseLock(holderId);
         }
       } catch (e, stack) {
         debugPrint("MidnightEngine Error: $e\n$stack");
       }
-      
+
       return Future.value(true);
     });
   }
 
   static Future<void> _runMemberAlerts(IClock clock) async {
-    final snapshots = Hive.lazyBox<MemberSnapshot>('snapshots');
+    final snapshotsBox = Hive.lazyBox<MemberSnapshot>('snapshots');
     final today = clock.now;
     final todayKey = '${today.year}-${today.month}-${today.day}';
 
-    debugPrint("MidnightEngine: Checking alerts for ${snapshots.length} members.");
+    debugPrint(
+        "MidnightEngine: Checking alerts for ${snapshotsBox.length} members.");
 
-    for (final key in snapshots.keys) {
-      final snapshot = await snapshots.get(key);
-      if (snapshot == null || snapshot.archived) continue;
+    final keys = snapshotsBox.keys.toList();
+    const batchSize = 50;
 
-      final status = snapshot.getStatus(today);
-      if (status == MemberStatus.expiring || status == MemberStatus.expired) {
-        await NotificationService.sendMemberAlert(
-          snapshot: snapshot,
-          dedupKey: '${snapshot.memberId}_$todayKey',
-          now: today,
-        );
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final end = i + batchSize > keys.length ? keys.length : i + batchSize;
+      final batchKeys = keys.sublist(i, end);
+
+      // Batch fetch snapshots to avoid N+1 await overhead
+      final snapshots = await Future.wait(
+        batchKeys.map((key) => snapshotsBox.get(key)),
+      );
+
+      for (final snapshot in snapshots) {
+        if (snapshot == null || snapshot.archived) continue;
+
+        final status = snapshot.getStatus(today);
+        if (status == MemberStatus.expiring || status == MemberStatus.expired) {
+          await NotificationService.sendMemberAlert(
+            snapshot: snapshot,
+            dedupKey: '${snapshot.memberId}_$todayKey',
+            now: today,
+          );
+        }
       }
     }
   }
