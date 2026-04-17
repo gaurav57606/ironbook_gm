@@ -1,18 +1,22 @@
 import 'dart:io';
 import 'package:csv/csv.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../data/local/models/member_snapshot_model.dart';
 import '../../../data/local/models/payment_model.dart';
 
+final csvExportServiceProvider = Provider((ref) => CsvExportService());
+
 class CsvExportService {
-  static Future<void> exportMembers(List<MemberSnapshot> members) async {
+  Future<void> exportMembers(List<MemberSnapshot> members) async {
     final csvString = generateMembersCsv(members);
-    await _saveAndShareString(csvString, 'ironbook_members');
+    await saveAndShareString(csvString, 'ironbook_members');
   }
 
-  static String generateMembersCsv(List<MemberSnapshot> members) {
+  String generateMembersCsv(List<MemberSnapshot> members) {
     final List<List<dynamic>> rows = [];
     rows.add([
       'Member ID', 'Name', 'Phone', 'Join Date', 'Plan Name',
@@ -40,12 +44,12 @@ class CsvExportService {
     return const ListToCsvConverter().convert(rows);
   }
 
-  static Future<void> exportPayments(List<Payment> payments) async {
+  Future<void> exportPayments(List<Payment> payments) async {
     final csvString = generatePaymentsCsv(payments);
-    await _saveAndShareString(csvString, 'ironbook_payments');
+    await saveAndShareString(csvString, 'ironbook_payments');
   }
 
-  static String generatePaymentsCsv(List<Payment> payments) {
+  String generatePaymentsCsv(List<Payment> payments) {
     final List<List<dynamic>> rows = [];
     rows.add([
       'Invoice #', 'Date', 'Member ID', 'Plan', 'Amount (₹)',
@@ -70,7 +74,7 @@ class CsvExportService {
     return const ListToCsvConverter().convert(rows);
   }
 
-  static Future<void> exportAllData({
+  Future<void> exportAllData({
     required List<MemberSnapshot> members,
     required List<Payment> payments,
   }) async {
@@ -80,7 +84,8 @@ class CsvExportService {
     await exportPayments(payments);
   }
 
-  static Future<void> _saveAndShareString(String csvString, String fileNamePrefix) async {
+  @visibleForTesting
+  Future<void> saveAndShareString(String csvString, String fileNamePrefix) async {
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/${fileNamePrefix}_${DateTime.now().millisecondsSinceEpoch}.csv');
     await file.writeAsString(csvString);

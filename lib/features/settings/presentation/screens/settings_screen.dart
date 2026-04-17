@@ -119,7 +119,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         messenger.showSnackBar(const SnackBar(content: Text('Generating CSV...')));
                         try {
                           final members = ref.read(membersProvider);
-                          await CsvExportService.exportMembers(members);
+                          await ref.read(csvExportServiceProvider).exportMembers(members);
                         } catch (e) {
                           messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
                         }
@@ -134,7 +134,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         messenger.showSnackBar(const SnackBar(content: Text('Generating Payments CSV...')));
                         try {
                           final payments = ref.read(paymentsProvider);
-                          await CsvExportService.exportPayments(payments);
+                          await ref.read(csvExportServiceProvider).exportPayments(payments);
                         } catch (e) {
                           messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
                         }

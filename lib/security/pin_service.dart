@@ -23,17 +23,18 @@ class PinService {
 
   Future<void> savePin(String pin) async {
     final salt = base64Encode(List.generate(16, (_) => Random.secure().nextInt(256)));
-    final hash = _hashWithSalt(pin, salt);
-    await _storage.write(key: _pinHashKey, value: hash);
+    final hash = _hashWithSalt(pin, salt, iterations: 100000);
+    // Prefix with v2| to indicate hardened hashing
+    await _storage.write(key: _pinHashKey, value: 'v2|$hash');
     await _storage.write(key: _pinSaltKey, value: salt);
     await _storage.delete(key: _failCountKey);
     await _storage.delete(key: _lockoutUntilKey);
   }
 
-  String _hashWithSalt(String input, String salt) {
+  String _hashWithSalt(String input, String salt, {int iterations = 100000}) {
     var hash = sha256.convert(utf8.encode(input + salt)).toString();
-    // Perform 1000 rounds for basic work factor without being too slow in pure Dart
-    for (int i = 0; i < 1000; i++) {
+    // Hardened work factor: 100,000 rounds of SHA-256
+    for (int i = 0; i < iterations; i++) {
       hash = sha256.convert(utf8.encode(hash + salt)).toString();
     }
     return hash;
@@ -60,8 +61,22 @@ class PinService {
        return false;
     }
     
-    final inputHash = _hashWithSalt(input, salt);
-    final isCorrect = inputHash == stored;
+    // Determine version and work factor
+    bool isCorrect = false;
+    if (stored.startsWith('v2|')) {
+      final actualHash = stored.substring(3);
+      final inputHash = _hashWithSalt(input, salt, iterations: 100000);
+      isCorrect = inputHash == actualHash;
+    } else {
+      // Legacy v1 hash: 1000 iterations
+      final inputHash = _hashWithSalt(input, salt, iterations: 1000);
+      isCorrect = inputHash == stored;
+
+      // Auto-migrate to v2 if successful
+      if (isCorrect) {
+        await savePin(input);
+      }
+    }
 
     if (isCorrect) {
       // Success: Reset fails
@@ -105,8 +120,8 @@ class PinService {
   Future<void> saveEditPassword(String password) async {
     assert(password.length >= 4, 'Edit password must be at least 4 characters');
     final salt = base64Encode(List.generate(16, (_) => Random.secure().nextInt(256)));
-    final hash = _hashWithSalt(password, salt);
-    await _storage.write(key: _editPwHashKey, value: hash);
+    final hash = _hashWithSalt(password, salt, iterations: 100000);
+    await _storage.write(key: _editPwHashKey, value: 'v2|$hash');
     await _storage.write(key: _editPwSaltKey, value: salt);
   }
 
@@ -114,7 +129,17 @@ class PinService {
     final stored = await _storage.read(key: _editPwHashKey);
     final salt = await _storage.read(key: _editPwSaltKey);
     if (stored == null || salt == null) return false;
-    return _hashWithSalt(input, salt) == stored;
+
+    if (stored.startsWith('v2|')) {
+      final actualHash = stored.substring(3);
+      return _hashWithSalt(input, salt, iterations: 100000) == actualHash;
+    } else {
+      final isCorrect = _hashWithSalt(input, salt, iterations: 1000) == stored;
+      if (isCorrect) {
+        await saveEditPassword(input);
+      }
+      return isCorrect;
+    }
   }
 
   Future<bool> authenticateWithBiometric() async {

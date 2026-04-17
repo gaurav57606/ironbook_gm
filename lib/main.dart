@@ -25,22 +25,12 @@ void main() async {
   debugPrint('--- APP STARTING ---');
 
   try {
-    if (!kIsWeb) {
-      await _initFirebaseAndServices();
-    } else {
-      debugPrint('Init: Skipping Firebase/FCM on Web for Visual Audit');
-    }
+    await _initFirebaseServices();
 
+    debugPrint('Init: Step 3 starting...');
     final hiveHealthy = await _initHive();
 
-    if (hiveHealthy) {
-      debugPrint('Init: Seeding data if empty...');
-      await SeedData.seedIfEmpty();
-    }
-
-    if (!kIsWeb) {
-      await _initBackgroundTasks();
-    }
+    await _initBackgroundTasks();
 
     debugPrint('Init: runApp starting...');
     runApp(
@@ -51,18 +41,17 @@ void main() async {
   } catch (e, stack) {
     debugPrint('CRITICAL INIT ERROR: $e');
     debugPrint(stack.toString());
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Text('Init Error: $e'),
-          ),
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text('Init Error: $e'),
         ),
       ),
-    );
+    ));
   }
 }
 
+/// Sets up consistent system overlays.
 void _setupSystemUI() {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -72,7 +61,14 @@ void _setupSystemUI() {
   );
 }
 
-Future<void> _initFirebaseAndServices() async {
+/// Initializes Firebase and related services (FCM, HMAC, Notifications).
+/// Bypassed on Web.
+Future<void> _initFirebaseServices() async {
+  if (kIsWeb) {
+    debugPrint('Init: Skipping Firebase/FCM on Web for Visual Audit');
+    return;
+  }
+
   debugPrint('Init: Firebase...');
   await Firebase.initializeApp().timeout(const Duration(seconds: 30));
 
@@ -84,30 +80,38 @@ Future<void> _initFirebaseAndServices() async {
   debugPrint('Init: Security/Auth services ready');
 }
 
+/// Initializes Hive, registers adapters, and opens boxes.
+/// Returns true if Hive is healthy, false otherwise.
 Future<bool> _initHive() async {
   debugPrint('Init: Hive...');
-  await Hive.initFlutter().timeout(
-    const Duration(seconds: 5),
-    onTimeout: () => debugPrint('Hive.init timeout'),
-  );
+  await Hive.initFlutter().timeout(const Duration(seconds: 5),
+      onTimeout: () => debugPrint('Hive.init timeout'));
 
   debugPrint('Init: Registering Hive Adapters...');
   HiveInit.registerAdapters();
 
   debugPrint('Init: Opening Hive boxes...');
-  final hiveHealthy = await HiveInit.openWithCorruptionGuard().timeout(
-    const Duration(seconds: 15),
-    onTimeout: () {
-      debugPrint('Hive Boxes timeout - defaulting to unhealthy');
-      return false;
-    },
-  );
+  final hiveHealthy = await HiveInit.openWithCorruptionGuard()
+      .timeout(const Duration(seconds: 15), onTimeout: () {
+    debugPrint('Hive Boxes timeout - defaulting to unhealthy');
+    return false;
+  });
 
   debugPrint('Init: hiveHealthy result: $hiveHealthy');
+
+  if (hiveHealthy) {
+    debugPrint('Init: Seeding data if empty...');
+    await SeedData.seedIfEmpty();
+  }
+
   return hiveHealthy;
 }
 
+/// Initializes background tasks using Workmanager.
+/// Mobile only.
 Future<void> _initBackgroundTasks() async {
+  if (kIsWeb) return;
+
   debugPrint('Init: Mobile background tasks...');
   await Workmanager().initialize(
     MidnightEngine.callbackDispatcher,
