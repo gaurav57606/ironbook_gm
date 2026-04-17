@@ -23,6 +23,8 @@ class FakeRepo implements IEventRepository {
   @override
   Future<void> markAsSynced(String eventId) async {}
   @override
+  Future<Set<String>> getAllIds() async => <String>{};
+  @override
   Stream<DomainEvent> watch() => const Stream.empty();
 }
 
