@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,32 +11,36 @@ class HelpCenterScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return StatusBarWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.bg,
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.text, size: 20),
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => context.pop(),
           ),
-          title: const Text(
+          title: Text(
             'Help Center',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTextStyles.h3,
           ),
           centerTitle: true,
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            _buildHelpTile(Icons.book_outlined, 'User Guide', 'Learn how to use IronBook GM'),
-            _buildHelpTile(Icons.video_collection_outlined, 'Video Tutorials', 'Watch step-by-step guides'),
-            _buildHelpTile(Icons.question_answer_outlined, 'FAQs', 'Frequently asked questions'),
-            _buildHelpTile(Icons.contact_support_outlined, 'Contact Support', 'Get help from our team'),
-          ],
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+            children: [
+              _buildHelpTile(Icons.menu_book_rounded, 'User Guide', 'Comprehensive instructions for gym owners'),
+              _buildHelpTile(Icons.video_library_rounded, 'Video Tutorials', 'Step-by-step visual training guides'),
+              _buildHelpTile(Icons.quiz_rounded, 'Frequently Asked Questions', 'Quick answers to common queries'),
+              _buildHelpTile(Icons.support_agent_rounded, 'Priority Support', 'Reach out for dedicated assistance'),
+            ],
+          ),
         ),
       ),
     );
@@ -43,29 +48,58 @@ class HelpCenterScreen extends StatelessWidget {
 
   Widget _buildHelpTile(IconData icon, String title, String subtitle) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.elevation1,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.orange, size: 20),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
               children: [
-                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
-                const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(fontSize: 10, color: AppColors.text3)),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 24),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.cardTitle.copyWith(fontSize: 15),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, size: 16, color: AppColors.text3),
-        ],
+        ),
       ),
     );
   }

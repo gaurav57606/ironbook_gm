@@ -126,7 +126,8 @@ class _QuickAddScreenState extends ConsumerState<QuickAddScreen> {
                         planId: _selectedPlanId!,
                         joinDate: _selectedDate,
                       );
-                      if (mounted) context.pop();
+                      if (!mounted) return;
+                      context.pop();
                     }
                   },
                   style: ElevatedButton.styleFrom(

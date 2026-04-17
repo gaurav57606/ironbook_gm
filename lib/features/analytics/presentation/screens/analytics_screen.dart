@@ -46,11 +46,11 @@ class AnalyticsScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Row(
+                        child: const Row(
                           children: [
-                            const Text('March 2026', style: TextStyle(color: AppColors.text3, fontSize: 10, fontWeight: FontWeight.bold)),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.calendar_today_rounded, color: AppColors.orange, size: 10),
+                            Text('March 2026', style: TextStyle(color: AppColors.text3, fontSize: 10, fontWeight: FontWeight.bold)),
+                            SizedBox(width: 4),
+                            Icon(Icons.calendar_today_rounded, color: AppColors.orange, size: 10),
                           ],
                         ),
                       ),

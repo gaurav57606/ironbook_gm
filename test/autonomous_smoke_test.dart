@@ -15,7 +15,6 @@ import '../integration_test/mocks/mock_entitlement.dart';
 import '../integration_test/mocks/mock_services.dart';
 import 'package:ironbook_gm/data/sync_worker.dart';
 
-import 'package:ironbook_gm/sync/recovery_service.dart';
 import 'package:ironbook_gm/providers/base_providers.dart';
 import 'test_helper.dart';
 

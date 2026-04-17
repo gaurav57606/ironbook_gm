@@ -104,11 +104,13 @@ class MemberDetailScreen extends ConsumerWidget {
               title: Text(plan.name, style: AppTextStyles.label),
               subtitle: Text('₹${plan.totalPrice.toStringAsFixed(0)} • ${plan.durationMonths} Months'),
               onTap: () async {
-                await ref.read(membersProvider.notifier).renewMember(
+                final messenger = ScaffoldMessenger.of(context);
+                await ref.read(paymentsProvider.notifier).recordMemberPayment(
                   memberId: member.memberId,
-                  planId: plan.id,
+                  plan: plan,
                   method: 'Cash',
                 );
+                messenger.showSnackBar(SnackBar(content: Text('Membership renewed with ${plan.name}')));
                 if (ctx.mounted) Navigator.pop(ctx);
               },
             )),

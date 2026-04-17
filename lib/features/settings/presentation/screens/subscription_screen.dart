@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,119 +11,163 @@ class SubscriptionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return StatusBarWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.bg,
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.text, size: 20),
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => context.pop(),
           ),
-          title: const Text(
+          title: Text(
             'Subscription Plans',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTextStyles.h3,
           ),
           centerTitle: true,
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.orange, AppColors.orangeD],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(28),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.4),
+                        blurRadius: 24,
+                        offset: const Offset(0, 12),
+                      )
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.orange.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    )
-                  ],
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'PRO PLAN',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white70, letterSpacing: 1),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Solo Owner Edition',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
-                    ),
-                    SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Icon(Icons.check_circle, size: 14, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text('Unlimited Members', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.check_circle, size: 14, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text('Cloud Sync & Backup', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.check_circle, size: 14, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text('Smart Analytics', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                'YOUR STATUS',
-                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.text3),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.bg3,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.flash_on, color: AppColors.orange, size: 20),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Live Sync Active', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
-                          Text('Last synced: Just now', style: TextStyle(fontSize: 10, color: AppColors.text3)),
-                        ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'PRO PLAN',
+                          style: AppTextStyles.sectionTitle.copyWith(
+                            fontSize: 10,
+                            letterSpacing: 1.5,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      Text(
+                        'Solo Owner Edition',
+                        style: AppTextStyles.h2.copyWith(color: Colors.white, fontSize: 24),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Everything you need for full-scale gym management',
+                        style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.8)),
+                      ),
+                      const SizedBox(height: 32),
+                      _buildFeatureRow('Unlimited Members'),
+                      const SizedBox(height: 12),
+                      _buildFeatureRow('Cloud Sync & Backup'),
+                      const SizedBox(height: 12),
+                      _buildFeatureRow('Smart Analytics & Reports'),
+                      const SizedBox(height: 12),
+                      _buildFeatureRow('GST Ready Invoicing'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 48),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 16),
+                  child: Text(
+                    'YOUR STATUS',
+                    style: AppTextStyles.sectionTitle.copyWith(
+                      fontSize: 10,
+                      letterSpacing: 1.5,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.elevation1,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.bolt_rounded, color: AppColors.success, size: 24),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Live Sync Active',
+                              style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Last synced: Just now',
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFeatureRow(String text) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.check_rounded, size: 12, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          text,
+          style: AppTextStyles.body.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }

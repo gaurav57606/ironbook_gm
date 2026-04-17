@@ -4,13 +4,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:math';
 import '../providers/base_providers.dart';
 
 class PinService {
   final FirebaseAuth _auth;
   final FlutterSecureStorage _storage;
   static const _pinHashKey = 'pin_hash';
+  static const _pinSaltKey = 'pin_salt';
   static const _editPwHashKey = 'edit_pw_hash';
+  static const _editPwSaltKey = 'edit_pw_salt';
   static const _failCountKey = 'pin_fail_count';
   static const _lockoutUntilKey = 'pin_lockout_until';
   
@@ -19,10 +22,21 @@ class PinService {
   PinService(this._storage, this._auth);
 
   Future<void> savePin(String pin) async {
-    final hash = sha256.convert(utf8.encode(pin)).toString();
+    final salt = base64Encode(List.generate(16, (_) => Random.secure().nextInt(256)));
+    final hash = _hashWithSalt(pin, salt);
     await _storage.write(key: _pinHashKey, value: hash);
+    await _storage.write(key: _pinSaltKey, value: salt);
     await _storage.delete(key: _failCountKey);
     await _storage.delete(key: _lockoutUntilKey);
+  }
+
+  String _hashWithSalt(String input, String salt) {
+    var hash = sha256.convert(utf8.encode(input + salt)).toString();
+    // Perform 1000 rounds for basic work factor without being too slow in pure Dart
+    for (int i = 0; i < 1000; i++) {
+      hash = sha256.convert(utf8.encode(hash + salt)).toString();
+    }
+    return hash;
   }
 
   Future<void> setPin(String pin) async => savePin(pin);
@@ -38,9 +52,15 @@ class PinService {
     }
 
     final stored = await _storage.read(key: _pinHashKey);
-    if (stored == null) return false;
+    final salt = await _storage.read(key: _pinSaltKey);
     
-    final inputHash = sha256.convert(utf8.encode(input)).toString();
+    if (stored == null || salt == null) {
+       // Support legacy unsalted hashes for a transition period if needed
+       // For this security audit, we force re-setup if salt is missing
+       return false;
+    }
+    
+    final inputHash = _hashWithSalt(input, salt);
     final isCorrect = inputHash == stored;
 
     if (isCorrect) {
@@ -84,14 +104,17 @@ class PinService {
 
   Future<void> saveEditPassword(String password) async {
     assert(password.length >= 4, 'Edit password must be at least 4 characters');
-    final hash = sha256.convert(utf8.encode(password)).toString();
+    final salt = base64Encode(List.generate(16, (_) => Random.secure().nextInt(256)));
+    final hash = _hashWithSalt(password, salt);
     await _storage.write(key: _editPwHashKey, value: hash);
+    await _storage.write(key: _editPwSaltKey, value: salt);
   }
 
   Future<bool> verifyEditPassword(String input) async {
     final stored = await _storage.read(key: _editPwHashKey);
-    if (stored == null) return false;
-    return sha256.convert(utf8.encode(input)).toString() == stored;
+    final salt = await _storage.read(key: _editPwSaltKey);
+    if (stored == null || salt == null) return false;
+    return _hashWithSalt(input, salt) == stored;
   }
 
   Future<bool> authenticateWithBiometric() async {
@@ -101,7 +124,7 @@ class PinService {
     return await _localAuth.authenticate(
       localizedReason: 'Verify your identity to open IronBook GM',
       options: const AuthenticationOptions(
-        biometricOnly: false,
+        biometricOnly: true,
         stickyAuth: true,
       ),
     );

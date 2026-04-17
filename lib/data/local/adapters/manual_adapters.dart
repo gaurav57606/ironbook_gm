@@ -20,7 +20,7 @@ class DomainEventAdapter extends TypeAdapter<DomainEvent> {
     return DomainEvent(
       id: reader.read() as String,
       entityId: reader.read() as String,
-      eventType: reader.read() as String,
+      eventType: EventType.values[reader.read() as int],
       payload: Map<String, dynamic>.from(reader.read()),
       deviceTimestamp: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
       synced: reader.read() as bool,
@@ -33,7 +33,7 @@ class DomainEventAdapter extends TypeAdapter<DomainEvent> {
   void write(BinaryWriter writer, DomainEvent obj) {
     writer.write(obj.id);
     writer.write(obj.entityId);
-    writer.write(obj.eventType);
+    writer.write(obj.eventType.index);
     writer.write(obj.payload);
     writer.write(obj.deviceTimestamp.millisecondsSinceEpoch);
     writer.write(obj.synced);
@@ -50,7 +50,7 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
   MemberSnapshot read(BinaryReader reader) {
     final memberId = reader.read() as String;
     final name = reader.read() as String;
-    final phone = reader.read() as String;
+    final phone = reader.read() as String?;
     final joinDate = DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt());
     final planId = reader.read() as String?;
     final planName = reader.read() as String?;
@@ -65,6 +65,9 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
     final gender = reader.read() as String?;
     final age = (reader.read() as num?)?.toInt();
     final checkInPin = reader.read() as String?;
+    final lastCheckInTs = reader.read() as num?;
+    final lastCheckIn = lastCheckInTs != null ? DateTime.fromMillisecondsSinceEpoch(lastCheckInTs.toInt()) : null;
+    final lastCheckInDevice = reader.read() as String?;
     
     return MemberSnapshot(
       memberId: memberId,
@@ -82,6 +85,8 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
       gender: gender,
       age: age,
       checkInPin: checkInPin,
+      lastCheckIn: lastCheckIn,
+      lastCheckInDevice: lastCheckInDevice,
     );
   }
 
@@ -102,6 +107,8 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
     writer.write(obj.gender);
     writer.write(obj.age);
     writer.write(obj.checkInPin);
+    writer.write(obj.lastCheckIn?.millisecondsSinceEpoch);
+    writer.write(obj.lastCheckInDevice);
   }
 }
 
@@ -284,7 +291,6 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       biometricEnabled: reader.read() as bool,
       businessType: reader.read() as String,
       useBiometrics: reader.read() as bool,
-      auditMode: reader.read() as bool,
     );
   }
 
@@ -296,7 +302,6 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
     writer.write(obj.biometricEnabled);
     writer.write(obj.businessType);
     writer.write(obj.useBiometrics);
-    writer.write(obj.auditMode);
   }
 }
 

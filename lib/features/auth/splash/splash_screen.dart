@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../../../core/constants/app_colors.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/splash_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -34,29 +32,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     if (!mounted) return;
 
-    final authState = ref.read(authProvider);
-
-    // Logic: 
-    // 1. First time? -> Onboarding
-    // 2. Logged in? 
-    //    a. PIN Setup? -> Pin Entry (if locked)
-    //    b. PIN not setup? -> Pin Setup
-    // 3. Not logged in? -> Login
-    if (authState.isFirstLaunch) {
-      context.go('/onboarding');
-    } else if (authState.isAuthenticated) {
-      if (authState.isPinSetup) {
-        if (authState.unlocked) {
-          context.go('/dashboard');
-        } else {
-          context.go('/pin-entry');
-        }
-      } else {
-        context.go('/pin-setup');
-      }
-    } else {
-      context.go('/login');
-    }
+    // Signal router that splash is finished and it can now redirect
+    ref.read(splashFinishedProvider.notifier).state = true;
   }
 
   @override

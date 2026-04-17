@@ -32,4 +32,29 @@ class AppColors {
   // UI
   static const Color border      = Color(0xFF2A2A30);  // --border
   static const Color divider     = Color(0xFF1C1C21);
+
+  // Gradients
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [primary, Color(0xFFFF922B)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient surfaceGradient = LinearGradient(
+    colors: [Color(0xFF2C2C34), Color(0xFF1C1C21)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient backgroundGradient = LinearGradient(
+    colors: [bg, Color(0xFF141417)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  // Elevation Colors (Lighter for higher elevation)
+  static const Color elevation1 = Color(0xFF141417);
+  static const Color elevation2 = Color(0xFF1C1C21);
+  static const Color elevation3 = Color(0xFF242429);
+  static const Color elevation4 = Color(0xFF2C2C34);
 }

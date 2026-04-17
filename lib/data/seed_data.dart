@@ -11,7 +11,7 @@ class SeedData {
 
   static Future<void> seedIfEmpty() async {
     final plansBox = Hive.box<Plan>('plans');
-    final membersBox = Hive.box<MemberSnapshot>('snapshots');
+    final membersBox = Hive.lazyBox<MemberSnapshot>('snapshots');
     final ownerBox = Hive.box<OwnerProfile>('owner');
     final settingsBox = Hive.box<AppSettings>('settings');
 
@@ -31,7 +31,7 @@ class SeedData {
     await ownerBox.put('owner', owner);
 
     // Settings
-    await settingsBox.put('settings', AppSettings());
+    await settingsBox.put('app_settings', AppSettings());
 
     // Plans
     final gymAccess = PlanComponent(id: _uuid.v4(), name: 'Gym Access', price: 800);

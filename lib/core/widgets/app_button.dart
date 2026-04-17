@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
+import '../constants/app_colors.dart';
 
 enum AppButtonStyle { primary, secondary, outline }
 
@@ -25,64 +25,63 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isPrimary = style == AppButtonStyle.primary;
     final bool isOutline = style == AppButtonStyle.outline;
+    final bool isSecondary = style == AppButtonStyle.secondary;
 
     return SizedBox(
       width: width ?? double.infinity,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: isPrimary ? const LinearGradient(
-            colors: [AppColors.orange, AppColors.orangeD],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ) : null,
+          borderRadius: BorderRadius.circular(14),
+          gradient: isPrimary ? AppColors.primaryGradient : null,
+          color: isSecondary ? AppColors.elevation2 : (isOutline ? Colors.transparent : null),
+          border: isOutline ? Border.all(color: AppColors.primary, width: 1.5) : (isSecondary ? Border.all(color: AppColors.border) : null),
           boxShadow: isPrimary ? [
             BoxShadow(
-              color: AppColors.orange.withValues(alpha: 0.25),
+              color: AppColors.primary.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
             )
           ] : [],
         ),
-        child: ElevatedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isPrimary ? Colors.transparent : (isOutline ? Colors.transparent : AppColors.bg3),
-            foregroundColor: isPrimary ? Colors.white : (isOutline ? AppColors.orange : AppColors.text),
-            shadowColor: Colors.transparent,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: isOutline ? const BorderSide(color: AppColors.orange, width: 1.5) : BorderSide.none,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: isLoading ? null : onPressed,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              child: Center(
+                child: isLoading 
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (icon != null) ...[
+                          icon!,
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          text,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isPrimary ? Colors.white : (isOutline ? AppColors.primary : AppColors.text),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+              ),
             ),
           ),
-          child: isLoading 
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[
-                    icon!,
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
-              ),
         ),
       ),
     );

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
@@ -40,7 +41,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Login failed. Please check your credentials.')),
+            content: Text('Login failed. Please check your credentials.'),
+            backgroundColor: AppColors.expired,
+          ),
         );
       }
     }
@@ -49,102 +52,118 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return StatusBarWrapper(
-      showHeader: false, // Mimicking the "center" layout in HTML
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.orange,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'IG',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Welcome back',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
-                ),
-              ),
-              const SizedBox(height: 3),
-              const Text(
-                'Log in to your gym account',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.text2,
-                ),
-              ),
-              const SizedBox(height: 24),
-              AppTextField(
-                label: 'Email Address',
-                hint: 'raj@rajsfitness.com',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              AppTextField(
-                label: 'Password',
-                hint: '••••••••',
-                controller: _passwordController,
-                isPassword: true,
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () => context.push('/forgot-password'),
-                  child: const Text(
-                    'Forgot password?',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.orange,
-                      fontWeight: FontWeight.w500,
+      showHeader: false,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'IG',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -1,
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              AppButton(
-                text: _isLoading ? 'Logging In...' : 'Log In',
-                onPressed: _isLoading ? null : _handleLogin,
-              ),
-              const SizedBox(height: 12),
-              GestureDetector(
-                onTap: () => context.go('/signup'),
-                child: RichText(
-                  text: const TextSpan(
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: AppColors.text2,
-                        fontFamily: 'Outfit'),
-                    children: [
-                      TextSpan(text: 'New here? '),
-                      TextSpan(
-                        text: 'Create an account',
-                        style: TextStyle(
-                            color: AppColors.orange,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                  const SizedBox(height: 32),
+                  Text(
+                    'Welcome Back',
+                    style: AppTextStyles.h1.copyWith(fontSize: 28),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Log in to your gym account',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  AppTextField(
+                    label: 'Email Address',
+                    hint: 'raj@rajsfitness.com',
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 8),
+                  AppTextField(
+                    label: 'Password',
+                    hint: '••••••••',
+                    controller: _passwordController,
+                    isPassword: true,
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        'Forgot password?',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  AppButton(
+                    text: _isLoading ? 'Logging In...' : 'Log In',
+                    onPressed: _isLoading ? null : _handleLogin,
+                  ),
+                  const SizedBox(height: 24),
+                  GestureDetector(
+                    onTap: () => context.go('/signup'),
+                    child: RichText(
+                      text: TextSpan(
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        children: [
+                          const TextSpan(text: 'New here? '),
+                          TextSpan(
+                            text: 'Create an account',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),

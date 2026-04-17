@@ -6,18 +6,35 @@ import '../data/local/models/sale_model.dart';
 import '../data/local/models/domain_event_model.dart';
 import '../data/local/models/invoice_sequence.dart';
 import '../data/repositories/event_repository.dart';
+import '../core/utils/clock.dart';
+import '../core/services/hmac_service.dart';
+import '../providers/base_providers.dart';
 import 'payment_provider.dart';
 
 class SaleNotifier extends StateNotifier<List<Sale>> {
   final Box<Sale> _saleBox;
   final Box<Product> _productBox;
   final IEventRepository _eventRepo;
-  final String _deviceId;
+  final IClock _clock;
+  final HmacService _hmac;
+  String _deviceId = 'device-loading';
   final Ref _ref;
-
-  SaleNotifier(this._saleBox, this._productBox, this._eventRepo, this._deviceId, this._ref) : super([]) {
-    _loadSales();
+ 
+  SaleNotifier(
+    this._saleBox,
+    this._productBox,
+    this._eventRepo,
+    this._clock,
+    this._hmac,
+    this._ref,
+  ) : super([]) {
+    _init();
     _seedProductsIfEmpty();
+  }
+
+  Future<void> _init() async {
+    _deviceId = await _hmac.getInstallationId();
+    _loadSales();
   }
 
   void _loadSales() {
@@ -46,13 +63,13 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     required double total,
   }) async {
     final saleId = const Uuid().v4();
+    final now = _clock.now;
     
-    // Generate Invoice Number for Sale (reuse sequence if possible or use a different one)
-    // For simplicity, let's use the same sequence for now but we could add 'SALE-' prefix
+    // Generate Invoice Number for Sale
     final sequenceBox = _ref.read(sequenceBoxProvider);
     var sequence = sequenceBox.get('sales_seq');
     if (sequence == null) {
-      sequence = InvoiceSequence(prefix: 'SAL-${DateTime.now().year}-');
+      sequence = InvoiceSequence(prefix: 'SAL-${now.year}-');
       await sequenceBox.put('sales_seq', sequence);
     }
     final invoiceNumber = sequence.nextInvoiceId;
@@ -61,7 +78,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
 
     final sale = Sale(
       id: saleId,
-      date: DateTime.now(),
+      date: now,
       totalAmount: total,
       paymentMethod: method,
       items: items,
@@ -74,8 +91,9 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     // Emit Domain Event
     final event = DomainEvent(
       entityId: saleId,
-      eventType: 'SALE_RECORDED',
+      eventType: EventType.paymentRecorded,
       deviceId: _deviceId,
+      deviceTimestamp: now,
       payload: {
         'saleId': saleId,
         'total': total,
@@ -103,7 +121,8 @@ final saleProvider = StateNotifierProvider<SaleNotifier, List<Sale>>((ref) {
   final saleBox = ref.watch(saleBoxProvider);
   final productBox = ref.watch(productBoxProvider);
   final eventRepo = ref.watch(eventRepositoryProvider);
-  const deviceId = 'device-pos-v1';
+  final clock = ref.watch(clockProvider);
+  final hmac = ref.watch(hmacServiceProvider);
   
-  return SaleNotifier(saleBox, productBox, eventRepo, deviceId, ref);
+  return SaleNotifier(saleBox, productBox, eventRepo, clock, hmac, ref);
 });

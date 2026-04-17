@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
 import '../../../../providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
@@ -14,97 +15,122 @@ class NotificationsSettingsScreen extends ConsumerWidget {
 
     return StatusBarWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.bg,
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.text, size: 20),
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => context.pop(),
           ),
-          title: const Text(
+          title: Text(
             'Notifications',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTextStyles.h3,
           ),
           centerTitle: true,
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSection(
-                title: 'CLIENT REMINDERS',
-                children: [
-                  _buildToggleTile(
-                    icon: Icons.message_outlined,
-                    title: 'WhatsApp Reminders',
-                    subtitle: 'Auto-send payment reminders via WhatsApp',
-                    value: auth.settings.whatsappReminders,
-                    onChanged: (val) async {
-                      await ref.read(authProvider.notifier).updateSettings(
-                        auth.settings.copyWith(whatsappReminders: val),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              _buildSection(
-                title: 'SYSTEM ALERTS',
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Membership Expiry Notice',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            const Text('Notify', style: TextStyle(fontSize: 11, color: AppColors.text2)),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.bg4,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '${auth.settings.expiryReminderDays}',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.orange),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text('days before expiry', style: TextStyle(fontSize: 11, color: AppColors.text2)),
-                          ],
-                        ),
-                        Slider(
-                          value: auth.settings.expiryReminderDays.toDouble(),
-                          min: 1,
-                          max: 15,
-                          divisions: 14,
-                          activeColor: AppColors.orange,
-                          inactiveColor: AppColors.bg4,
-                          onChanged: (val) async {
-                            await ref.read(authProvider.notifier).updateSettings(
-                              auth.settings.copyWith(expiryReminderDays: val.toInt()),
-                            );
-                          },
-                        ),
-                      ],
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSection(
+                  title: 'CLIENT REMINDERS',
+                  children: [
+                    _buildToggleTile(
+                      icon: Icons.chat_rounded,
+                      title: 'WhatsApp Reminders',
+                      subtitle: 'Auto-send payment reminders via WhatsApp',
+                      value: auth.settings.whatsappReminders,
+                      onChanged: (val) async {
+                        await ref.read(authProvider.notifier).updateSettings(
+                          auth.settings.copyWith(whatsappReminders: val),
+                        );
+                      },
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 32),
+                _buildSection(
+                  title: 'SYSTEM ALERTS',
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Membership Expiry Notice',
+                                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${auth.settings.expiryReminderDays} DAYS',
+                                  style: AppTextStyles.label.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Notify gym owner and members before their plan expires.',
+                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: 24),
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: AppColors.primary,
+                              inactiveTrackColor: AppColors.border,
+                              thumbColor: AppColors.textPrimary,
+                              overlayColor: AppColors.primary.withValues(alpha: 0.1),
+                              valueIndicatorColor: AppColors.primary,
+                              valueIndicatorTextStyle: const TextStyle(color: Colors.white),
+                            ),
+                            child: Slider(
+                              value: auth.settings.expiryReminderDays.toDouble(),
+                              min: 1,
+                              max: 15,
+                              divisions: 14,
+                              label: auth.settings.expiryReminderDays.toString(),
+                              onChanged: (val) async {
+                                await ref.read(authProvider.notifier).updateSettings(
+                                  auth.settings.copyWith(expiryReminderDays: val.toInt()),
+                                );
+                              },
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('1 DAY', style: AppTextStyles.bodySmall.copyWith(fontSize: 9)),
+                              Text('15 DAYS', style: AppTextStyles.bodySmall.copyWith(fontSize: 9)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -115,16 +141,29 @@ class NotificationsSettingsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.text3),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: Text(
+            title,
+            style: AppTextStyles.sectionTitle.copyWith(
+              fontSize: 10,
+              letterSpacing: 1.5,
+              color: AppColors.textMuted,
+            ),
+          ),
         ),
-        const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.bg3,
-            borderRadius: BorderRadius.circular(14),
+            color: AppColors.elevation1,
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(children: children),
         ),
@@ -140,33 +179,46 @@ class NotificationsSettingsScreen extends ConsumerWidget {
     required ValueChanged<bool> onChanged,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppColors.bg4,
-              borderRadius: BorderRadius.circular(8),
+              color: AppColors.elevation2,
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, size: 16, color: AppColors.text2),
+            child: Icon(icon, size: 20, color: AppColors.primary),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
-                Text(subtitle, style: const TextStyle(fontSize: 9, color: AppColors.text3)),
+                Text(
+                  title,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ],
             ),
           ),
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.orange,
-            activeTrackColor: AppColors.orange.withValues(alpha: 0.2),
+            activeColor: AppColors.primary,
+            activeTrackColor: AppColors.primary.withValues(alpha: 0.2),
+            inactiveThumbColor: AppColors.textMuted,
+            inactiveTrackColor: AppColors.border,
           ),
         ],
       ),

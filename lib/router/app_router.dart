@@ -29,6 +29,7 @@ import '../features/settings/presentation/screens/about_screen.dart';
 import '../features/settings/presentation/screens/plan_management_screen.dart';
 import '../features/settings/presentation/screens/profile_edit_screen.dart';
 import '../features/auth/recovery/recovery_screen.dart';
+import '../features/settings/presentation/screens/ownership_transfer_screen.dart';
 import '../features/home/presentation/widgets/main_shell.dart';
 
 // Newly Added Screens
@@ -38,9 +39,11 @@ import '../features/notifications/presentation/screens/notifications_hub_screen.
 import '../features/character_creation/presentation/screens/character_creation_screen.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/splash_provider.dart';
 
 final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
   final authState = ref.watch(authProvider);
+  final splashFinished = ref.watch(splashFinishedProvider);
 
   return GoRouter(
     initialLocation: '/',
@@ -65,30 +68,35 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       final isPinSetupPath = state.matchedLocation == '/setup-pin';
       final isPinEntryPath = state.matchedLocation == '/unlock';
 
-      // 1. Splash logic
-      if (isSplash) {
-        if (!onboardingDone) return '/onboarding';
-        if (!isAuth) return '/login';
-        if (isPinSetup && !unlocked) return '/unlock';
-        return '/dashboard';
+      // 1. Wait for splash if we're on the splash screen
+      // This prevents the router from redirecting immediately on startup
+      if (!splashFinished && isSplash) return null;
+
+      // 2. Redirect logic (Unified for all paths)
+      if (!onboardingDone) {
+         if (isOnboarding) return null;
+         return '/onboarding';
       }
 
-      // 2. Onboarding logic
-      if (!onboardingDone && !isOnboarding) return '/onboarding';
-      if (onboardingDone && isOnboarding) return '/';
+      if (!isAuth) {
+         if (isLoggingIn || isOnboarding) return null;
+         return '/login';
+      }
 
-      // 3. Auth logic
-      if (!isAuth && !isLoggingIn && !isOnboarding) return '/login';
-      if (isAuth && isLoggingIn) return '/';
+      // If auth and onboarding are done, handle PIN and landing
+      if (isSplash || isLoggingIn || isOnboarding) {
+         if (isPinSetup && !unlocked) return '/unlock';
+         if (!isPinSetup) return '/setup-pin';
+         return '/dashboard';
+      }
 
-      // 4. PIN logic
-      if (isAuth && onboardingDone) {
-        if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
-          return '/setup-pin';
-        }
-        if (isPinSetup && !unlocked && !isPinEntryPath) {
-          return '/unlock';
-        }
+      // PIN Enforcement
+      if (isPinSetup && !unlocked && !isPinEntryPath) {
+        return '/unlock';
+      }
+
+      if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
+        return '/setup-pin';
       }
 
       return null;
@@ -250,6 +258,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
                   GoRoute(
                     path: 'about',
                     builder: (context, state) => const AboutScreen(),
+                  ),
+                  GoRoute(
+                    path: 'transfer',
+                    builder: (context, state) => const OwnershipTransferScreen(),
                   ),
                 ],
               ),

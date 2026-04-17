@@ -12,6 +12,8 @@ import 'data/local/adapters/manual_adapters.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/hmac_service.dart';
 import 'core/services/notification_service.dart';
+import 'package:workmanager/workmanager.dart';
+import 'sync/midnight_engine.dart';
 import 'data/seed_data.dart';
 import 'app.dart';
 
@@ -34,19 +36,16 @@ void main() async {
     // 1. Firebase Initialisation (Bypassed on Web for Audit)
     if (!kIsWeb) {
       debugPrint('Init: Firebase...');
-      await Firebase.initializeApp().timeout(const Duration(seconds: 10));
+      await Firebase.initializeApp().timeout(const Duration(seconds: 30));
 
       // 2. FCM & Notifications
       debugPrint('Init: FCM/Notifications...');
-      await FcmService.init().timeout(const Duration(seconds: 5));
-      await HmacService.init().timeout(const Duration(seconds: 5));
-      await NotificationService.init().timeout(const Duration(seconds: 5));
+      await FcmService.init().timeout(const Duration(seconds: 20));
+      await HmacService.init().timeout(const Duration(seconds: 20));
+      await NotificationService.init().timeout(const Duration(seconds: 20));
 
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-      FirebaseMessaging.onMessage.listen(FcmService.processKillSignal);
-      FirebaseMessaging.instance.getInitialMessage().then((msg) {
-        if (msg != null) FcmService.processKillSignal(msg);
-      });
+      // Handlers are correctly registered inside FcmService.init()
+      debugPrint('Init: Security/Auth services ready');
     } else {
       debugPrint('Init: Skipping Firebase/FCM on Web for Visual Audit');
     }
@@ -91,9 +90,23 @@ void main() async {
         await SeedData.seedIfEmpty();
     }
 
-    // 4. Background Job Initialisation - Android Only
+    // 4. Background Job Initialisation - Mobile Only
     if (!kIsWeb) {
-      debugPrint('Init: Mobile background tasks... skipped for now');
+      debugPrint('Init: Mobile background tasks...');
+      await Workmanager().initialize(
+        MidnightEngine.callbackDispatcher,
+        isInDebugMode: kDebugMode,
+      );
+      
+      await Workmanager().registerPeriodicTask(
+        "1", 
+        "midnightTask", 
+        frequency: const Duration(hours: 12), // Minimum 15 mins, using 12h for production efficiency
+        constraints: Constraints(
+          networkType: NetworkType.connected,
+          requiresBatteryNotLow: true,
+        ),
+      );
     }
 
     debugPrint('Init: runApp starting...');

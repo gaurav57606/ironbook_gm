@@ -21,7 +21,8 @@ final appSecureStorageProvider = Provider<FlutterSecureStorage>((ref) {
 
 final hmacServiceProvider = Provider<HmacService>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
-  final auth = ref.watch(firebaseAuthProvider)!;
+  final auth = ref.watch(firebaseAuthProvider);
   final firestore = ref.watch(firestoreProvider);
+  
   return HmacService(storage, auth, firestore);
 });

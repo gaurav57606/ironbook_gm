@@ -4,7 +4,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/app.dart';
 import 'package:ironbook_gm/providers/auth_provider.dart';
-import 'package:ironbook_gm/security/pin_service.dart';
 import 'package:ironbook_gm/security/entitlement_guard.dart';
 import '../integration_test/mocks/mock_firebase.dart';
 import '../integration_test/mocks/mock_firestore.dart';
@@ -63,6 +62,7 @@ void main() {
               firestoreProvider.overrideWithValue(mockFirestore),
               entitlementProvider.overrideWithValue(mockEntitlement),
               hmacServiceProvider.overrideWithValue(MockHmacService()),
+              // ignore: invalid_use_of_visible_for_testing_member
             ],
             child: const IronBookApp(
               hiveHealthy: true,

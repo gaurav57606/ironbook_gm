@@ -6,7 +6,12 @@ class NotificationService {
 
   static Future<void> init() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: android);
+    const ios = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    const initSettings = InitializationSettings(android: android, iOS: ios);
     await _plugin.initialize(initSettings);
   }
 
@@ -29,12 +34,17 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
     );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
 
     await _plugin.show(
       notifId,
       title,
       'Tap to view member details',
-      const NotificationDetails(android: androidDetails),
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
   }
 }

@@ -171,7 +171,7 @@ class NutritionScreen extends StatelessWidget {
           child: CircularProgressIndicator(
             value: percent,
             strokeWidth: 4,
-            backgroundColor: Colors.white.withOpacity(0.05),
+            backgroundColor: Colors.white.withValues(alpha: 0.05),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),

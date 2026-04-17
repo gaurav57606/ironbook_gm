@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,76 +11,107 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return StatusBarWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.bg,
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.text, size: 20),
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => context.pop(),
           ),
-          title: const Text(
+          title: Text(
             'About IronBook GM',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTextStyles.h3,
           ),
           centerTitle: true,
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.orange, AppColors.orangeD],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(flex: 2),
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      )
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  child: const Icon(Icons.fitness_center_rounded, size: 60, color: Colors.white),
                 ),
-                child: const Icon(Icons.fitness_center, size: 45, color: Colors.white),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'IronBook GM',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.text),
-              ),
-              const Text(
-                'v2.4.0',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text3),
-              ),
-              const SizedBox(height: 48),
-              const Text(
-                'The ultimate gym management suite.',
-                style: TextStyle(fontSize: 13, color: AppColors.text2),
-              ),
-              const SizedBox(height: 24),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  'Professionally designed for gym owners who value stability, security, and performance.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: AppColors.text3, height: 1.5),
+                const SizedBox(height: 32),
+                Text(
+                  'IronBook GM',
+                  style: AppTextStyles.h1.copyWith(fontSize: 28),
                 ),
-              ),
-              const Spacer(),
-              const Text(
-                'Made by Antigravity',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.orange),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '© 2026 IronBook GM. All rights reserved.',
-                style: TextStyle(fontSize: 9, color: AppColors.text3),
-              ),
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'VERSION 2.4.0',
+                    style: AppTextStyles.label.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 48),
+                Text(
+                  'The ultimate gym management suite.',
+                  style: AppTextStyles.h3.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Professionally designed for gym owners who value stability, security, and world-class performance.',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textMuted,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+                const Spacer(flex: 3),
+                Text(
+                  'MADE WITH ❤️ BY ANTIGRAVITY',
+                  style: AppTextStyles.sectionTitle.copyWith(
+                    fontSize: 10,
+                    letterSpacing: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '© 2026 IronBook GM. All rights reserved.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textMuted,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),

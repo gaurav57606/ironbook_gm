@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../core/utils/clock.dart';
+import '../providers/base_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum EntitlementStatus { valid, grace, expired }
 
@@ -9,8 +12,9 @@ class EntitlementGuard {
   final FlutterSecureStorage _storage;
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final IClock _clock;
 
-  EntitlementGuard(this._storage, this._auth, this._firestore);
+  EntitlementGuard(this._storage, this._auth, this._firestore, this._clock);
 
   Future<EntitlementStatus> checkEntitlement() async {
     final expiryRaw = await _storage.read(key: 'ent_expiry');
@@ -20,8 +24,9 @@ class EntitlementGuard {
     final cachedAt = cachedAtRaw != null ? DateTime.tryParse(cachedAtRaw) : null;
 
     if (expiry != null && cachedAt != null) {
-      final cacheAge = DateTime.now().difference(cachedAt).inDays;
-      if (cacheAge < 7 && expiry.isAfter(DateTime.now())) {
+      final now = _clock.now;
+      final cacheAge = now.difference(cachedAt).inDays;
+      if (cacheAge < 7 && expiry.isAfter(now)) {
         return EntitlementStatus.valid;
       }
     }
@@ -45,15 +50,15 @@ class EntitlementGuard {
       if (doc.exists) {
         final freshExpiry = (doc.data()!['expiresAt'] as Timestamp).toDate();
         await _storage.write(key: 'ent_expiry', value: freshExpiry.toIso8601String());
-        await _storage.write(key: 'ent_cached_at', value: DateTime.now().toIso8601String());
+        await _storage.write(key: 'ent_cached_at', value: _clock.now.toIso8601String());
 
-        return freshExpiry.isAfter(DateTime.now())
+        return freshExpiry.isAfter(_clock.now)
             ? EntitlementStatus.valid
             : EntitlementStatus.expired;
       }
     } catch (_) {
       if (cachedAt != null) {
-        final graceDays = DateTime.now().difference(cachedAt).inDays;
+        final graceDays = _clock.now.difference(cachedAt).inDays;
         if (graceDays < 7) return EntitlementStatus.grace;
       }
     }
@@ -61,3 +66,11 @@ class EntitlementGuard {
     return EntitlementStatus.expired;
   }
 }
+
+final entitlementGuardProvider = Provider<EntitlementGuard>((ref) {
+  final storage = const FlutterSecureStorage();
+  final auth = ref.watch(firebaseAuthProvider)!;
+  final firestore = ref.watch(firestoreProvider);
+  final clock = ref.watch(clockProvider);
+  return EntitlementGuard(storage, auth, firestore, clock);
+});

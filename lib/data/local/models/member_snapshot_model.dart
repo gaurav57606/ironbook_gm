@@ -43,10 +43,17 @@ class MemberSnapshot extends HiveObject {
   String? gender;
 
   @HiveField(13)
+  @HiveField(13)
   int? age;
 
   @HiveField(14)
   String? checkInPin;
+
+  @HiveField(15)
+  DateTime? lastCheckIn;
+
+  @HiveField(16)
+  String? lastCheckInDevice;
 
   MemberSnapshot({
     required this.memberId,
@@ -64,6 +71,8 @@ class MemberSnapshot extends HiveObject {
     this.gender,
     this.age,
     this.checkInPin,
+    this.lastCheckIn,
+    this.lastCheckInDevice,
   }) {
     this.paymentIds = paymentIds ?? [];
     this.joinDateHistory = joinDateHistory ?? [];
@@ -93,7 +102,10 @@ class MemberSnapshot extends HiveObject {
   MemberSnapshot copyWith({
     String? name,
     String? phone,
+    DateTime? joinDate,
     DateTime? expiryDate,
+    String? planId,
+    String? planName,
     int? totalPaid,
     List<String>? paymentIds,
     bool? archived,
@@ -101,14 +113,16 @@ class MemberSnapshot extends HiveObject {
     String? gender,
     int? age,
     String? checkInPin,
+    DateTime? lastCheckIn,
+    String? lastCheckInDevice,
   }) {
     return MemberSnapshot(
       memberId: memberId,
       name: name ?? this.name,
       phone: phone ?? this.phone,
-      joinDate: joinDate,
-      planId: planId,
-      planName: planName,
+      joinDate: joinDate ?? this.joinDate,
+      planId: planId ?? this.planId,
+      planName: planName ?? this.planName,
       expiryDate: expiryDate ?? this.expiryDate,
       totalPaid: totalPaid ?? this.totalPaid,
       paymentIds: paymentIds ?? List.from(this.paymentIds),
@@ -118,6 +132,8 @@ class MemberSnapshot extends HiveObject {
       gender: gender ?? this.gender,
       age: age ?? this.age,
       checkInPin: checkInPin ?? this.checkInPin,
+      lastCheckIn: lastCheckIn ?? this.lastCheckIn,
+      lastCheckInDevice: lastCheckInDevice ?? this.lastCheckInDevice,
     );
   }
 
@@ -134,6 +150,8 @@ class MemberSnapshot extends HiveObject {
       gender: payload['gender'],
       age: payload['age'],
       checkInPin: payload['checkInPin'],
+      lastCheckIn: payload['lastCheckIn'] != null ? DateTime.parse(payload['lastCheckIn']) : null,
+      lastCheckInDevice: payload['lastCheckInDevice'],
     );
   }
 
@@ -195,6 +213,8 @@ class MemberSnapshot extends HiveObject {
       'archived': archived,
       'lastUpdated': lastUpdated.toIso8601String(),
       'checkInPin': checkInPin,
+      'lastCheckIn': lastCheckIn?.toIso8601String(),
+      'lastCheckInDevice': lastCheckInDevice,
     };
   }
 }

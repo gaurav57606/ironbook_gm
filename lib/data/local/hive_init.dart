@@ -14,17 +14,49 @@ import 'models/sale_model.dart';
 class HiveInit {
   static Future<void> openAllBoxes() async {
     final cipher = kIsWeb ? null : await HiveEncryptionService.getOrCreateCipher();
+    final boxNames = {
+      'events': DomainEvent,
+      'snapshots': MemberSnapshot,
+      'payments': Payment,
+      'plans': Plan,
+      'owner': OwnerProfile,
+      'settings': AppSettings,
+      'invoice_sequences': InvoiceSequence,
+      'products': Product,
+      'sales': Sale,
+    };
 
-    // Open each box with its specific type to avoid HiveError in typed repositories
-    if (!Hive.isBoxOpen('events')) await Hive.openBox<DomainEvent>('events', encryptionCipher: cipher);
-    if (!Hive.isBoxOpen('snapshots')) await Hive.openBox<MemberSnapshot>('snapshots', encryptionCipher: cipher);
-    if (!Hive.isBoxOpen('payments')) await Hive.openBox<Payment>('payments', encryptionCipher: cipher);
-    if (!Hive.isBoxOpen('plans')) await Hive.openBox<Plan>('plans', encryptionCipher: cipher);
-    if (!Hive.isBoxOpen('owner')) await Hive.openBox<OwnerProfile>('owner', encryptionCipher: cipher);
-    if (!Hive.isBoxOpen('settings')) await Hive.openBox<AppSettings>('settings', encryptionCipher: cipher);
-    if (!Hive.isBoxOpen('invoice_sequences')) await Hive.openBox<InvoiceSequence>('invoice_sequences', encryptionCipher: cipher);
-    if (!Hive.isBoxOpen('products')) await Hive.openBox<Product>('products', encryptionCipher: cipher);
-    if (!Hive.isBoxOpen('sales')) await Hive.openBox<Sale>('sales', encryptionCipher: cipher);
+    for (final entry in boxNames.entries) {
+      final name = entry.key;
+      if (Hive.isBoxOpen(name)) continue;
+      
+      try {
+        await _openBoxTyped(name, entry.value, cipher);
+      } catch (e) {
+        debugPrint('Hive: Failed to open box "$name" ($e). Attempting granular recovery...');
+        try {
+          await Hive.deleteBoxFromDisk(name);
+          await _openBoxTyped(name, entry.value, cipher);
+          debugPrint('Hive: Box "$name" recovered via nuke-and-reopen.');
+        } catch (e2) {
+          debugPrint('Hive: Critical failure opening box "$name" after deletion: $e2');
+          if (name == 'events') rethrow; // Events are non-negotiable (Source of Truth)
+        }
+      }
+    }
+  }
+
+  static Future<void> _openBoxTyped(String name, Type type, HiveCipher? cipher) async {
+    if (type == DomainEvent) await Hive.openLazyBox<DomainEvent>(name, encryptionCipher: cipher);
+    else if (type == MemberSnapshot) await Hive.openLazyBox<MemberSnapshot>(name, encryptionCipher: cipher);
+    else if (type == Payment) await Hive.openBox<Payment>(name, encryptionCipher: cipher);
+    else if (type == Plan) await Hive.openBox<Plan>(name, encryptionCipher: cipher);
+    else if (type == OwnerProfile) await Hive.openBox<OwnerProfile>(name, encryptionCipher: cipher);
+    else if (type == AppSettings) await Hive.openBox<AppSettings>(name, encryptionCipher: cipher);
+    else if (type == InvoiceSequence) await Hive.openBox<InvoiceSequence>(name, encryptionCipher: cipher);
+    else if (type == Product) await Hive.openBox<Product>(name, encryptionCipher: cipher);
+    else if (type == Sale) await Hive.openBox<Sale>(name, encryptionCipher: cipher);
+    else await Hive.openBox(name, encryptionCipher: cipher);
   }
 
   static Future<bool> openWithCorruptionGuard() async {
@@ -32,29 +64,7 @@ class HiveInit {
       await openAllBoxes();
       return true;
     } catch (e) {
-      debugPrint('Hive first attempt failed: $e. Nuking boxes...');
-      final boxNames = [
-        'events', 'snapshots', 'payments', 'plans', 
-        'owner', 'settings', 'invoice_sequences', 'auth',
-        'products', 'sales'
-      ];
-      for (final name in boxNames) {
-        try {
-          if (Hive.isBoxOpen(name)) {
-             await Hive.box(name).close();
-          }
-          await Hive.deleteBoxFromDisk(name);
-        } catch (_) {}
-      }
-      
-      try {
-        debugPrint('Hive retrying after nuke...');
-        await openAllBoxes();
-        return true;
-      } catch (e2) {
-        debugPrint('Hive critical failure after nuke: $e2');
-        return false;
-      }
+      debugPrint('Hive: Hard crash on Source of Truth (events): $e');
+      return false;
     }
   }
-}

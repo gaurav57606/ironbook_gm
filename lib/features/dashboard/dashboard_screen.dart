@@ -5,7 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../providers/member_provider.dart';
 import '../../data/local/models/member_snapshot_model.dart';
-import '../../sync/sync_engine.dart';
+import '../../data/sync_worker.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -19,7 +19,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(syncEngineProvider).pushPendingEvents();
+      ref.read(syncWorkerProvider).performSync();
     });
   }
 
@@ -35,6 +35,67 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: CustomScrollView(
         slivers: [
           _buildAppBar(context),
+          SliverToBoxAdapter(
+            child: ref.watch(unsyncedCountProvider).when(
+              data: (count) => count > 0 
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.orange.withOpacity(0.15), AppColors.orange.withOpacity(0.05)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.orange.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.sync_problem_rounded, color: AppColors.orange, size: 24),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$count Unsynced Changes',
+                                style: AppTextStyles.label.copyWith(
+                                  color: AppColors.orange,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                count > 10 
+                                  ? 'CRITICAL: Do not uninstall the app. Data loss will occur.'
+                                  : 'Tap to sync your local changes to the cloud.',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.orange.withValues(alpha: 0.8),
+                                  fontSize: 12,
+                                  fontWeight: count > 10 ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => ref.read(syncWorkerProvider).performSync(),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.orange,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            backgroundColor: AppColors.orange.withValues(alpha: 0.1),
+                            shape: RoundedRectangleMask(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('SYNC NOW'),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -87,6 +148,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
       actions: [
+        ref.watch(unsyncedCountProvider).when(
+          data: (count) => count > 0 
+            ? Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: Tooltip(
+                    message: '$count changes unsynced',
+                    child: InkWell(
+                      onTap: () => ref.read(syncWorkerProvider).performSync(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.orange.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.cloud_upload_outlined, size: 14, color: AppColors.orange),
+                            const SizedBox(width: 4),
+                            Text('$count', style: AppTextStyles.label.copyWith(color: AppColors.orange, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : const SizedBox.shrink(),
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
         IconButton(
           onPressed: () => context.push('/settings'),
           icon: const Icon(Icons.settings_outlined, color: AppColors.textMuted),

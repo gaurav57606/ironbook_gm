@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/utils/date_utils.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
@@ -90,38 +92,47 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
   Widget build(BuildContext context) {
     final plans = ref.watch(planProvider);
 
-    return StatusBarWrapper(
-      child: Column(
-        children: [
-          _buildAppBar(context),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              children: [
-                AppTextField(label: 'Full Name', hint: 'Ravi Kumar', controller: _nameController, enabled: !_isSaving),
-                AppTextField(label: 'Phone Number', hint: '+91 99887 76655', keyboardType: TextInputType.phone, controller: _phoneController, enabled: !_isSaving),
-                _buildSectionHeader('Select Plan'),
-                if (plans.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Text('No plans found. Please configure plans in Settings.', 
-                      style: TextStyle(color: Colors.red, fontSize: 10)),
-                  )
-                else
-                  _buildPlanChips(plans),
-                if (plans.isNotEmpty) _buildPlanSummary(plans[_selectedPlanIndex]),
-                _buildSectionHeader('Payment Method'),
-                _buildPaymentChips(),
-                const SizedBox(height: 20),
-                AppButton(
-                  text: _isSaving ? 'Processing...' : 'Register Member & Generate Invoice',
-                  onPressed: _isSaving ? null : _handleSave,
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: StatusBarWrapper(
+          child: Column(
+            children: [
+              _buildAppBar(context),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  children: [
+                    AppTextField(label: 'Full Name', hint: 'Enter member name', controller: _nameController, enabled: !_isSaving),
+                    AppTextField(label: 'Phone Number', hint: '10-digit mobile number', keyboardType: TextInputType.phone, controller: _phoneController, enabled: !_isSaving),
+                    _buildSectionHeader('SELECT PLAN'),
+                    if (plans.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text('No plans found. Please configure plans in Settings.', 
+                          style: TextStyle(color: AppColors.red, fontSize: 10)),
+                      )
+                    else
+                      _buildPlanChips(plans),
+                    const SizedBox(height: 12),
+                    if (plans.isNotEmpty) _buildPlanSummary(plans[_selectedPlanIndex]),
+                    _buildSectionHeader('PAYMENT METHOD'),
+                    _buildPaymentChips(),
+                    const SizedBox(height: 32),
+                    AppButton(
+                      text: _isSaving ? 'Registering...' : 'Register & Generate Invoice',
+                      onPressed: _isSaving ? null : _handleSave,
+                    ),
+                    const SizedBox(height: 40),
+                  ],
                 ),
-                const SizedBox(height: 30),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -129,27 +140,28 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.only(left: 14, right: 14, top: 12, bottom: 8),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
             onTap: () => context.pop(),
             child: Container(
-              width: 28,
-              height: 28,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: AppColors.bg3,
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.elevation2,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(Icons.chevron_left, size: 18, color: AppColors.text),
+              child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.text),
             ),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          Text(
             'Add Member',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
+            style: AppTextStyles.cardTitle.copyWith(fontSize: 18, fontWeight: FontWeight.w800),
           ),
+          const SizedBox(width: 40), // Spacer to center the title
         ],
       ),
     );
@@ -157,40 +169,43 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
       child: Text(
-        title.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w600,
-          color: AppColors.text2,
-          letterSpacing: 0.5,
-        ),
+        title,
+        style: AppTextStyles.sectionTitle.copyWith(fontSize: 9, letterSpacing: 2.0),
       ),
     );
   }
 
   Widget _buildPlanChips(List<Plan> plans) {
     return Wrap(
-      spacing: 5,
-      runSpacing: 5,
+      spacing: 8,
+      runSpacing: 8,
       children: List.generate(plans.length, (index) {
         final isSelected = _selectedPlanIndex == index;
         return GestureDetector(
           onTap: _isSaving ? null : () => setState(() => _selectedPlanIndex = index),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.orange.withValues(alpha: 0.1) : AppColors.bg3,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isSelected ? AppColors.orange : AppColors.border),
+              gradient: isSelected ? AppColors.primaryGradient : null,
+              color: isSelected ? null : AppColors.elevation1,
+              borderRadius: BorderRadius.circular(12),
+              border: isSelected ? null : Border.all(color: AppColors.border),
+              boxShadow: isSelected ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                )
+              ] : [],
             ),
             child: Text(
-              '${plans[index].name} ₹${plans[index].totalPrice.toInt()}',
+              plans[index].name,
               style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.orange : AppColors.text2,
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
               ),
             ),
           ),
@@ -201,25 +216,29 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
 
   Widget _buildPaymentChips() {
     final payments = ['Cash', 'UPI', 'Card', 'Bank'];
-    return Wrap(
-      spacing: 5,
+    return Row(
       children: List.generate(payments.length, (index) {
         final isSelected = _selectedPayment == index;
-        return GestureDetector(
-          onTap: _isSaving ? null : () => setState(() => _selectedPayment = index),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.orange.withValues(alpha: 0.1) : AppColors.bg3,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isSelected ? AppColors.orange : AppColors.border),
-            ),
-            child: Text(
-              payments[index],
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.orange : AppColors.text2,
+        return Expanded(
+          child: GestureDetector(
+            onTap: _isSaving ? null : () => setState(() => _selectedPayment = index),
+            child: Container(
+              margin: EdgeInsets.only(right: index == payments.length - 1 ? 0 : 6),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                gradient: isSelected ? AppColors.primaryGradient : null,
+                color: isSelected ? null : AppColors.elevation1,
+                borderRadius: BorderRadius.circular(10),
+                border: isSelected ? null : Border.all(color: AppColors.border),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                payments[index],
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                ),
               ),
             ),
           ),
@@ -229,31 +248,70 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
   }
 
   Widget _buildPlanSummary(Plan plan) {
-    // Calculate expiry based on duration
-    final expiryDate = DateTime.now().add(Duration(days: plan.durationMonths * 30));
+    final expiryDate = AppDateUtils.addMonths(DateTime.now(), plan.durationMonths);
     final expiryStr = '${expiryDate.day} ${_getMonthName(expiryDate.month)} ${expiryDate.year}';
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.orange.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: AppColors.orange.withValues(alpha: 0.2)),
+        color: AppColors.elevation2,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${plan.name.toUpperCase()} SUMMARY',
-            style: const TextStyle(fontSize: 9, color: AppColors.orange, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'PLAN SUMMARY',
+                style: AppTextStyles.sectionTitle.copyWith(fontSize: 9, letterSpacing: 1.5),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  plan.name.toUpperCase(),
+                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: AppColors.primary),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 5),
-          ...plan.components.map((c) => _buildSummaryRow(c.name, '₹${c.price.toInt()}')),
-          const Divider(height: 10, color: Color(0x33FF6B2B)),
-          _buildSummaryRow('Total', '₹${plan.totalPrice.toInt()}', isTotal: true),
-          const SizedBox(height: 3),
-          Text('Expires: $expiryStr', style: const TextStyle(fontSize: 9, color: AppColors.text2)),
+          const SizedBox(height: 20),
+          ...plan.components.map((c) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(c.name, style: AppTextStyles.body.copyWith(fontSize: 12, color: AppColors.textSecondary)),
+                Text('₹${c.price.toInt()}', style: AppTextStyles.body.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          )),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Divider(color: AppColors.border),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total Payable', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)),
+              Text('₹${plan.totalPrice.toInt()}', style: AppTextStyles.cardTitle.copyWith(fontSize: 18, color: AppColors.primary)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textMuted),
+              const SizedBox(width: 6),
+              Text('Valid until $expiryStr', style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.textMuted)),
+            ],
+          ),
         ],
       ),
     );
@@ -270,8 +328,8 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: isTotal ? 11 : 9, color: isTotal ? AppColors.text : AppColors.text2, fontWeight: isTotal ? FontWeight.w700 : null)),
-          Text(value, style: TextStyle(fontSize: isTotal ? 11 : 9, fontWeight: isTotal ? FontWeight.w700 : null, color: isTotal ? AppColors.orange : AppColors.text)),
+          Text(label, style: TextStyle(fontSize: isTotal ? 11 : 9, color: isTotal ? AppColors.text : AppColors.textSecondary, fontWeight: isTotal ? FontWeight.w700 : null)),
+          Text(value, style: TextStyle(fontSize: isTotal ? 11 : 9, fontWeight: isTotal ? FontWeight.w700 : null, color: isTotal ? AppColors.primary : AppColors.textPrimary)),
         ],
       ),
     );

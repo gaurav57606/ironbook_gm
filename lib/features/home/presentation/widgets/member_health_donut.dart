@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 
 class MemberHealthDonut extends StatelessWidget {
   final int active;
@@ -20,17 +21,17 @@ class MemberHealthDonut extends StatelessWidget {
     final activePct = total > 0 ? (active / total * 100).toInt() : 0;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.elevation1,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
           SizedBox(
-            width: 72,
-            height: 72,
+            width: 80,
+            height: 80,
             child: CustomPaint(
               painter: DonutPainter(
                 active: active,
@@ -44,18 +45,17 @@ class MemberHealthDonut extends StatelessWidget {
                   children: [
                     Text(
                       '$activePct%',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text,
+                      style: AppTextStyles.heroNumber.copyWith(
+                        fontSize: 16,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const Text(
-                      'ACTIVE',
-                      style: TextStyle(
-                        fontSize: 7,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.text2,
+                    Text(
+                      'HEALTH',
+                      style: AppTextStyles.sectionTitle.copyWith(
+                        fontSize: 6,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ],
@@ -63,23 +63,19 @@ class MemberHealthDonut extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 24),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Member Health',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
-                  ),
+                Text(
+                  'HEALTH OVERVIEW',
+                  style: AppTextStyles.sectionTitle.copyWith(fontSize: 8, letterSpacing: 1.5),
                 ),
-                const SizedBox(height: 7),
-                _buildLegendItem(AppColors.green, 'Active', active),
-                _buildLegendItem(AppColors.amber, 'Expiring', expiring),
-                _buildLegendItem(AppColors.red, 'Expired', expired),
+                const SizedBox(height: 12),
+                _buildLegendItem(AppColors.active, 'Active', active),
+                _buildLegendItem(AppColors.expiring, 'Expiring', expiring),
+                _buildLegendItem(AppColors.expired, 'Expired', expired),
               ],
             ),
           ),
@@ -90,31 +86,34 @@ class MemberHealthDonut extends StatelessWidget {
 
   Widget _buildLegendItem(Color color, String label, int value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 5),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
           Container(
-            width: 6,
-            height: 6,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.3),
+                  blurRadius: 4,
+                )
+              ],
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 9,
-              color: AppColors.text2,
-            ),
+            style: AppTextStyles.bodySmall.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
           ),
           const Spacer(),
           Text(
             value.toString(),
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
               color: color,
             ),
           ),
@@ -144,7 +143,7 @@ class DonutPainter extends CustomPainter {
     const strokeWidth = 10.0;
 
     final paintBase = Paint()
-      ..color = AppColors.border
+      ..color = AppColors.border.withValues(alpha: 0.3)
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke;
 
@@ -159,19 +158,19 @@ class DonutPainter extends CustomPainter {
     var startAngle = -math.pi / 2;
 
     final paintActive = Paint()
-      ..color = AppColors.green
+      ..color = AppColors.active
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     final paintExpiring = Paint()
-      ..color = AppColors.amber
+      ..color = AppColors.expiring
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     final paintExpired = Paint()
-      ..color = AppColors.red
+      ..color = AppColors.expired
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;

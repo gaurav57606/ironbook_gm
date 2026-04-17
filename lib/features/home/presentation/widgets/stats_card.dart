@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 
 class StatsCard extends StatelessWidget {
   final String value;
@@ -18,39 +19,40 @@ class StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isPrimary ? null : AppColors.bg3,
-        gradient: isPrimary
-            ? const LinearGradient(
-                colors: [AppColors.orangeD, AppColors.orange],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        borderRadius: BorderRadius.circular(14),
+        color: isPrimary ? null : AppColors.elevation1,
+        gradient: isPrimary ? AppColors.primaryGradient : null,
+        borderRadius: BorderRadius.circular(20),
         border: isPrimary ? null : Border.all(color: AppColors.border),
+        boxShadow: isPrimary ? [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ] : [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: isPrimary ? Colors.white : (valueColor ?? AppColors.text),
+            style: AppTextStyles.heroNumber.copyWith(
+              fontSize: 28,
+              color: isPrimary ? Colors.white : (valueColor ?? AppColors.textPrimary),
               height: 1,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             label.toUpperCase(),
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-              color: isPrimary ? Colors.white.withValues(alpha: 0.7) : AppColors.text2,
-              letterSpacing: 0.4,
+            style: AppTextStyles.sectionTitle.copyWith(
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              color: isPrimary ? Colors.white.withValues(alpha: 0.7) : AppColors.textMuted,
+              letterSpacing: 1.2,
             ),
           ),
         ],

@@ -10,7 +10,7 @@ class DomainEvent extends HiveObject {
   late String entityId; // memberId or 'owner' or 'settings'
 
   @HiveField(2)
-  late String eventType; // EventType enum name
+  late EventType eventType; // EventType enum
 
   @HiveField(3)
   late Map<String, dynamic> payload;
@@ -32,22 +32,21 @@ class DomainEvent extends HiveObject {
     required this.entityId,
     required this.eventType,
     required this.payload,
-    DateTime? deviceTimestamp,
+    required this.deviceTimestamp,
     this.synced = false,
     this.hmacSignature = '',
     required this.deviceId,
   }) {
     this.id = id ?? const Uuid().v4();
-    this.deviceTimestamp = deviceTimestamp ?? DateTime.now();
   }
 
   Map<String, dynamic> toFirestore() {
     return {
       'id': id,
       'entityId': entityId,
-      'eventType': eventType,
+      'eventType': eventType.name,
       'payload': payload,
-      'deviceTimestamp': deviceTimestamp.toIso8601String(),
+      'deviceTimestamp': deviceTimestamp.toUtc().toIso8601String(),
       'synced': true,
       'hmacSignature': hmacSignature,
       'deviceId': deviceId,
@@ -69,9 +68,9 @@ class DomainEvent extends HiveObject {
     return {
       'id': id,
       'entityId': entityId,
-      'eventType': eventType,
+      'eventType': eventType.name,
       'payload': essentialPayload,
-      'deviceTimestamp': deviceTimestamp.toIso8601String(),
+      'deviceTimestamp': deviceTimestamp.toUtc().toIso8601String(),
       'synced': true,
       'hmacSignature': hmacSignature,
       'deviceId': deviceId,
@@ -82,9 +81,9 @@ class DomainEvent extends HiveObject {
     return DomainEvent(
       id: data['id'],
       entityId: data['entityId'],
-      eventType: data['eventType'],
+      eventType: EventType.values.byName(data['eventType']),
       payload: Map<String, dynamic>.from(data['payload']),
-      deviceTimestamp: DateTime.parse(data['deviceTimestamp']),
+      deviceTimestamp: DateTime.parse(data['deviceTimestamp']).toLocal(),
       synced: true,
       hmacSignature: data['hmacSignature'],
       deviceId: data['deviceId'],
@@ -92,17 +91,36 @@ class DomainEvent extends HiveObject {
   }
 }
 
+@HiveType(typeId: 11) // Using different typeId for enum if needed, or keeping it
 enum EventType {
+  @HiveField(0)
   memberCreated,
+  @HiveField(1)
   planAssigned,
+  @HiveField(2)
   paymentAdded,
+  @HiveField(3)
   membershipExtended,
+  @HiveField(4)
   joinDateEdited,
+  @HiveField(5)
   invoiceGenerated,
+  @HiveField(6)
   settingsChanged,
+  @HiveField(7)
   ownerProfileCreated,
+  @HiveField(8)
   ownerProfileUpdated,
+  @HiveField(9)
   plansUpdated,
+  @HiveField(10)
   memberArchived,
+  @HiveField(11)
   memberUpdated,
+  @HiveField(12)
+  membershipRenewed,
+  @HiveField(13)
+  paymentRecorded,
+  @HiveField(14)
+  checkInRecorded,
 }

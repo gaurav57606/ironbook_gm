@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 
 class MemberRow extends StatelessWidget {
   final String name;
@@ -20,48 +21,48 @@ class MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.elevation1,
+        border: Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
       ),
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(9),
+              gradient: LinearGradient(
+                colors: [statusColor.withValues(alpha: 0.2), statusColor.withValues(alpha: 0.05)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: statusColor.withValues(alpha: 0.2)),
             ),
             alignment: Alignment.center,
             child: Text(
               initials,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+              style: AppTextStyles.cardTitle.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
                 color: statusColor,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
-                  ),
+                  style: AppTextStyles.memberName.copyWith(fontSize: 14),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: AppColors.text2,
-                  ),
+                  style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -71,17 +72,18 @@ class MemberRow extends StatelessWidget {
             children: [
               Text(
                 daysLeft,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyles.heroNumber.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
                   color: statusColor,
                 ),
               ),
-              const Text(
-                'days left',
-                style: TextStyle(
-                  fontSize: 8,
-                  color: AppColors.text3,
+              Text(
+                'DAYS LEFT',
+                style: AppTextStyles.sectionTitle.copyWith(
+                  fontSize: 6,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMuted,
                 ),
               ),
             ],

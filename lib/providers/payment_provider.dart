@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -7,21 +8,41 @@ import '../data/local/models/invoice_sequence.dart';
 import '../data/local/models/domain_event_model.dart';
 import '../data/local/models/plan_model.dart';
 import '../data/repositories/event_repository.dart';
+import '../core/utils/clock.dart';
+import '../core/services/hmac_service.dart';
+import '../providers/base_providers.dart';
+import '../constants/event_payload_keys.dart';
+import '../data/local/models/member_snapshot_model.dart';
+import '../core/utils/date_utils.dart';
+import 'dart:async';
 
 class PaymentNotifier extends StateNotifier<List<Payment>> {
   final Box<Payment> _paymentBox;
   final Box<InvoiceSequence> _sequenceBox;
   final IEventRepository _eventRepo;
-  final String _deviceId;
-
+  final IClock _clock;
+  final HmacService _hmac;
+  String _deviceId = 'device-loading';
+  
+  Completer<void>? _syncLock;
+ 
   PaymentNotifier(
     this._paymentBox,
     this._sequenceBox,
     this._eventRepo,
-    this._deviceId,
+    this._clock,
+    this._hmac,
   ) : super([]) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    _deviceId = await _hmac.getInstallationId();
     _loadPayments();
   }
+
+  @visibleForTesting
+  set debugState(List<Payment> payments) => state = payments;
 
   void _loadPayments() {
     state = _paymentBox.values.toList().reversed.toList();
@@ -33,69 +54,93 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     required String method,
     String? reference,
   }) async {
-    // 1. Get/Create Invoice Sequence
-    var sequence = _sequenceBox.get('default');
-    if (sequence == null) {
-      sequence = InvoiceSequence(prefix: 'INV-${DateTime.now().year}-');
-      await _sequenceBox.put('default', sequence);
+    // Audit Check 1.8: Atomic Invoice Sequence
+    while (_syncLock != null) {
+      await _syncLock!.future;
     }
+    _syncLock = Completer<void>();
 
-    final invoiceNumber = sequence.nextInvoiceId;
-    
-    // 2. Increment Sequence
-    sequence.nextNumber++;
-    await sequence.save();
+    try {
+      final now = _clock.now;
+      
+      // 1. Get/Create Invoice Sequence
+      var sequence = _sequenceBox.get('default');
+      if (sequence == null) {
+        sequence = InvoiceSequence(prefix: 'INV-${now.year}-');
+      }
 
-    // 3. Calculate GST (Assume 18% inclusive for matching the UI design precision)
-    // Total = Subtotal + (Subtotal * 0.18) => Total = Subtotal * 1.18
-    // Subtotal = Total / 1.18
-    final total = plan.totalPrice;
-    final subtotal = total / 1.18;
-    const gstRate = 0.18;
-    final gstAmount = total - subtotal;
+      final invoiceNumber = sequence.nextInvoiceId;
+      
+      // 2. Increment Sequence
+      sequence.nextNumber++;
+      await _sequenceBox.put('default', sequence);
 
-    // 4. Create Payment Record
-    final payment = Payment(
-      id: const Uuid().v4(),
-      memberId: memberId,
-      date: DateTime.now(),
-      amount: total,
-      method: method,
-      reference: reference,
-      planId: plan.id,
-      planName: plan.name,
-      durationMonths: plan.durationMonths,
-      invoiceNumber: invoiceNumber,
-      subtotal: subtotal,
-      gstAmount: gstAmount,
-      gstRate: gstRate,
-      components: plan.components.map((c) => PlanComponentSnapshot(
-        name: c.name,
-        price: c.price,
-      )).toList(),
-    );
+      // 3. Calculate GST (Assume 18% inclusive)
+      final total = plan.totalPrice;
+      final subtotal = total / 1.18;
+      const gstRate = 0.18;
+      final gstAmount = total - subtotal;
 
-    // 5. Persist Locally
-    await _paymentBox.put(payment.id, payment);
-    state = [payment, ...state];
+      // 4. Create Payment Record (Deterministic UTC)
+      final snapshotsBox = Hive.lazyBox<MemberSnapshot>('snapshots');
+      final member = await snapshotsBox.get(memberId);
+      
+      // Calculate new expiry
+      DateTime baseDate = member?.expiryDate ?? now;
+      if (baseDate.isBefore(now)) baseDate = now;
+      final newExpiryDate = AppDateUtils.addMonths(baseDate, plan.durationMonths);
 
-    // 6. Emit Domain Event for Sync
-    final event = DomainEvent(
-      entityId: payment.id,
-      eventType: 'PAYMENT_RECORDED',
-      deviceId: _deviceId,
-      payload: {
-        'memberId': memberId,
-        'amount': total,
-        'method': method,
-        'invoiceNumber': invoiceNumber,
-        'planId': plan.id,
-        'timestamp': payment.date.toIso8601String(),
-      },
-    );
-    await _eventRepo.persist(event);
+      final payment = Payment(
+        id: const Uuid().v4(),
+        memberId: memberId,
+        date: now,
+        amount: total,
+        method: method,
+        reference: reference,
+        planId: plan.id,
+        planName: plan.name,
+        durationMonths: plan.durationMonths,
+        invoiceNumber: invoiceNumber,
+        subtotal: subtotal,
+        gstAmount: gstAmount,
+        gstRate: gstRate,
+        components: plan.components.map((c) => PlanComponentSnapshot(
+          name: c.name,
+          price: c.price,
+        )).toList(),
+      );
 
-    return payment;
+      // 5. Persist Locally
+      await _paymentBox.put(payment.id, payment);
+      state = [payment, ...state];
+
+      // 6. Emit Domain Event (Consolidated)
+      final event = DomainEvent(
+        entityId: memberId, // Target is the member for state updates
+        eventType: EventType.paymentRecorded,
+        deviceId: _deviceId,
+        deviceTimestamp: now,
+        payload: {
+          EventPayloadKeys.memberId: memberId,
+          EventPayloadKeys.paymentId: payment.id,
+          EventPayloadKeys.amount: total,
+          EventPayloadKeys.paymentMethod: method,
+          EventPayloadKeys.invoiceNumber: invoiceNumber,
+          EventPayloadKeys.planId: plan.id,
+          EventPayloadKeys.planName: plan.name,
+          EventPayloadKeys.durationMonths: plan.durationMonths,
+          EventPayloadKeys.newExpiry: newExpiryDate.toUtc().toIso8601String(),
+          EventPayloadKeys.updatedAt: now.toUtc().toIso8601String(),
+        },
+      );
+      await _eventRepo.persist(event);
+
+      return payment;
+    } finally {
+      final lock = _syncLock;
+      _syncLock = null;
+      lock?.complete();
+    }
   }
 
   Payment? getLatestForMember(String memberId) {
@@ -110,10 +155,10 @@ final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((
   final paymentBox = ref.watch(paymentBoxProvider);
   final sequenceBox = ref.watch(sequenceBoxProvider);
   final eventRepo = ref.watch(eventRepositoryProvider);
+  final clock = ref.watch(clockProvider);
+  final hmac = ref.watch(hmacServiceProvider);
   
-  const deviceId = 'device-billing-v1';
-
-  return PaymentNotifier(paymentBox, sequenceBox, eventRepo, deviceId);
+  return PaymentNotifier(paymentBox, sequenceBox, eventRepo, clock, hmac);
 });
 
 final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, memberId) {

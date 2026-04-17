@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/data/sync_worker.dart';
-import '../fakes/fake_event_repository.dart';
-import '../fakes/fake_firestore.dart';
+import '../../test/fakes/fake_event_repository.dart';
+import '../../test/fakes/fake_firestore.dart';
 
 void main() {
   late FakeEventRepository mockRepo;

@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
@@ -13,7 +12,6 @@ import 'package:ironbook_gm/data/local/models/product_model.dart';
 import 'package:ironbook_gm/data/local/models/sale_model.dart';
 
 class TestHelper {
-  static bool _initialized = false;
 
   static Future<void> setupHive([String subDir = 'default']) async {
     // Initialize Hive with a specific directory for isolation
@@ -25,8 +23,6 @@ class TestHelper {
     
     // Open required boxes
     await _openBoxes();
-    
-    _initialized = true;
   }
 
   static void _registerAdapters() {
@@ -59,6 +55,5 @@ class TestHelper {
 
   static Future<void> cleanHive() async {
     await Hive.deleteFromDisk();
-    _initialized = false;
   }
 }

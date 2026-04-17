@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
@@ -54,67 +55,90 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     return StatusBarWrapper(
       child: Scaffold(
-        backgroundColor: AppColors.bg,
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.text, size: 20),
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => context.pop(),
           ),
-          title: const Text(
+          title: Text(
             'My Profile',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTextStyles.h3,
           ),
           centerTitle: true,
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Center(
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppColors.bg3,
-                      child: Icon(Icons.person, size: 40, color: AppColors.text3),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'Account Owner',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text,
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          size: 50,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      Text(
+                        'Account Owner',
+                        style: AppTextStyles.cardTitle.copyWith(fontSize: 18),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Manage your personal details',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 30),
-              AppTextField(
-                label: 'Owner Name',
-                hint: 'Enter your name',
-                controller: _nameController,
-              ),
-              AppTextField(
-                label: 'Phone Number',
-                hint: 'Enter your phone number',
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 40),
-              AppButton(
-                text: 'Save Changes',
-                onPressed: _save,
-              ),
-            ],
+                const SizedBox(height: 48),
+                AppTextField(
+                  label: 'Owner Name',
+                  hint: 'Enter your name',
+                  controller: _nameController,
+                  prefixIcon: Icons.person_outline_rounded,
+                ),
+                const SizedBox(height: 20),
+                AppTextField(
+                  label: 'Phone Number',
+                  hint: 'Enter your phone number',
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: Icons.phone_android_rounded,
+                ),
+                const SizedBox(height: 48),
+                AppButton(
+                  text: 'Save Changes',
+                  onPressed: _save,
+                ),
+              ],
+            ),
           ),
         ),
       ),

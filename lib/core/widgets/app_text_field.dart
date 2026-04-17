@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 
 class AppTextField extends StatelessWidget {
   final String label;
@@ -30,32 +31,32 @@ class AppTextField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 9,
-            color: AppColors.text2,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
+          style: AppTextStyles.sectionTitle.copyWith(fontSize: 8, letterSpacing: 1.5, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.elevation2,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: TextFormField(
+            controller: controller,
+            enabled: enabled,
+            obscureText: isPassword,
+            keyboardType: keyboardType,
+            style: AppTextStyles.body.copyWith(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+              prefixIcon: prefixIcon != null ? IconTheme(data: const IconThemeData(color: AppColors.textMuted, size: 20), child: prefixIcon!) : null,
+              suffixIcon: suffixIcon,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
           ),
         ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          enabled: enabled,
-          obscureText: isPassword,
-          keyboardType: keyboardType,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.text,
-            letterSpacing: 0.5,
-          ),
-          decoration: InputDecoration(
-            hintText: hint,
-            prefixIcon: prefixIcon,
-            suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          ),
-        ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
       ],
     );
   }

@@ -3,9 +3,9 @@ import 'package:mocktail/mocktail.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/app.dart';
 import 'package:ironbook_gm/providers/auth_provider.dart';
-import 'package:ironbook_gm/security/pin_service.dart';
 import 'package:ironbook_gm/security/entitlement_guard.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ironbook_gm/providers/base_providers.dart';
 
 import '../integration_test/mocks/mock_firebase.dart';
 import '../integration_test/mocks/mock_secure_storage.dart';
@@ -42,7 +42,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              secureStorageProvider.overrideWithValue(mockStorage),
+              appSecureStorageProvider.overrideWithValue(mockStorage),
               firebaseAuthProvider.overrideWithValue(mockAuth),
               entitlementProvider.overrideWithValue(mockEntitlement),
             ],
@@ -68,7 +68,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              secureStorageProvider.overrideWithValue(mockStorage),
+              appSecureStorageProvider.overrideWithValue(mockStorage),
               firebaseAuthProvider.overrideWithValue(mockAuth),
               entitlementProvider.overrideWithValue(mockEntitlement),
             ],

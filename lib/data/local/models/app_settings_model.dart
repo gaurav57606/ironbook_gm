@@ -17,8 +17,6 @@ class AppSettings extends HiveObject {
   @HiveField(4)
   final String businessType; // 'gym' | 'library' | 'salon' | 'custom'
 
-  @HiveField(6)
-  final bool auditMode;
 
   AppSettings({
     this.gstRate = 18.0,
@@ -27,7 +25,6 @@ class AppSettings extends HiveObject {
     this.biometricEnabled = false,
     this.useBiometrics = false,
     this.businessType = 'Gym',
-    this.auditMode = false,
   });
 
   AppSettings copyWith({
@@ -37,7 +34,6 @@ class AppSettings extends HiveObject {
     bool? biometricEnabled,
     bool? useBiometrics,
     String? businessType,
-    bool? auditMode,
   }) {
     return AppSettings(
       gstRate: gstRate ?? this.gstRate,
@@ -46,7 +42,6 @@ class AppSettings extends HiveObject {
       biometricEnabled: biometricEnabled ?? this.biometricEnabled,
       useBiometrics: useBiometrics ?? this.useBiometrics,
       businessType: businessType ?? this.businessType,
-      auditMode: auditMode ?? this.auditMode,
     );
   }
 }

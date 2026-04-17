@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:ironbook_gm/core/services/invoice_service.dart';
 import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
-import '../helpers/hive_test_helper.dart';
+import '../../test/helpers/hive_test_helper.dart';
 
 void main() {
   group('Invoice Generation Logic (TC-UNIT-03)', () {

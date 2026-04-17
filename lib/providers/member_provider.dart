@@ -1,18 +1,23 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../data/local/models/member_snapshot_model.dart';
 import '../data/local/models/domain_event_model.dart';
 import '../data/local/models/plan_model.dart';
-import '../data/local/models/app_settings_model.dart';
 import '../data/repositories/event_repository.dart';
 import '../data/local/snapshot_builder.dart';
 import '../core/utils/clock.dart';
+import '../core/utils/date_utils.dart';
+import '../core/services/hmac_service.dart';
+import '../providers/base_providers.dart';
+import '../constants/event_payload_keys.dart';
 
 final membersProvider = StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
   final repo = ref.watch(eventRepositoryProvider);
   final clock = ref.watch(clockProvider);
-  return MemberNotifier(repo, clock);
+  final hmac = ref.watch(hmacServiceProvider);
+  return MemberNotifier(repo, clock, hmac);
 });
 
 final memberSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -42,54 +47,86 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
 class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   final IEventRepository _repo;
   final IClock _clock;
-  final String _deviceId = 'device-${const Uuid().v4().substring(0, 8)}';
+  final HmacService _hmac;
+  String _deviceId = 'device-unknown';
 
-  MemberNotifier(this._repo, this._clock) : super([]) {
+  MemberNotifier(this._repo, this._clock, this._hmac) : super([]) {
     init();
   }
 
-  void init() {
-    if (!Hive.isBoxOpen('snapshots')) return;
-    final box = Hive.box<MemberSnapshot>('snapshots');
-    state = box.values.toList();
+  @visibleForTesting
+  set debugState(List<MemberSnapshot> members) => state = members;
 
-    // Recovery logic: If snapshots are missing but events exist, rebuild.
-    _checkAndRecover();
+  Future<void> init() async {
+    _deviceId = await _hmac.getInstallationId();
+    if (!Hive.isBoxOpen('snapshots')) return;
+    final box = Hive.lazyBox<MemberSnapshot>('snapshots');
+    state = await _loadAllSnapshots(box);
+
+    // 1. Recovery & Integrity: Reconcile lagging snapshots with event log
+    await _reconcileSnapshots();
     
-    // Listen for events to rebuild snapshots
+    // 2. Real-time updates via Event Bus
     _repo.watch().listen((event) async {
-      final snapshotBox = Hive.box<MemberSnapshot>('snapshots');
-      final current = snapshotBox.get(event.entityId);
+      final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
+      final current = await snapshotBox.get(event.entityId);
+      
+      // Audit 1.4: Skip if snapshot is already up-to-date (Near-atomic write handled it)
+      if (current != null && current.lastUpdated.isAtSameMomentAs(event.deviceTimestamp)) {
+        return;
+      }
+
       final updated = SnapshotBuilder.apply(current, event);
       if (updated != null) {
         await snapshotBox.put(event.entityId, updated);
-        state = snapshotBox.values.toList();
-      } else if (event.eventType == EventType.memberArchived.name) {
+        state = await _loadAllSnapshots(snapshotBox);
+      } else if (event.eventType == EventType.memberArchived) {
         await snapshotBox.delete(event.entityId);
-        state = snapshotBox.values.toList();
+        state = await _loadAllSnapshots(snapshotBox);
       }
     });
-
-    box.listenable().addListener(() {
-      state = box.values.toList();
-    });
   }
 
-  Future<void> _checkAndRecover() async {
-    final box = Hive.box<MemberSnapshot>('snapshots');
-    if (box.isEmpty) {
-       final events = _repo.getAllUnsynced(); // Simple check for demo/test
-       // In a real prod app, we'd also check synced events if we had them locally
-       if (events.isNotEmpty) {
-         for (final event in events) {
-           final current = box.get(event.entityId);
-           final updated = SnapshotBuilder.apply(current, event);
-           if (updated != null) await box.put(event.entityId, updated);
-         }
-         state = box.values.toList();
-       }
+  Future<List<MemberSnapshot>> _loadAllSnapshots(LazyBox<MemberSnapshot> box) async {
+    final keys = box.keys.toList();
+    final items = await Future.wait(keys.map((k) => box.get(k)));
+    return items.whereType<MemberSnapshot>().toList();
+  }
+
+  Future<void> _reconcileSnapshots() async {
+    final box = Hive.lazyBox<MemberSnapshot>('snapshots');
+    final allEvents = await _repo.getAll(); 
+    
+    if (allEvents.isEmpty) return;
+
+    // Audit 1.5 Fix: Reconcile from ALL local events to catch app-kill gaps
+    final latestByEntity = <String, DateTime>{};
+    for (final e in allEvents) {
+      if (latestByEntity[e.entityId] == null || e.deviceTimestamp.isAfter(latestByEntity[e.entityId]!)) {
+        latestByEntity[e.entityId] = e.deviceTimestamp;
+      }
+    }
+
+    bool updatedAny = false;
+    for (final entityId in latestByEntity.keys) {
+      final snap = await box.get(entityId);
+      if (snap == null || snap.lastUpdated.isBefore(latestByEntity[entityId]!)) {
+        debugPrint('MemberNotifier: Lagging snapshot detected for $entityId. Rebuilding...');
+        final history = await _repo.getByEntityId(entityId);
+        final rebuilt = SnapshotBuilder.rebuild(history);
+        if (rebuilt != null) {
+          await box.put(entityId, rebuilt);
+          updatedAny = true;
+        }
+      }
+    }
+
+    if (updatedAny) {
+      state = await _loadAllSnapshots(box);
     }
   }
+
+
 
   Future<String> addMember({
     required String name,
@@ -105,81 +142,51 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     
     if (plan == null) throw Exception('Plan not found');
 
-    final expiryDate = joinDate.add(Duration(days: plan.durationMonths * 30));
+    final expiryDate = AppDateUtils.addMonths(joinDate, plan.durationMonths);
 
     final memberEvent = DomainEvent(
       entityId: memberId,
-      eventType: EventType.memberCreated.name,
+      eventType: EventType.memberCreated,
       deviceId: _deviceId,
       deviceTimestamp: now,
       payload: {
-        'memberId': memberId,
-        'name': name,
-        'phone': phone,
-        'planId': planId,
-        'planName': plan.name,
-        'joinDate': joinDate.toIso8601String(),
-        'expiryDate': expiryDate.toIso8601String(),
+        EventPayloadKeys.memberId: memberId,
+        EventPayloadKeys.name: name,
+        EventPayloadKeys.phone: phone,
+        EventPayloadKeys.planId: planId,
+        EventPayloadKeys.planName: plan.name,
+        EventPayloadKeys.joinDate: joinDate.toUtc().toIso8601String(),
+        EventPayloadKeys.newExpiry: expiryDate.toUtc().toIso8601String(),
       },
     );
 
     await _repo.persist(memberEvent);
+
+    // Audit 1.4: Near-atomic snapshot update
+    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
+    final snapshot = MemberSnapshot.fromPayload(memberId, memberEvent.payload);
+    await snapshotBox.put(memberId, snapshot);
+    state = [...state, snapshot];
+
     return memberId;
   }
 
-  Future<void> renewMember({
-    required String memberId,
-    required String planId,
-    required String method,
-  }) async {
-    final now = _clock.now;
-    final snapshotsBox = Hive.box<MemberSnapshot>('snapshots');
-    final plansBox = Hive.box<Plan>('plans');
-    final settingsBox = Hive.box<AppSettings>('settings');
-
-    final member = snapshotsBox.get(memberId);
-    final plan = plansBox.get(planId);
-    final settings = settingsBox.get('settings', defaultValue: AppSettings())!;
-
-    if (member == null || plan == null) return;
-
-    final subtotal = (plan.totalPrice * 100).toInt();
-    final gstAmount = (subtotal * settings.gstRate) ~/ 100;
-    final totalAmount = subtotal + gstAmount;
-    
-    DateTime baseDate = member.expiryDate ?? now;
-    if (baseDate.isBefore(now)) baseDate = now;
-    final newExpiryDate = baseDate.add(Duration(days: plan.durationMonths * 30));
-
-    final paymentId = const Uuid().v4();
-    
-    final renewEvent = DomainEvent(
-      entityId: memberId,
-      eventType: 'MEMBERSHIP_RENEWED',
-      deviceId: _deviceId,
-      deviceTimestamp: now,
-      payload: {
-        'memberId': memberId,
-        'paymentId': paymentId,
-        'planId': planId,
-        'amount': totalAmount,
-        'newExpiry': newExpiryDate.toIso8601String(),
-      },
-    );
-
-    await _repo.persist(renewEvent);
-  }
 
   Future<void> deleteMember(String memberId) async {
     final deleteEvent = DomainEvent(
       entityId: memberId,
-      eventType: EventType.memberArchived.name,
+      eventType: EventType.memberArchived,
       deviceId: _deviceId,
       deviceTimestamp: _clock.now,
       payload: {'memberId': memberId},
     );
 
     await _repo.persist(deleteEvent);
+
+    // Audit 1.4: Near-atomic snapshot update
+    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
+    await snapshotBox.delete(memberId);
+    state = state.where((m) => m.memberId != memberId).toList();
   }
 
   Future<void> updateMember({
@@ -189,31 +196,49 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   }) async {
     final updateEvent = DomainEvent(
       entityId: memberId,
-      eventType: 'MEMBER_UPDATED',
+      eventType: EventType.memberUpdated,
       deviceId: _deviceId,
       deviceTimestamp: _clock.now,
       payload: {
-        'memberId': memberId,
-        'name': name,
-        'phone': phone,
+        EventPayloadKeys.memberId: memberId,
+        EventPayloadKeys.name: name,
+        EventPayloadKeys.phone: phone,
       },
     );
     await _repo.persist(updateEvent);
+
+    // Audit 1.4: Near-atomic snapshot update
+    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
+    final current = await snapshotBox.get(memberId);
+    final updated = SnapshotBuilder.apply(current, updateEvent);
+    if (updated != null) {
+      await snapshotBox.put(memberId, updated);
+      state = await _loadAllSnapshots(snapshotBox);
+    }
   }
 
   Future<void> recordAttendance(String memberId) async {
     final now = _clock.now;
     final checkInEvent = DomainEvent(
       entityId: memberId,
-      eventType: 'CHECK_IN_RECORDED',
+      eventType: EventType.checkInRecorded,
       deviceId: _deviceId,
       deviceTimestamp: now,
       payload: {
-        'memberId': memberId,
-        'timestamp': now.toIso8601String(),
+        EventPayloadKeys.memberId: memberId,
+        EventPayloadKeys.updatedAt: now.toUtc().toIso8601String(),
       },
     );
 
     await _repo.persist(checkInEvent);
+
+    // Audit 1.4: Near-atomic snapshot update
+    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
+    final current = await snapshotBox.get(memberId);
+    final updated = SnapshotBuilder.apply(current, checkInEvent);
+    if (updated != null) {
+      await snapshotBox.put(memberId, updated);
+      state = await _loadAllSnapshots(snapshotBox);
+    }
   }
 }

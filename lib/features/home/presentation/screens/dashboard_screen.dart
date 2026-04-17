@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/widgets/status_bar_wrapper.dart';
 import '../../../../providers/member_provider.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../data/local/models/member_snapshot_model.dart';
@@ -29,58 +31,70 @@ class DashboardScreen extends ConsumerWidget {
     final expiredMembers = members.where((m) => m.getStatus(now) == MemberStatus.expired).take(3).map((m) => m.name).join(', ');
     final expiringMembers = members.where((m) => m.getStatus(now) == MemberStatus.expiring).take(3).map((m) => m.name).join(', ');
 
-    return Column(
-      children: [
-        Expanded(
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: StatusBarWrapper(
           child: RefreshIndicator(
             onRefresh: () async {
-              // Future implementation: sync with cloud
+              // Future: cloud sync
             },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(auth),
-                  _buildStatsGrid(members.length, activeCount, expiringCount, expiredCount),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: MemberHealthDonut(
-                      active: activeCount,
-                      expiring: expiringCount,
-                      expired: expiredCount,
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(auth)),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildStatsGrid(members.length, activeCount, expiringCount, expiredCount),
+                        const SizedBox(height: 20),
+                        MemberHealthDonut(
+                          active: activeCount,
+                          expiring: expiringCount,
+                          expired: expiredCount,
+                        ),
+                        const SizedBox(height: 24),
+                        if (expiredCount > 0)
+                          AlertBanner(
+                            title: '$expiredCount memberships expired',
+                            subtitle: '$expiredMembers${expiredCount > 3 ? " +${expiredCount - 3}" : ""}',
+                            isError: true,
+                          ),
+                        if (expiringCount > 0)
+                          Padding(
+                            padding: EdgeInsets.only(top: expiredCount > 0 ? 8 : 0),
+                            child: AlertBanner(
+                              title: '$expiringCount expiring in 7 days',
+                              subtitle: '$expiringMembers${expiringCount > 3 ? " +${expiringCount - 3}" : ""}',
+                              isError: false,
+                            ),
+                          ),
+                        _buildSectionHeader(context, 'DUE TODAY', 'Show all'),
+                        _buildDueList(members, now),
+                        const SizedBox(height: 32),
+                        _buildSectionHeader(context, 'REVENUE THIS MONTH', null),
+                        _buildRevenueCard(members),
+                        const SizedBox(height: 100), // Space for bottom nav or FAB
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  if (expiredCount > 0)
-                    AlertBanner(
-                      title: '$expiredCount memberships expired',
-                      subtitle: '$expiredMembers${expiredCount > 3 ? " +${expiredCount - 3}" : ""}',
-                      isError: true,
-                    ),
-                  if (expiringCount > 0)
-                    AlertBanner(
-                      title: '$expiringCount expiring in 7 days',
-                      subtitle: '$expiringMembers${expiringCount > 3 ? " +${expiringCount - 3}" : ""}',
-                      isError: false,
-                    ),
-                  _buildSectionHeader(context, 'Due Today', 'See all'),
-                  _buildDueList(members, now),
-                  _buildSectionHeader(context, 'This Month', null),
-                  _buildRevenueCard(members),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildHeader(AuthState auth) {
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -88,32 +102,40 @@ class DashboardScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                GreetingFormatter.greeting(),
-                style: const TextStyle(fontSize: 11, color: AppColors.text2),
+                '${GreetingFormatter.greeting()},'.toUpperCase(),
+                style: AppTextStyles.sectionTitle.copyWith(fontSize: 8, letterSpacing: 1.5, color: AppColors.textMuted),
               ),
+              const SizedBox(height: 4),
               Text(
-                auth.owner?.gymName ?? 'Raj\'s Fitness',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.text),
+                auth.owner?.gymName ?? 'IRONBOOK GM',
+                style: AppTextStyles.cardTitle.copyWith(fontSize: 22, fontWeight: FontWeight.w900),
               ),
+              const SizedBox(height: 2),
               Text(
-                DateFormatter.format(DateTime.now()),
-                style: const TextStyle(fontSize: 10, color: AppColors.text3),
+                DateFormatter.format(DateTime.now()).toUpperCase(),
+                style: AppTextStyles.bodySmall.copyWith(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.textMuted, letterSpacing: 1.0),
               ),
             ],
           ),
           Container(
-            width: 38,
-            height: 38,
+            padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
-              color: AppColors.bg3,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(14),
             ),
-            padding: const EdgeInsets.all(6),
-            child: Image.asset(
-              'assets/images/logo.png',
-              fit: BoxFit.contain,
-              errorBuilder: (c, e, s) => const Icon(Icons.fitness_center, size: 20, color: AppColors.orange),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.elevation4,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: Image.asset(
+                'assets/images/logo.png',
+                fit: BoxFit.contain,
+                errorBuilder: (c, e, s) => const Icon(Icons.fitness_center_rounded, size: 24, color: AppColors.primary),
+              ),
             ),
           ),
         ],
@@ -143,29 +165,26 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildSectionHeader(BuildContext context, String title, String? action) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(0, 32, 0, 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: AppColors.text2,
-              letterSpacing: 0.5,
-            ),
+            title,
+            style: AppTextStyles.sectionTitle.copyWith(fontSize: 9, letterSpacing: 2.0),
           ),
           if (action != null)
             GestureDetector(
               onTap: () => context.go('/gym'),
-              child: Text(
-                action,
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: AppColors.orange,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Row(
+                children: [
+                  Text(
+                    action.toUpperCase(),
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 8, color: AppColors.primary),
+                ],
               ),
             ),
         ],
@@ -181,30 +200,35 @@ class DashboardScreen extends ConsumerWidget {
 
     if (due.isEmpty) {
       return Container(
-        height: 60,
+        height: 80,
         alignment: Alignment.center,
-        child: const Text('Nothing due today', style: TextStyle(fontSize: 10, color: AppColors.text3)),
+        decoration: BoxDecoration(
+          color: AppColors.elevation1,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Text('NO TASKS DUE TODAY', style: AppTextStyles.bodySmall.copyWith(fontSize: 9, letterSpacing: 1.0, color: AppColors.textMuted)),
       );
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.elevation1,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: List.generate(due.length, (index) {
           final m = due[index];
           final days = m.getDaysRemaining(now);
           final status = m.getStatus(now);
-          final color = status == MemberStatus.expired ? AppColors.red : (status == MemberStatus.expiring ? AppColors.amber : AppColors.green);
+          final color = status == MemberStatus.expired ? AppColors.expired : (status == MemberStatus.expiring ? AppColors.expiring : AppColors.active);
 
           return MemberRow(
             name: m.name,
             initials: m.name.isNotEmpty ? m.name.substring(0, 1).toUpperCase() : '?',
-            subtitle: '${m.planName ?? "N/A"} · ${CurrencyFormatter.format(m.totalPaid.toDouble())}',
+            subtitle: '${m.planName ?? "N/A"} · ₹${m.totalPaid.toInt()}',
             daysLeft: days.toString(),
             statusColor: color,
           );
@@ -217,44 +241,45 @@ class DashboardScreen extends ConsumerWidget {
     final totalRevenue = members.fold<int>(0, (sum, m) => sum + m.totalPaid);
     
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.elevation2,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Revenue'.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 9,
-                  color: AppColors.text2,
-                  letterSpacing: 0.5,
-                ),
+                'ESTIMATED REVENUE'.toUpperCase(),
+                style: AppTextStyles.sectionTitle.copyWith(fontSize: 8, letterSpacing: 1.5, color: AppColors.textMuted),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 6),
               Text(
-                CurrencyFormatter.format(totalRevenue / 100.0), // Assuming totalPaid is in paise
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text,
-                ),
+                '₹${(totalRevenue / 1).toInt()}', // Assuming totalPaid is already scaled or handles division properly
+                style: AppTextStyles.cardTitle.copyWith(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.primary),
               ),
-              const SizedBox(height: 2),
-              const Text(
-                '↑ 12% vs last month',
-                style: TextStyle(
-                  fontSize: 9,
-                  color: AppColors.green,
-                ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.trending_up_rounded, size: 12, color: AppColors.active),
+                  const SizedBox(width: 4),
+                  Text(
+                    '12% increase from last month',
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 9, color: AppColors.active, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
             ],
           ),

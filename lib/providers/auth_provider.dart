@@ -104,18 +104,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
       settings = AppSettings();
     }
 
-    if (settings.auditMode || kIsWeb) {
+    // Remove bypass logic for auditMode/kIsWeb
+    // if (settings.auditMode || kIsWeb) { ... }
+
+    // Set initial state with all known values before listening to auth changes
+    if (mounted) {
       state = state.copyWith(
-        user: null,
-        isAuthenticated: true, // Auto-auth in audit mode
         isFirstLaunch: onboardingDone != 'true',
-        unlocked: true, // Keep unlocked for easy web testing
         isPinSetup: pinHash != null,
         owner: owner,
-        settings: settings.copyWith(auditMode: true),
-        isLoading: false,
+        settings: settings,
+        // Keep isLoading true until either auth listener or direct set completes
       );
-      return;
     }
 
     _authSubscription = _firebaseAuth?.authStateChanges().listen((user) {
@@ -123,8 +123,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(
           user: user,
           isAuthenticated: user != null,
-          owner: owner,
-          settings: settings,
           isLoading: false,
         );
       }
@@ -135,14 +133,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _ref.read(recoveryServiceProvider).recoverAll();
     }
 
-    if (mounted) {
-      state = state.copyWith(
-        isFirstLaunch: onboardingDone != 'true',
-        isPinSetup: pinHash != null,
-        owner: owner,
-        settings: settings,
-        isLoading: false,
-      );
+    // Finalize loading state if Firebase wasn't ready or was skipped
+    if (mounted && state.isLoading) {
+       state = state.copyWith(isLoading: false);
     }
   }
 
@@ -253,12 +246,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Data Pipeline: Queue for Sync
         final event = DomainEvent(
           entityId: 'owner',
-          eventType: 'ownerProfileCreated',
+          eventType: EventType.ownerProfileCreated,
           deviceId: _deviceId,
           payload: {
-            'gymName': gymName,
+            EventPayloadKeys.name: gymName, // gymName is the owner's gym name
             'ownerName': ownerName ?? '',
-            'phone': phone ?? '',
+            EventPayloadKeys.phone: phone ?? '',
           },
         );
         await _eventRepo.persist(event);
@@ -316,10 +309,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final entitlementProvider = Provider<EntitlementGuard>((ref) {
+final entitlementProvider = Provider<EntitlementGuard?>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
-  final auth = ref.watch(firebaseAuthProvider)!;
+  final auth = ref.watch(firebaseAuthProvider);
   final firestore = ref.watch(firestoreProvider);
+  
+  // On Web/Audit mode, we might not have Firebase initialized
+  if (auth == null) return null;
+  
   return EntitlementGuard(storage, auth, firestore);
 });
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../data/local/models/plan_model.dart';
@@ -14,6 +15,9 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   PlanNotifier(this._box, this._eventRepo, this._syncWorker, this._deviceId) : super([]) {
     _loadPlans();
   }
+
+  @visibleForTesting
+  set debugState(List<Plan> plans) => state = plans;
 
   void _loadPlans() {
     state = _box.values.toList();

@@ -6,9 +6,11 @@ import '../local/models/domain_event_model.dart';
 import '../local/models/member_snapshot_model.dart';
 import '../local/models/join_date_change_model.dart';
 import '../../core/services/hmac_service.dart';
+import '../../constants/event_payload_keys.dart';
 
 class FirestoreRecovery {
   static Future<void> restoreAll({
+    required HmacService hmacService,
     required void Function(int done, int total) onProgress,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -17,7 +19,7 @@ class FirestoreRecovery {
     // 1. Restore HMAC key
     // Note: getDeviceId should return the same ID used during backup
     final deviceId = user.uid; // Simplified for this logic
-    await HmacService.restoreKeyFromFirestore(deviceId);
+    await hmacService.restoreKeyFromFirestore(deviceId);
 
     // 2. Fetch events
     final query = await FirebaseFirestore.instance
@@ -30,8 +32,8 @@ class FirestoreRecovery {
     final eventsDocs = query.docs;
     final total = eventsDocs.length;
 
-    final eventBox = Hive.box<DomainEvent>('events');
-    final snapshotBox = Hive.box<MemberSnapshot>('snapshots');
+    final eventBox = Hive.lazyBox<DomainEvent>('events');
+    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
 
     // 3. Replay
     for (int i = 0; i < total; i++) {
@@ -40,7 +42,7 @@ class FirestoreRecovery {
       final data = eventsDocs[i].data();
       final event = DomainEvent.fromFirestore(data);
 
-      final isValid = await HmacService.verify(event);
+      final isValid = await hmacService.verifyInstance(event);
       if (!isValid) {
         debugPrint('HMAC mismatch on event ${event.id} — skipping');
         continue;
@@ -55,9 +57,9 @@ class FirestoreRecovery {
 
   static Future<void> _applyEventToSnapshot(
     DomainEvent event,
-    Box<MemberSnapshot> snapshotBox,
+    LazyBox<MemberSnapshot> snapshotBox,
   ) async {
-    final type = EventType.values.firstWhere((e) => e.name == event.eventType);
+    final type = event.eventType;
     
     switch (type) {
       case EventType.memberCreated:
@@ -65,16 +67,21 @@ class FirestoreRecovery {
         await snapshotBox.put(event.entityId, snap);
         break;
       case EventType.paymentAdded:
-        final snap = snapshotBox.get(event.entityId);
+      case EventType.membershipRenewed:
+      case EventType.paymentRecorded:
+        final snap = await snapshotBox.get(event.entityId);
         if (snap == null) break;
-        snap.expiryDate = DateTime.parse(event.payload['newExpiryDate']);
-        snap.totalPaid += (event.payload['amount'] as num).toInt();
-        snap.paymentIds.add(event.payload['paymentId']);
+        final newExpiryStr = event.payload[EventPayloadKeys.newExpiry];
+        if (newExpiryStr != null) {
+          snap.expiryDate = DateTime.parse(newExpiryStr);
+        }
+        snap.totalPaid += (event.payload[EventPayloadKeys.amount] as num).toInt();
+        snap.paymentIds.add(event.payload[EventPayloadKeys.paymentId]);
         snap.lastUpdated = event.deviceTimestamp;
-        await snap.save();
+        await snapshotBox.put(event.entityId, snap);
         break;
       case EventType.joinDateEdited:
-        final snap = snapshotBox.get(event.entityId);
+        final snap = await snapshotBox.get(event.entityId);
         if (snap == null) break;
         snap.joinDate = DateTime.parse(event.payload['newDate']);
         snap.joinDateHistory.add(JoinDateChange(
@@ -83,13 +90,13 @@ class FirestoreRecovery {
           reason: event.payload['reason'],
           changedAt: event.deviceTimestamp,
         ));
-        await snap.save();
+        await snapshotBox.put(event.entityId, snap);
         break;
       case EventType.memberArchived:
-        final snap = snapshotBox.get(event.entityId);
+        final snap = await snapshotBox.get(event.entityId);
         if (snap == null) break;
         snap.archived = true;
-        await snap.save();
+        await snapshotBox.put(event.entityId, snap);
         break;
       default:
         break;

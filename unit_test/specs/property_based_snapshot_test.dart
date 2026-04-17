@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/data/local/snapshot_builder.dart';
-import '../helpers/property_tester.dart';
+import '../../test/helpers/property_tester.dart';
 import 'dart:math';
 
 void main() {
@@ -19,7 +19,7 @@ void main() {
           events.add(DomainEvent(
             id: 'ev-$i',
             entityId: memberId,
-            eventType: 'MEMBER_CREATED',
+            eventType: EventType.memberCreated.name,
             payload: {
               'name': 'User $i',
               'phone': '123',
@@ -34,7 +34,7 @@ void main() {
             events.add(DomainEvent(
               id: 'ev-$i',
               entityId: memberId,
-              eventType: 'MEMBER_UPDATED',
+              eventType: EventType.memberUpdated.name,
               payload: {'name': 'User $i updated'},
               deviceTimestamp: now,
               deviceId: 'dev-1',
@@ -43,7 +43,7 @@ void main() {
             events.add(DomainEvent(
               id: 'ev-$i',
               entityId: memberId,
-              eventType: 'PAYMENT_RECEIVED',
+              eventType: EventType.paymentAdded.name,
               payload: {
                 'paymentId': 'pay-$i',
                 'amount': 10000,
@@ -70,8 +70,8 @@ void main() {
       // We verify that SnapshotBuilder handles sequential ordering correctly.
       final now = DateTime(2024, 3, 25);
       final events = [
-        DomainEvent(id: '1', entityId: 'm1', eventType: 'MEMBER_CREATED', payload: {'name': 'A', 'phone': '1', 'joinDate': now.toIso8601String()}, deviceTimestamp: now, deviceId: 'd1'),
-        DomainEvent(id: '2', entityId: 'm1', eventType: 'MEMBER_UPDATED', payload: {'name': 'B'}, deviceTimestamp: now.add(const Duration(minutes: 1)), deviceId: 'd1'),
+        DomainEvent(id: '1', entityId: 'm1', eventType: EventType.memberCreated.name, payload: {'name': 'A', 'phone': '1', 'joinDate': now.toIso8601String()}, deviceTimestamp: now, deviceId: 'd1'),
+        DomainEvent(id: '2', entityId: 'm1', eventType: EventType.memberUpdated.name, payload: {'name': 'B'}, deviceTimestamp: now.add(const Duration(minutes: 1)), deviceId: 'd1'),
       ];
       
       final result = SnapshotBuilder.rebuild(events);

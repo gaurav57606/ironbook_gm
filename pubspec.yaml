@@ -13,6 +13,7 @@ dependencies:
   flutter_animate: ^4.5.0
   flutter_svg: ^2.0.10
   lucide_icons: ^0.257.0
+  collection: ^1.18.0
 
   # Local storage — device is the authority
   hive: ^2.2.3
@@ -58,6 +59,8 @@ dependencies:
   intl: ^0.18.1
   equatable: ^2.0.5
   path_provider: ^2.1.2
+  csv: ^6.0.0
+  encrypt: ^5.0.3
 
 dev_dependencies:
   flutter_test:

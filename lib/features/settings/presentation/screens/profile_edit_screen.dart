@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/status_bar_wrapper.dart';
 import '../../../../data/local/models/owner_profile_model.dart';
 import '../../../../providers/auth_provider.dart';
 
@@ -48,87 +52,102 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      appBar: AppBar(
+    return StatusBarWrapper(
+      child: Scaffold(
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(widget.isGymProfile ? 'Gym Profile' : 'Owner Profile', 
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 16, color: AppColors.text),
-          onPressed: () => Navigator.pop(context),
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text(
+            widget.isGymProfile ? 'Gym Profile' : 'Owner Profile',
+            style: AppTextStyles.h3,
+          ),
+          centerTitle: true,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+            onPressed: () => Navigator.pop(context),
+          ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            _buildField(widget.isGymProfile ? 'Gym Name' : 'Owner Name', _nameController, Icons.person),
-            _buildField('Phone Number', _phoneController, Icons.phone, keyboardType: TextInputType.phone),
-            _buildField('Address', _addressController, Icons.location_on, maxLines: 2),
-            if (widget.isGymProfile) ...[
-              const SizedBox(height: 20),
-              const Divider(color: AppColors.border),
-              const SizedBox(height: 10),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Billing Detail', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text3)),
-              ),
-              const SizedBox(height: 15),
-              _buildField('GSTIN', _gstinController, Icons.receipt),
-              _buildField('Bank Name', _bankController, Icons.account_balance),
-              _buildField('Account Number', _accountController, Icons.numbers),
-              _buildField('IFSC Code', _ifscController, Icons.code),
-            ],
-            const SizedBox(height: 48),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.orange,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppTextField(
+                  label: widget.isGymProfile ? 'Gym Name' : 'Owner Name',
+                  controller: _nameController,
+                  prefixIcon: widget.isGymProfile ? Icons.business_rounded : Icons.person_outline_rounded,
                 ),
-                onPressed: _saveHandler,
-                child: const Text('Save Changes', 
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildField(String label, TextEditingController controller, IconData icon, {TextInputType? keyboardType, int maxLines = 1}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.text3)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            maxLines: maxLines,
-            style: const TextStyle(fontSize: 13, color: AppColors.text),
-            decoration: InputDecoration(
-              prefixIcon: Icon(icon, size: 16, color: AppColors.text3),
-              filled: true,
-              fillColor: AppColors.bg3,
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.orange),
-              ),
+                AppTextField(
+                  label: 'Phone Number',
+                  controller: _phoneController,
+                  prefixIcon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                ),
+                AppTextField(
+                  label: 'Address',
+                  controller: _addressController,
+                  prefixIcon: Icons.location_on_outlined,
+                  maxLines: 3,
+                ),
+                if (widget.isGymProfile) ...[
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'BILLING DETAILS',
+                          style: AppTextStyles.sectionTitle.copyWith(
+                            fontSize: 10,
+                            letterSpacing: 2,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  AppTextField(
+                    label: 'GSTIN',
+                    controller: _gstinController,
+                    prefixIcon: Icons.receipt_long_outlined,
+                  ),
+                  AppTextField(
+                    label: 'Bank Name',
+                    controller: _bankController,
+                    prefixIcon: Icons.account_balance_outlined,
+                  ),
+                  AppTextField(
+                    label: 'Account Number',
+                    controller: _accountController,
+                    prefixIcon: Icons.numbers_outlined,
+                  ),
+                  AppTextField(
+                    label: 'IFSC Code',
+                    controller: _ifscController,
+                    prefixIcon: Icons.code_rounded,
+                  ),
+                ],
+                const SizedBox(height: 48),
+                AppButton(
+                  text: 'Save Changes',
+                  onPressed: _saveHandler,
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

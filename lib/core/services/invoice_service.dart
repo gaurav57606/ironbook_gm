@@ -9,21 +9,21 @@ abstract class IInvoiceService {
 
 class InvoiceService implements IInvoiceService {
   final Box<InvoiceSequence> _box;
+  final IClock _clock;
 
-  InvoiceService(this._box);
+  InvoiceService(this._box, this._clock);
 
   @override
   Future<String> next() async {
-    final now = DateTime.now();
+    final now = _clock.now;
     final year = now.year;
     
     // 1. Transactional Read-Update-Write
     var seq = _box.get('active_seq');
     
-    // Auto-create or Auto-reset on year change
-    if (seq == null || !seq.prefix.contains('INV-$year-')) {
-      seq = InvoiceSequence(prefix: 'INV-$year-', nextNumber: 1);
-    }
+    // Auto-create if none exists
+    seq ??= InvoiceSequence(prefix: 'INV-$year-', nextNumber: 1);
+
 
     final currentNumber = seq.nextNumber;
     seq.nextNumber++;
@@ -42,5 +42,6 @@ class InvoiceService implements IInvoiceService {
 
 final invoiceServiceProvider = Provider<IInvoiceService>((ref) {
   final box = Hive.box<InvoiceSequence>('invoice_seq');
-  return InvoiceService(box);
+  final clock = ref.watch(clockProvider);
+  return InvoiceService(box, clock);
 });
