@@ -20,20 +20,21 @@ class HiveEventRepository implements IEventRepository {
   final LazyBox<DomainEvent> _box;
   final EventBus _eventBus;
   final HmacService _hmacService;
-  
+
   // Audit 6.2: In-memory index for performance (IDs only)
   final Set<String> _unsyncedIds = {};
 
   HiveEventRepository(this._box, this._eventBus, this._hmacService) {
-    // We can't iterate values of LazyBox in constructor sync, 
+    // We can't iterate values of LazyBox in constructor sync,
     // but we can schedule a microtask or just rely on persist/markSynced
   }
 
   // Helper to load unsynced index asynchronously
   Future<void> ensureIndexLoaded() async {
     if (_unsyncedIds.isNotEmpty) return;
-    for (final key in _box.keys) {
-      final event = await _box.get(key);
+    final futures = _box.keys.map((k) => _box.get(k));
+    final results = await Future.wait(futures);
+    for (final event in results) {
       if (event != null && !event.synced) {
         _unsyncedIds.add(event.id);
       }
@@ -42,15 +43,16 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<void> persist(DomainEvent event) async {
-    debugPrint('HiveEventRepository: Persisting event ${event.eventType} (ID: ${event.id})...');
+    debugPrint(
+        'HiveEventRepository: Persisting event ${event.eventType} (ID: ${event.id})...');
     // 1. Sign the event (Security Enforcement)
     event.hmacSignature = await _hmacService.signEvent(event);
     debugPrint('HiveEventRepository: HMAC generated.');
-    
+
     // 2. Write-Ahead Log (WAL)
     _unsyncedIds.add(event.id);
     await _box.put(event.id, event);
-    
+
     // 3. Dispatch to internal bus for Snapshot rebuilding
     _eventBus.publish(event);
     debugPrint('HiveEventRepository: Event persisted: ${event.eventType}');
@@ -58,23 +60,17 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getAll() async {
-    final List<DomainEvent> events = [];
-    for (final key in _box.keys) {
-      final e = await _box.get(key);
-      if (e != null) events.add(e);
-    }
-    return events;
+    final futures = _box.keys.map((k) => _box.get(k));
+    final results = await Future.wait(futures);
+    return results.whereType<DomainEvent>().toList();
   }
 
   @override
   Future<List<DomainEvent>> getAllUnsynced() async {
     await ensureIndexLoaded();
-    final List<DomainEvent> unsynced = [];
-    for (final id in _unsyncedIds) {
-      final event = await _box.get(id);
-      if (event != null) unsynced.add(event);
-    }
-    return unsynced;
+    final futures = _unsyncedIds.map((id) => _box.get(id));
+    final results = await Future.wait(futures);
+    return results.whereType<DomainEvent>().toList();
   }
 
   @override
@@ -82,12 +78,12 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getByEntityId(String entityId) async {
-    final List<DomainEvent> results = [];
-    for (final key in _box.keys) {
-      final e = await _box.get(key);
-      if (e?.entityId == entityId) results.add(e!);
-    }
-    return results;
+    final futures = _box.keys.map((k) => _box.get(k));
+    final results = await Future.wait(futures);
+    return results
+        .whereType<DomainEvent>()
+        .where((e) => e.entityId == entityId)
+        .toList();
   }
 
   @override
