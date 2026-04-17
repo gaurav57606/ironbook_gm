@@ -65,13 +65,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildLogo(),
-                  const SizedBox(height: 32),
                   _buildHeader(),
                   const SizedBox(height: 48),
-                  _buildForm(),
-                  const SizedBox(height: 24),
-                  _buildFooter(),
+                  _buildLoginForm(context),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -79,6 +75,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        _buildLogo(),
+        const SizedBox(height: 32),
+        Text(
+          'Welcome Back',
+          style: AppTextStyles.h1.copyWith(fontSize: 28),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Log in to your gym account',
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.textSecondary,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
     );
   }
 
@@ -110,26 +127,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Text(
-          'Welcome Back',
-          style: AppTextStyles.h1.copyWith(fontSize: 28),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Log in to your gym account',
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.textSecondary,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildForm() {
+  Widget _buildLoginForm(BuildContext context) {
     return Column(
       children: [
         AppTextField(
@@ -166,11 +164,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           text: _isLoading ? 'Logging In...' : 'Log In',
           onPressed: _isLoading ? null : _handleLogin,
         ),
+        const SizedBox(height: 24),
+        _buildFooter(context),
       ],
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(BuildContext context) {
     return GestureDetector(
       onTap: () => context.go('/signup'),
       child: RichText(
@@ -180,9 +180,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: AppColors.textSecondary,
           ),
           children: const [
-            TextSpan(text: "New here? "),
+            TextSpan(text: 'New here? '),
             TextSpan(
-              text: "Create an account",
+              text: 'Create an account',
               style: TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w700,
