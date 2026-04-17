@@ -11,6 +11,8 @@ class AppTextField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final bool enabled;
+  final int maxLines;
+  final String? Function(String?)? validator;
 
   const AppTextField({
     super.key,
@@ -22,6 +24,8 @@ class AppTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.enabled = true,
+    this.maxLines = 1,
+    this.validator,
   });
 
   @override
@@ -45,6 +49,8 @@ class AppTextField extends StatelessWidget {
             enabled: enabled,
             obscureText: isPassword,
             keyboardType: keyboardType,
+            maxLines: maxLines,
+            validator: validator,
             style: AppTextStyles.body.copyWith(fontSize: 14),
             decoration: InputDecoration(
               hintText: hint,

@@ -9,6 +9,8 @@ import '../data/local/models/member_snapshot_model.dart';
 import '../core/services/notification_service.dart';
 import '../core/services/sync_coordinator.dart';
 import '../data/sync_worker.dart';
+import '../core/utils/clock.dart';
+import '../providers/base_providers.dart';
 
 class MidnightEngine {
   /// The entry point for the Workmanager background task.

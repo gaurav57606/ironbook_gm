@@ -84,7 +84,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             foregroundColor: AppColors.orange,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             backgroundColor: AppColors.orange.withValues(alpha: 0.1),
-                            shape: RoundedRectangleMask(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           child: const Text('SYNC NOW'),
                         ),

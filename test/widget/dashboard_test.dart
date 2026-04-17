@@ -10,12 +10,12 @@ import '../helpers/mocks.dart';
 
 class MockMemberNotifier extends MemberNotifier {
   MockMemberNotifier(List<MemberSnapshot> members) 
-      : super(FakeRepo(), FrozenClock(DateTime(2026, 3, 25))) {
+      : super(FakeRepo(), FrozenClock(DateTime(2026, 3, 25)), FakeHmacService()) {
     state = members;
   }
 
   @override
-  void init() {}
+  Future<void> init() async {}
 }
 
 void main() {

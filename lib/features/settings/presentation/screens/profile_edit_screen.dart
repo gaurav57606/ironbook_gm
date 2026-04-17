@@ -82,19 +82,22 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               children: [
                 AppTextField(
                   label: widget.isGymProfile ? 'Gym Name' : 'Owner Name',
+                  hint: widget.isGymProfile ? 'Enter gym name' : 'Enter your name',
                   controller: _nameController,
-                  prefixIcon: widget.isGymProfile ? Icons.business_rounded : Icons.person_outline_rounded,
+                  prefixIcon: Icon(widget.isGymProfile ? Icons.business_rounded : Icons.person_outline_rounded),
                 ),
                 AppTextField(
                   label: 'Phone Number',
+                  hint: '+91 98765 43210',
                   controller: _phoneController,
-                  prefixIcon: Icons.phone_outlined,
+                  prefixIcon: const Icon(Icons.phone_outlined),
                   keyboardType: TextInputType.phone,
                 ),
                 AppTextField(
                   label: 'Address',
+                  hint: 'Full gym address',
                   controller: _addressController,
-                  prefixIcon: Icons.location_on_outlined,
+                  prefixIcon: const Icon(Icons.location_on_outlined),
                   maxLines: 3,
                 ),
                 if (widget.isGymProfile) ...[
@@ -119,23 +122,27 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   const SizedBox(height: 24),
                   AppTextField(
                     label: 'GSTIN',
+                    hint: '22AAAAA0000A1Z5',
                     controller: _gstinController,
-                    prefixIcon: Icons.receipt_long_outlined,
+                    prefixIcon: const Icon(Icons.receipt_long_outlined),
                   ),
                   AppTextField(
                     label: 'Bank Name',
+                    hint: 'HDFC Bank',
                     controller: _bankController,
-                    prefixIcon: Icons.account_balance_outlined,
+                    prefixIcon: const Icon(Icons.account_balance_outlined),
                   ),
                   AppTextField(
                     label: 'Account Number',
+                    hint: '50100000000000',
                     controller: _accountController,
-                    prefixIcon: Icons.numbers_outlined,
+                    prefixIcon: const Icon(Icons.numbers_outlined),
                   ),
                   AppTextField(
                     label: 'IFSC Code',
+                    hint: 'HDFC0000001',
                     controller: _ifscController,
-                    prefixIcon: Icons.code_rounded,
+                    prefixIcon: const Icon(Icons.code_rounded),
                   ),
                 ],
                 const SizedBox(height: 48),

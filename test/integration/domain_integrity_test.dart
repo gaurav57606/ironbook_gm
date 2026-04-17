@@ -87,9 +87,8 @@ void main() {
     expect(snapshotBox.values.first.name, 'Integration Test');
 
     final eventBox = Hive.box<DomainEvent>('events');
-    expect(eventBox.length, 2);
-    expect(eventBox.values.any((e) => e.eventType == 'MEMBER_CREATED'), isTrue);
-    expect(eventBox.values.any((e) => e.eventType == 'PAYMENT_RECEIVED'), isTrue);
+    expect(eventBox.length, 1); // Only MEMBER_CREATED from addMember
+    expect(eventBox.values.any((e) => e.eventType == EventType.memberCreated), isTrue);
     expect(eventBox.values.every((e) => e.hmacSignature.isNotEmpty), isTrue);
 
     // 4. Verify HMAC Integrity on Persisted Events

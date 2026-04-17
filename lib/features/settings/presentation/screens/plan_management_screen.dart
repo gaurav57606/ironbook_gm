@@ -218,7 +218,7 @@ class PlanManagementScreen extends ConsumerWidget {
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),
-            side: Border.all(color: AppColors.border),
+            side: BorderSide(color: AppColors.border),
           ),
           title: Text(
             plan == null ? 'Create New Plan' : 'Edit Membership Plan',
@@ -277,7 +277,7 @@ class PlanManagementScreen extends ConsumerWidget {
                   label: const Text('Add Component'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    side: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                    side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),

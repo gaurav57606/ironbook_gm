@@ -7,6 +7,7 @@ import 'package:ironbook_gm/core/utils/clock.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:io';
 import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
+import '../helpers/mocks.dart';
 
 class MockRepo implements IEventRepository {
   final List<DomainEvent> events = [];
@@ -17,14 +18,22 @@ class MockRepo implements IEventRepository {
   }
   
   @override
-  List<DomainEvent> getAllUnsynced() => events;
+  Future<List<DomainEvent>> getAllUnsynced() async => events;
   
   @override
-  DomainEvent? getById(String id) => events.where((e) => e.id == id).firstOrNull;
+  Future<DomainEvent?> getById(String id) async {
+    for (final e in events) {
+      if (e.id == id) return e;
+    }
+    return null;
+  }
 
   @override
-  List<DomainEvent> getByEntityId(String entityId) => 
+  Future<List<DomainEvent>> getByEntityId(String entityId) async => 
       events.where((e) => e.entityId == entityId).toList();
+
+  @override
+  Future<List<DomainEvent>> getAll() async => List.from(events);
 
   @override
   Future<void> markAsSynced(String eventId) async {}
@@ -57,14 +66,15 @@ void main() {
       // 1. Add some events to the repo
       repo.events.add(DomainEvent(
         entityId: 'm1',
-        eventType: 'MEMBER_CREATED',
+        eventType: EventType.memberCreated,
         deviceId: 'd1',
         deviceTimestamp: DateTime.now(),
         payload: {'name': 'Survivor', 'joinDate': DateTime.now().toIso8601String()},
       ));
 
       // 2. Initialize Notifier with empty snapshots box
-      final notifier = MemberNotifier(repo, clock);
+      final hmac = FakeHmacService();
+      final notifier = MemberNotifier(repo, clock, hmac);
       
       // 3. Verify recovery
       expect(notifier.state.length, 1);

@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/core/utils/clock.dart';
+import 'package:ironbook_gm/providers/base_providers.dart';
 
 abstract class IInvoiceService {
   Future<String> next();
@@ -41,7 +43,7 @@ class InvoiceService implements IInvoiceService {
 }
 
 final invoiceServiceProvider = Provider<IInvoiceService>((ref) {
-  final box = Hive.box<InvoiceSequence>('invoice_seq');
+  final box = Hive.box<InvoiceSequence>('invoice_sequences');
   final clock = ref.watch(clockProvider);
   return InvoiceService(box, clock);
 });

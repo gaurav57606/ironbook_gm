@@ -68,4 +68,28 @@ class AppTextStyles {
     fontWeight: FontWeight.w800,
     color: AppColors.textPrimary,
   );
+
+  static TextStyle h1 = GoogleFonts.outfit(
+    fontSize: 32,
+    fontWeight: FontWeight.w900,
+    color: AppColors.textPrimary,
+  );
+
+  static TextStyle h2 = GoogleFonts.outfit(
+    fontSize: 24,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textPrimary,
+  );
+  
+  static TextStyle h3 = GoogleFonts.outfit(
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
+  );
+
+  static TextStyle buttonSmall = GoogleFonts.outfit(
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
+  );
 }

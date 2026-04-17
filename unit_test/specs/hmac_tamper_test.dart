@@ -14,7 +14,7 @@ void main() {
     test('Should generate a consistent signature for the same event', () async {
       final event = DomainEvent(
         entityId: 'm1',
-        eventType: EventType.memberCreated.name,
+        eventType: EventType.memberCreated,
         payload: {'name': 'John Doe', 'plan': 'Gold'},
         deviceId: 'device-123',
         deviceTimestamp: DateTime(2026, 1, 1),
@@ -30,7 +30,7 @@ void main() {
     test('Should verify a valid event', () async {
       final event = DomainEvent(
         entityId: 'm1',
-        eventType: EventType.memberCreated.name,
+        eventType: EventType.memberCreated,
         payload: {'name': 'John Doe'},
         deviceId: 'device-123',
         deviceTimestamp: DateTime(2026, 1, 1),
@@ -45,7 +45,7 @@ void main() {
     test('Should fail verification if payload is tampered', () async {
       final event = DomainEvent(
         entityId: 'm1',
-        eventType: EventType.memberCreated.name,
+        eventType: EventType.memberCreated,
         payload: {'name': 'John Doe', 'amount': 1000},
         deviceId: 'device-123',
         deviceTimestamp: DateTime(2026, 1, 1),
@@ -63,7 +63,7 @@ void main() {
     test('Should fail verification if metadata is tampered', () async {
       final event = DomainEvent(
         entityId: 'm1',
-        eventType: EventType.memberCreated.name,
+        eventType: EventType.memberCreated,
         payload: {'name': 'John Doe'},
         deviceId: 'device-123',
         deviceTimestamp: DateTime(2026, 1, 1),
@@ -81,7 +81,7 @@ void main() {
     test('Should fail verification if signature is tampered', () async {
       final event = DomainEvent(
         entityId: 'm1',
-        eventType: EventType.memberCreated.name,
+        eventType: EventType.memberCreated,
         payload: {'name': 'John Doe'},
         deviceId: 'device-123',
         deviceTimestamp: DateTime(2026, 1, 1),
@@ -101,7 +101,7 @@ void main() {
       final event1 = DomainEvent(
         id: 'stable-id',
         entityId: 'm1',
-        eventType: 'type',
+        eventType: EventType.memberCreated,
         payload: payload1,
         deviceId: 'dev',
         deviceTimestamp: DateTime(2026, 1, 1),
@@ -110,7 +110,7 @@ void main() {
       final event2 = DomainEvent(
         id: 'stable-id',
         entityId: 'm1',
-        eventType: 'type',
+        eventType: EventType.memberCreated,
         payload: payload2,
         deviceId: 'dev',
         deviceTimestamp: DateTime(2026, 1, 1),

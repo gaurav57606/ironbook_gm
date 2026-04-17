@@ -60,19 +60,7 @@ void main() async {
 
     // Register all adapters
     debugPrint('Init: Registering Hive Adapters...');
-    Hive.registerAdapter(DomainEventAdapter());
-    Hive.registerAdapter(MemberSnapshotAdapter());
-    Hive.registerAdapter(PaymentAdapter());
-    Hive.registerAdapter(PlanAdapter());
-    Hive.registerAdapter(PlanComponentAdapter());
-    Hive.registerAdapter(OwnerProfileAdapter());
-    Hive.registerAdapter(AppSettingsAdapter());
-    Hive.registerAdapter(JoinDateChangeAdapter());
-    Hive.registerAdapter(PlanComponentSnapshotAdapter());
-    Hive.registerAdapter(InvoiceSequenceAdapter());
-    Hive.registerAdapter(ProductAdapter());
-    Hive.registerAdapter(SaleAdapter());
-    Hive.registerAdapter(SaleItemAdapter());
+    HiveInit.registerAdapters();
 
     debugPrint('Init: Opening Hive boxes...');
     // Check Hive Health

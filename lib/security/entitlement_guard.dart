@@ -10,8 +10,8 @@ enum EntitlementStatus { valid, grace, expired }
 
 class EntitlementGuard {
   final FlutterSecureStorage _storage;
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
+  final FirebaseAuth? _auth;
+  final FirebaseFirestore? _firestore;
   final IClock _clock;
 
   EntitlementGuard(this._storage, this._auth, this._firestore, this._clock);
@@ -39,15 +39,15 @@ class EntitlementGuard {
     if (kIsWeb) return EntitlementStatus.valid;
 
     try {
-      final user = _auth.currentUser;
+      final user = _auth?.currentUser;
       if (user == null) return EntitlementStatus.expired;
 
       final doc = await _firestore
-          .collection('entitlements')
+          ?.collection('entitlements')
           .doc(user.uid)
           .get();
 
-      if (doc.exists) {
+      if (doc != null && doc.exists) {
         final freshExpiry = (doc.data()!['expiresAt'] as Timestamp).toDate();
         await _storage.write(key: 'ent_expiry', value: freshExpiry.toIso8601String());
         await _storage.write(key: 'ent_cached_at', value: _clock.now.toIso8601String());
@@ -69,7 +69,7 @@ class EntitlementGuard {
 
 final entitlementGuardProvider = Provider<EntitlementGuard>((ref) {
   final storage = const FlutterSecureStorage();
-  final auth = ref.watch(firebaseAuthProvider)!;
+  final auth = ref.watch(firebaseAuthProvider);
   final firestore = ref.watch(firestoreProvider);
   final clock = ref.watch(clockProvider);
   return EntitlementGuard(storage, auth, firestore, clock);

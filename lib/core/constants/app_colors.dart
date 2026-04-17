@@ -15,9 +15,13 @@ class AppColors {
 
   // Semantic
   static const Color active      = Color(0xFF22C55E);  // --green
+  static const Color green       = Color(0xFF22C55E);  // Alias for screens
+  static const Color success     = active;             // Mapping for screens
   static const Color expiring    = Color(0xFFF59E0B);  // --amber
+  static const Color amber       = Color(0xFFF59E0B);  // Alias for screens
   static const Color expired     = Color(0xFFEF4444);  // --red
   static const Color error       = Color(0xFFEF4444);  // --red
+  static const Color red         = Color(0xFFEF4444);  // Alias for screens
   static const Color warning     = Color(0xFFF59E0B);  // --amber
   static const Color blue        = Color(0xFF3B82F6);  // --blue (added for completeness)
 

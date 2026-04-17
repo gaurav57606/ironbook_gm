@@ -11,7 +11,8 @@ final firebaseAuthProvider = Provider<FirebaseAuth?>((ref) {
   return FirebaseAuth.instance;
 });
 
-final firestoreProvider = Provider<FirebaseFirestore>((ref) {
+final firestoreProvider = Provider<FirebaseFirestore?>((ref) {
+  if (kIsWeb) return null;
   return FirebaseFirestore.instance;
 });
 

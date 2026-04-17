@@ -9,7 +9,7 @@ void main() {
       final event = DomainEvent(
         id: 'evt-1',
         entityId: 'mem-1',
-        eventType: EventType.memberCreated.name,
+        eventType: EventType.memberCreated,
         deviceId: 'dev-1',
         deviceTimestamp: DateTime(2024, 3, 25),
         payload: {
@@ -44,7 +44,7 @@ void main() {
       final event = DomainEvent(
         id: 'evt-2',
         entityId: 'mem-1',
-        eventType: EventType.paymentAdded.name,
+        eventType: EventType.paymentAdded,
         deviceId: 'dev-1',
         deviceTimestamp: DateTime(2024, 3, 26),
         payload: {
@@ -66,7 +66,7 @@ void main() {
         DomainEvent(
           id: 'evt-1',
           entityId: 'mem-1',
-          eventType: EventType.memberCreated.name,
+          eventType: EventType.memberCreated,
           deviceId: 'dev-1',
           deviceTimestamp: DateTime(2024, 3, 25, 10),
           payload: {
@@ -78,7 +78,7 @@ void main() {
         DomainEvent(
           id: 'evt-2',
           entityId: 'mem-1',
-          eventType: EventType.paymentAdded.name,
+          eventType: EventType.paymentAdded,
           deviceId: 'dev-1',
           deviceTimestamp: DateTime(2024, 3, 25, 11),
           payload: {
@@ -89,7 +89,7 @@ void main() {
         DomainEvent(
           id: 'evt-3',
           entityId: 'mem-1',
-          eventType: EventType.memberUpdated.name,
+          eventType: EventType.memberUpdated,
           deviceId: 'dev-1',
           deviceTimestamp: DateTime(2024, 3, 26),
           payload: {

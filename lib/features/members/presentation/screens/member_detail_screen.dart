@@ -12,6 +12,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/repositories/event_repository.dart';
 import '../../../../data/local/models/domain_event_model.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/utils/clock.dart';
 
 class MemberDetailScreen extends ConsumerStatefulWidget {
   final String memberId;
@@ -31,10 +32,10 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     _loadHistory();
   }
 
-  void _loadHistory() {
+  Future<void> _loadHistory() async {
     try {
       final repo = ref.read(eventRepositoryProvider);
-      final events = repo.getByEntityId(widget.memberId);
+      final events = await repo.getByEntityId(widget.memberId);
       if (mounted) {
         setState(() {
           _history = events.reversed.toList();
@@ -407,14 +408,15 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
           final event = _history[index];
           final isLast = index == _history.length - 1;
           
-          String title = event.eventType.replaceAll('_', ' ');
+          final eventTypeStr = event.eventType.name.toUpperCase();
+          String title = eventTypeStr.replaceAll('_', ' ');
           String amountSpan = '';
           if (event.payload['amount'] != null) {
             amountSpan = CurrencyFormatter.format((event.payload['amount'] as int) / 100.0);
           }
 
-          final bool isPayment = event.eventType.contains('PAYMENT');
-          final bool isCreation = event.eventType.contains('CREATED');
+          final bool isPayment = eventTypeStr.contains('PAYMENT');
+          final bool isCreation = eventTypeStr.contains('CREATED');
 
           return _buildTimelineItem(
             title,

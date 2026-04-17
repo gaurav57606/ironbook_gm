@@ -30,8 +30,9 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     // Emit sync event
     final event = DomainEvent(
       entityId: 'gym-plans',
-      eventType: 'plansUpdated', 
+      eventType: EventType.plansUpdated, 
       deviceId: _deviceId,
+      deviceTimestamp: DateTime.now(),
       payload: {'plans': state.map((p) => {
         'id': p.id,
         'name': p.name,
@@ -51,8 +52,9 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
 
     final event = DomainEvent(
       entityId: 'gym-plans',
-      eventType: 'plansUpdated',
+      eventType: EventType.plansUpdated,
       deviceId: _deviceId,
+      deviceTimestamp: DateTime.now(),
       payload: {'plans': state.map((p) => {
         'id': p.id,
         'name': p.name,

@@ -123,4 +123,6 @@ enum EventType {
   paymentRecorded,
   @HiveField(14)
   checkInRecorded,
+  @HiveField(15)
+  ownershipTransferred,
 }

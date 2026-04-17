@@ -13,6 +13,8 @@ import '../data/local/models/domain_event_model.dart';
 import '../data/repositories/event_repository.dart';
 import '../security/pin_service.dart';
 import '../security/entitlement_guard.dart';
+import '../constants/event_payload_keys.dart';
+import '../core/utils/clock.dart';
 import 'base_providers.dart';
 
 class AuthState {
@@ -248,6 +250,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           entityId: 'owner',
           eventType: EventType.ownerProfileCreated,
           deviceId: _deviceId,
+          deviceTimestamp: DateTime.now(),
           payload: {
             EventPayloadKeys.name: gymName, // gymName is the owner's gym name
             'ownerName': ownerName ?? '',
@@ -313,11 +316,12 @@ final entitlementProvider = Provider<EntitlementGuard?>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
   final auth = ref.watch(firebaseAuthProvider);
   final firestore = ref.watch(firestoreProvider);
+  final clock = ref.watch(clockProvider);
   
   // On Web/Audit mode, we might not have Firebase initialized
-  if (auth == null) return null;
+  if (auth == null || firestore == null) return null;
   
-  return EntitlementGuard(storage, auth, firestore);
+  return EntitlementGuard(storage, auth, firestore, clock);
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

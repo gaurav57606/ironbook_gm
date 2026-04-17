@@ -11,7 +11,7 @@ void main() {
     test('MEMBER_CREATED should initialize snapshot', () {
       final event = DomainEvent(
         entityId: memberId,
-        eventType: EventType.memberCreated.name,
+        eventType: EventType.memberCreated,
         deviceId: 'device-1',
         deviceTimestamp: now,
         payload: {
@@ -40,7 +40,7 @@ void main() {
 
       final event = DomainEvent(
         entityId: memberId,
-        eventType: EventType.paymentAdded.name,
+        eventType: EventType.paymentAdded,
         deviceId: 'device-1',
         deviceTimestamp: now,
         payload: {
@@ -65,7 +65,7 @@ void main() {
 
       final event = DomainEvent(
         entityId: memberId,
-        eventType: EventType.memberArchived.name,
+        eventType: EventType.memberArchived,
         deviceId: 'device-1',
         deviceTimestamp: now,
         payload: {},
@@ -79,21 +79,21 @@ void main() {
       final events = [
          DomainEvent(
           entityId: memberId,
-          eventType: EventType.memberCreated.name,
+          eventType: EventType.memberCreated,
           deviceId: 'device-1',
           deviceTimestamp: now.subtract(const Duration(days: 10)),
           payload: {'memberId': memberId, 'name': 'John', 'joinDate': now.toIso8601String()},
         ),
         DomainEvent(
           entityId: memberId,
-          eventType: EventType.paymentAdded.name,
+          eventType: EventType.paymentAdded,
           deviceId: 'device-1',
           deviceTimestamp: now.subtract(const Duration(days: 5)),
           payload: {'amount': 1000, 'paymentId': 'p1'},
         ),
          DomainEvent(
           entityId: memberId,
-          eventType: EventType.memberUpdated.name,
+          eventType: EventType.memberUpdated,
           deviceId: 'device-1',
           deviceTimestamp: now,
           payload: {'name': 'John Updated', 'phone': '999'},

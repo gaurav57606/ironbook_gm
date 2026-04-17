@@ -26,7 +26,7 @@ void main() {
       final event = DomainEvent(
         id: 'evt-1',
         entityId: 'mem-1',
-        eventType: 'TEST_EVENT',
+        eventType: EventType.memberCreated,
         deviceId: 'dev-1',
         deviceTimestamp: DateTime(2024, 3, 25, 10),
         payload: {'amount': 500, 'note': 'test'},
@@ -43,7 +43,7 @@ void main() {
       final event = DomainEvent(
         id: 'evt-1',
         entityId: 'mem-1',
-        eventType: 'TEST_EVENT',
+        eventType: EventType.memberCreated,
         deviceId: 'dev-1',
         deviceTimestamp: DateTime(2024, 3, 25, 10),
         payload: {'amount': 500},
@@ -63,7 +63,7 @@ void main() {
       final event = DomainEvent(
         id: 'evt-1',
         entityId: 'mem-1',
-        eventType: 'TEST_EVENT',
+        eventType: EventType.memberCreated,
         deviceId: 'dev-1',
         deviceTimestamp: DateTime(2024, 3, 25, 10),
         payload: {'amount': 500},

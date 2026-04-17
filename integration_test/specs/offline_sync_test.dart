@@ -86,7 +86,7 @@ void main() {
     // 4. Verify Event exists in Hive (via Repository)
     final container = ProviderScope.containerOf(tester.element(find.byType(IronBookApp)));
     final repo = container.read(eventRepositoryProvider);
-    final unsynced = repo.getAllUnsynced();
+    final unsynced = await repo.getAllUnsynced();
     expect(unsynced, isNotEmpty);
     expect(unsynced.any((e) => e.payload['name'] == 'Offline User'), true);
 

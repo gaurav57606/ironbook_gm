@@ -19,7 +19,7 @@ void main() {
           events.add(DomainEvent(
             id: 'ev-$i',
             entityId: memberId,
-            eventType: EventType.memberCreated.name,
+            eventType: EventType.memberCreated,
             payload: {
               'name': 'User $i',
               'phone': '123',
@@ -34,7 +34,7 @@ void main() {
             events.add(DomainEvent(
               id: 'ev-$i',
               entityId: memberId,
-              eventType: EventType.memberUpdated.name,
+              eventType: EventType.memberUpdated,
               payload: {'name': 'User $i updated'},
               deviceTimestamp: now,
               deviceId: 'dev-1',
@@ -43,7 +43,7 @@ void main() {
             events.add(DomainEvent(
               id: 'ev-$i',
               entityId: memberId,
-              eventType: EventType.paymentAdded.name,
+              eventType: EventType.paymentAdded,
               payload: {
                 'paymentId': 'pay-$i',
                 'amount': 10000,
@@ -70,8 +70,8 @@ void main() {
       // We verify that SnapshotBuilder handles sequential ordering correctly.
       final now = DateTime(2024, 3, 25);
       final events = [
-        DomainEvent(id: '1', entityId: 'm1', eventType: EventType.memberCreated.name, payload: {'name': 'A', 'phone': '1', 'joinDate': now.toIso8601String()}, deviceTimestamp: now, deviceId: 'd1'),
-        DomainEvent(id: '2', entityId: 'm1', eventType: EventType.memberUpdated.name, payload: {'name': 'B'}, deviceTimestamp: now.add(const Duration(minutes: 1)), deviceId: 'd1'),
+        DomainEvent(id: '1', entityId: 'm1', eventType: EventType.memberCreated, payload: {'name': 'A', 'phone': '1', 'joinDate': now.toIso8601String()}, deviceTimestamp: now, deviceId: 'd1'),
+        DomainEvent(id: '2', entityId: 'm1', eventType: EventType.memberUpdated, payload: {'name': 'B'}, deviceTimestamp: now.add(const Duration(minutes: 1)), deviceId: 'd1'),
       ];
       
       final result = SnapshotBuilder.rebuild(events);

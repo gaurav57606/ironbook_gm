@@ -122,7 +122,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   label: 'Owner Name',
                   hint: 'Enter your name',
                   controller: _nameController,
-                  prefixIcon: Icons.person_outline_rounded,
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
                 ),
                 const SizedBox(height: 20),
                 AppTextField(
@@ -130,7 +130,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   hint: 'Enter your phone number',
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  prefixIcon: Icons.phone_android_rounded,
+                  prefixIcon: const Icon(Icons.phone_android_rounded),
                 ),
                 const SizedBox(height: 48),
                 AppButton(

@@ -10,8 +10,27 @@ import 'models/app_settings_model.dart';
 import 'models/invoice_sequence.dart';
 import 'models/product_model.dart';
 import 'models/sale_model.dart';
+import 'adapters/manual_adapters.dart';
 
 class HiveInit {
+  static void registerAdapters() {
+    if (Hive.isAdapterRegistered(10)) return; // Already registered
+    
+    Hive.registerAdapter(DomainEventAdapter());
+    Hive.registerAdapter(MemberSnapshotAdapter());
+    Hive.registerAdapter(PaymentAdapter());
+    Hive.registerAdapter(PlanAdapter());
+    Hive.registerAdapter(PlanComponentAdapter());
+    Hive.registerAdapter(OwnerProfileAdapter());
+    Hive.registerAdapter(AppSettingsAdapter());
+    Hive.registerAdapter(JoinDateChangeAdapter());
+    Hive.registerAdapter(PlanComponentSnapshotAdapter());
+    Hive.registerAdapter(InvoiceSequenceAdapter());
+    Hive.registerAdapter(ProductAdapter());
+    Hive.registerAdapter(SaleAdapter());
+    Hive.registerAdapter(SaleItemAdapter());
+  }
+
   static Future<void> openAllBoxes() async {
     final cipher = kIsWeb ? null : await HiveEncryptionService.getOrCreateCipher();
     final boxNames = {
@@ -64,7 +83,8 @@ class HiveInit {
       await openAllBoxes();
       return true;
     } catch (e) {
-      debugPrint('Hive: Hard crash on Source of Truth (events): $e');
+      debugPrint('Hive: Final guard failed: $e');
       return false;
     }
   }
+}

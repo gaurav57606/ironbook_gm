@@ -19,7 +19,7 @@ void main() {
     final event = DomainEvent(
       id: 'event-1',
       entityId: 'm1',
-      eventType: 'TEST',
+      eventType: EventType.memberCreated,
       payload: {'data': 'val'},
       deviceTimestamp: DateTime(2024, 3, 25),
       deviceId: 'dev-1',
@@ -47,21 +47,21 @@ void main() {
   });
 
   test('SyncWorker should handle partial failures and resume correctly', () async {
-    final e1 = DomainEvent(id: 'e1', entityId: 'm1', eventType: 'T1', payload: {}, deviceTimestamp: DateTime(2024), deviceId: 'd1');
-    final e2 = DomainEvent(id: 'e2', entityId: 'm1', eventType: 'T2', payload: {}, deviceTimestamp: DateTime(2024), deviceId: 'd1');
+    final e1 = DomainEvent(id: 'e1', entityId: 'm1', eventType: EventType.memberCreated, payload: {}, deviceTimestamp: DateTime(2024), deviceId: 'd1');
+    final e2 = DomainEvent(id: 'e2', entityId: 'm1', eventType: EventType.memberCreated, payload: {}, deviceTimestamp: DateTime(2024), deviceId: 'd1');
     await mockRepo.persist(e1);
     await mockRepo.persist(e2);
 
     mockFirestore.failNextWrite = true; // First one fails immediately
     await syncWorker.performSync();
     
-    expect(mockRepo.getAllUnsynced().length, 2, reason: 'Failures should prevent local sync mark');
+    expect((await mockRepo.getAllUnsynced()).length, 2, reason: 'Failures should prevent local sync mark');
     expect(mockFirestore.writeCount, 0);
 
     mockFirestore.failNextWrite = false; 
     await syncWorker.performSync();
     
-    expect(mockRepo.getAllUnsynced().isEmpty, isTrue, reason: 'Resume should clear all pending');
+    expect((await mockRepo.getAllUnsynced()).isEmpty, isTrue, reason: 'Resume should clear all pending');
     expect(mockFirestore.writeCount, 2, reason: 'Both should be written eventually');
     expect(mockFirestore.exists('users/user-1/events', 'e1'), isTrue);
     expect(mockFirestore.exists('users/user-1/events', 'e2'), isTrue);

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:ironbook_gm/core/services/invoice_service.dart';
 import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/core/utils/clock.dart';
 import '../../test/helpers/hive_test_helper.dart';
 
 void main() {
@@ -12,7 +13,7 @@ void main() {
     setUp(() async {
       await HiveTestHelper.setup();
       box = await Hive.openBox<InvoiceSequence>('invoice_seq');
-      service = InvoiceService(box);
+      service = InvoiceService(box, SystemClock());
     });
 
     tearDown(() async {

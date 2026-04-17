@@ -9,6 +9,7 @@ import '../../../../data/sync_worker.dart';
 import '../../../../providers/member_provider.dart';
 import '../../../../core/services/csv_export_service.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../providers/payment_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 
 class SettingsScreen extends ConsumerStatefulWidget {

@@ -8,7 +8,7 @@ import 'dart:math';
 import '../providers/base_providers.dart';
 
 class PinService {
-  final FirebaseAuth _auth;
+  final FirebaseAuth? _auth;
   final FlutterSecureStorage _storage;
   static const _pinHashKey = 'pin_hash';
   static const _pinSaltKey = 'pin_salt';
@@ -79,7 +79,7 @@ class PinService {
         await _storage.delete(key: _pinHashKey);
         await _storage.delete(key: _failCountKey);
         await _storage.delete(key: _lockoutUntilKey);
-        await _auth.signOut();
+        await _auth?.signOut();
         return false;
       }
 
@@ -133,6 +133,6 @@ class PinService {
 
 final pinServiceProvider = Provider<PinService>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
-  final auth = ref.watch(firebaseAuthProvider)!;
+  final auth = ref.watch(firebaseAuthProvider);
   return PinService(storage, auth);
 });

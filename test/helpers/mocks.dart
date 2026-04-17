@@ -5,19 +5,38 @@ import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/data/local/models/owner_profile_model.dart';
 import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ironbook_gm/core/services/hmac_service.dart';
+
 class FakeRepo implements IEventRepository {
   @override
   Future<void> persist(DomainEvent event) async {}
   @override
-  List<DomainEvent> getAllUnsynced() => [];
+  Future<List<DomainEvent>> getAllUnsynced() async => [];
   @override
-  DomainEvent? getById(String id) => null;
+  Future<DomainEvent?> getById(String id) async => null;
   @override
-  List<DomainEvent> getByEntityId(String entityId) => [];
+  Future<List<DomainEvent>> getByEntityId(String entityId) async => [];
+  @override
+  Future<List<DomainEvent>> getAll() async => [];
   @override
   Future<void> markAsSynced(String eventId) async {}
   @override
   Stream<DomainEvent> watch() => const Stream.empty();
+}
+
+class FakeHmacService extends HmacService {
+  FakeHmacService() : super(const FlutterSecureStorage(), null, null);
+
+  @override
+  Future<String> getInstallationId() async => 'fake-device-id';
+  
+  @override
+  Future<String> signEvent(DomainEvent event) async => 'fake-signature';
+  
+  @override
+  Future<bool> verifyInstance(DomainEvent event) async => true;
 }
 
 class FakeAuth extends AuthNotifier {

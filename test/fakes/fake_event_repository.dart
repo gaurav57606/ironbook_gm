@@ -24,30 +24,28 @@ class FakeEventRepository implements IEventRepository {
   Stream<DomainEvent> watch() => _bus.stream;
 
   @override
-  DomainEvent? getById(String id) => _events.firstWhere((e) => e.id == id, orElse: () => null as dynamic);
+  Future<DomainEvent?> getById(String id) async {
+    for (final e in _events) {
+      if (e.id == id) return e;
+    }
+    return null;
+  }
 
   @override
-  List<DomainEvent> getAllUnsynced() => _events.where((e) => !e.synced).toList();
+  Future<List<DomainEvent>> getAllUnsynced() async => _events.where((e) => !e.synced).toList();
 
   @override
-  List<DomainEvent> getByEntityId(String entityId) => 
+  Future<List<DomainEvent>> getByEntityId(String entityId) async => 
       _events.where((e) => e.entityId == entityId).toList();
+
+  @override
+  Future<List<DomainEvent>> getAll() async => List.from(_events);
 
   @override
   Future<void> markAsSynced(String eventId) async {
     final idx = _events.indexWhere((e) => e.id == eventId);
     if (idx != -1) {
-      final old = _events[idx];
-      _events[idx] = DomainEvent(
-        id: old.id,
-        entityId: old.entityId,
-        eventType: old.eventType,
-        payload: old.payload,
-        deviceTimestamp: old.deviceTimestamp,
-        deviceId: old.deviceId,
-        hmacSignature: old.hmacSignature,
-        synced: true,
-      );
+      _events[idx].synced = true;
     }
   }
 

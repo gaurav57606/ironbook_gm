@@ -10,7 +10,7 @@ void main() {
     final event = DomainEvent(
       id: 'event-1',
       entityId: 'member-1',
-      eventType: EventType.memberCreated.name,
+      eventType: EventType.memberCreated,
       payload: {'name': 'John Doe'},
       deviceTimestamp: DateTime.now(),
       deviceId: 'test-device',
