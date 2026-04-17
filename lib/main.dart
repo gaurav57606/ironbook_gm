@@ -8,7 +8,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 // Background worker logic moved to dedicated file for mobile-only use
 
 import 'data/local/hive_init.dart';
-import 'data/local/adapters/manual_adapters.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/hmac_service.dart';
 import 'core/services/notification_service.dart';
@@ -21,80 +20,26 @@ import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Set consistent system overlays
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
-  );
+  _setupSystemUI();
 
   debugPrint('--- APP STARTING ---');
 
   try {
-    // 1. Firebase Initialisation (Bypassed on Web for Audit)
     if (!kIsWeb) {
-      debugPrint('Init: Firebase...');
-      await Firebase.initializeApp().timeout(const Duration(seconds: 30));
-
-      // 2. FCM & Notifications
-      debugPrint('Init: FCM/Notifications...');
-      await FcmService.init().timeout(const Duration(seconds: 20));
-      await HmacService.init().timeout(const Duration(seconds: 20));
-      await NotificationService.init().timeout(const Duration(seconds: 20));
-
-      // Handlers are correctly registered inside FcmService.init()
-      debugPrint('Init: Security/Auth services ready');
+      await _initFirebaseAndServices();
     } else {
       debugPrint('Init: Skipping Firebase/FCM on Web for Visual Audit');
     }
 
-    debugPrint('Init: Step 3 starting...');
+    final hiveHealthy = await _initHive();
 
-    // 3. Hive Initialisation with Models
-    bool hiveHealthy = true;
-    debugPrint('Init: Hive...');
-    await Hive.initFlutter().timeout(const Duration(seconds: 5),
-        onTimeout: () => debugPrint('Hive.init timeout'));
-
-    // Register all adapters
-    debugPrint('Init: Registering Hive Adapters...');
-    HiveInit.registerAdapters();
-
-    debugPrint('Init: Opening Hive boxes...');
-    // Check Hive Health
-    hiveHealthy = await HiveInit.openWithCorruptionGuard()
-        .timeout(const Duration(seconds: 15), onTimeout: () {
-      debugPrint('Hive Boxes timeout - defaulting to unhealthy');
-      return false;
-    });
-
-    debugPrint('Init: hiveHealthy result: $hiveHealthy');
-    
-    // 3.1. Seed Data if empty
     if (hiveHealthy) {
-        debugPrint('Init: Seeding data if empty...');
-        await SeedData.seedIfEmpty();
+      debugPrint('Init: Seeding data if empty...');
+      await SeedData.seedIfEmpty();
     }
 
-    // 4. Background Job Initialisation - Mobile Only
     if (!kIsWeb) {
-      debugPrint('Init: Mobile background tasks...');
-      await Workmanager().initialize(
-        MidnightEngine.callbackDispatcher,
-        isInDebugMode: kDebugMode,
-      );
-      
-      await Workmanager().registerPeriodicTask(
-        "1", 
-        "midnightTask", 
-        frequency: const Duration(hours: 12), // Minimum 15 mins, using 12h for production efficiency
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-          requiresBatteryNotLow: true,
-        ),
-      );
+      await _initBackgroundTasks();
     }
 
     debugPrint('Init: runApp starting...');
@@ -106,9 +51,78 @@ void main() async {
   } catch (e, stack) {
     debugPrint('CRITICAL INIT ERROR: $e');
     debugPrint(stack.toString());
-    runApp(MaterialApp(
-        home: Scaffold(body: Center(child: Text('Init Error: $e')))));
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text('Init Error: $e'),
+          ),
+        ),
+      ),
+    );
   }
+}
+
+void _setupSystemUI() {
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
+}
+
+Future<void> _initFirebaseAndServices() async {
+  debugPrint('Init: Firebase...');
+  await Firebase.initializeApp().timeout(const Duration(seconds: 30));
+
+  debugPrint('Init: FCM/Notifications...');
+  await FcmService.init().timeout(const Duration(seconds: 20));
+  await HmacService.init().timeout(const Duration(seconds: 20));
+  await NotificationService.init().timeout(const Duration(seconds: 20));
+
+  debugPrint('Init: Security/Auth services ready');
+}
+
+Future<bool> _initHive() async {
+  debugPrint('Init: Hive...');
+  await Hive.initFlutter().timeout(
+    const Duration(seconds: 5),
+    onTimeout: () => debugPrint('Hive.init timeout'),
+  );
+
+  debugPrint('Init: Registering Hive Adapters...');
+  HiveInit.registerAdapters();
+
+  debugPrint('Init: Opening Hive boxes...');
+  final hiveHealthy = await HiveInit.openWithCorruptionGuard().timeout(
+    const Duration(seconds: 15),
+    onTimeout: () {
+      debugPrint('Hive Boxes timeout - defaulting to unhealthy');
+      return false;
+    },
+  );
+
+  debugPrint('Init: hiveHealthy result: $hiveHealthy');
+  return hiveHealthy;
+}
+
+Future<void> _initBackgroundTasks() async {
+  debugPrint('Init: Mobile background tasks...');
+  await Workmanager().initialize(
+    MidnightEngine.callbackDispatcher,
+    isInDebugMode: kDebugMode,
+  );
+
+  await Workmanager().registerPeriodicTask(
+    "1",
+    "midnightTask",
+    frequency: const Duration(hours: 12),
+    constraints: Constraints(
+      networkType: NetworkType.connected,
+      requiresBatteryNotLow: true,
+    ),
+  );
 }
 
 @pragma('vm:entry-point')
