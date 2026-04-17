@@ -26,9 +26,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
-    final activeCount = members.where((m) => m.status == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.status == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.status == MemberStatus.expired).length;
+
+    // ⚡ Bolt Performance Optimization
+    // Cache DateTime.now() and use a single loop to avoid multiple iterations
+    // and redundant time calculations inside the m.status getter.
+    final now = DateTime.now();
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+
+    for (final m in members) {
+      final status = m.getStatus(now);
+      if (status == MemberStatus.active) {
+        activeCount++;
+      } else if (status == MemberStatus.expiring) {
+        expiringCount++;
+      } else if (status == MemberStatus.expired) {
+        expiredCount++;
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -130,15 +146,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildMemberCard(BuildContext context, MemberSnapshot member) {
-    final statusColor = member.status == MemberStatus.active 
+    // ⚡ Bolt Performance Optimization: Cache DateTime.now()
+    final now = DateTime.now();
+    final status = member.getStatus(now);
+
+    final statusColor = status == MemberStatus.active
         ? AppColors.active 
-        : (member.status == MemberStatus.expiring ? AppColors.expiring : AppColors.expired);
+        : (status == MemberStatus.expiring ? AppColors.expiring : AppColors.expired);
     
-    final statusText = member.status == MemberStatus.active
+    final daysRemaining = member.getDaysRemaining(now);
+    final statusText = status == MemberStatus.active
         ? 'Active'
-        : (member.status == MemberStatus.expiring 
-            ? 'Expiring in ${member.daysRemaining} days' 
-            : 'Expired ${member.daysRemaining.abs()} days ago');
+        : (status == MemberStatus.expiring
+            ? 'Expiring in $daysRemaining days'
+            : 'Expired ${daysRemaining.abs()} days ago');
 
     return InkWell(
       onTap: () => context.push('/members/${member.memberId}'),
