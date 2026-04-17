@@ -23,7 +23,8 @@ class PlanManagementScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+            icon: Icon(Icons.arrow_back_rounded,
+                color: AppColors.textPrimary, size: 24),
             onPressed: () => Navigator.pop(context),
           ),
           title: Text(
@@ -39,7 +40,8 @@ class PlanManagementScreen extends ConsumerWidget {
             gradient: AppColors.backgroundGradient,
           ),
           child: ListView.builder(
-            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 70, 20, 100),
+            padding: EdgeInsets.fromLTRB(
+                20, MediaQuery.of(context).padding.top + 70, 20, 100),
             itemCount: plans.length,
             itemBuilder: (context, index) {
               final plan = plans[index];
@@ -89,91 +91,112 @@ class PlanManagementScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(24),
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.elevation2,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        plan.name,
-                        style: AppTextStyles.h3.copyWith(fontSize: 18),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '₹${plan.totalPrice.toInt()}',
-                          style: AppTextStyles.h3.copyWith(
-                            fontSize: 18,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule_rounded, size: 14, color: AppColors.textMuted),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${plan.durationMonths} Month${plan.durationMonths > 1 ? 's' : ''}',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'INCLUDED COMPONENTS',
-                    style: AppTextStyles.sectionTitle.copyWith(
-                      fontSize: 10,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: plan.components.map((c) => _buildComponentChip(c)).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => _showPlanDialog(context, ref, plan: plan),
-                        icon: const Icon(Icons.edit_rounded, size: 18),
-                        label: Text('Edit Plan', style: AppTextStyles.buttonSmall),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.textSecondary,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            _buildPlanCardHeader(plan),
+            _buildPlanCardContent(context, ref, plan),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPlanCardHeader(Plan plan) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.elevation2,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                plan.name,
+                style: AppTextStyles.h3.copyWith(fontSize: 18),
+              ),
+              _buildPlanPrice(plan.totalPrice),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildPlanDuration(plan.durationMonths),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanPrice(double price) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        "₹${price.toInt()}",
+        style: AppTextStyles.h3.copyWith(
+          fontSize: 18,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanDuration(int months) {
+    return Row(
+      children: [
+        Icon(Icons.schedule_rounded, size: 14, color: AppColors.textMuted),
+        const SizedBox(width: 6),
+        Text(
+          "$months Month${months > 1 ? "s" : ""}",
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlanCardContent(BuildContext context, WidgetRef ref, Plan plan) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "INCLUDED COMPONENTS",
+            style: AppTextStyles.sectionTitle.copyWith(
+              fontSize: 10,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                plan.components.map((c) => _buildComponentChip(c)).toList(),
+          ),
+          const SizedBox(height: 24),
+          _buildEditPlanAction(context, ref, plan),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditPlanAction(BuildContext context, WidgetRef ref, Plan plan) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton.icon(
+          onPressed: () => _showPlanDialog(context, ref, plan: plan),
+          icon: const Icon(Icons.edit_rounded, size: 18),
+          label: Text("Edit Plan", style: AppTextStyles.buttonSmall),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.textSecondary,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+        ),
+      ],
     );
   }
 
@@ -191,7 +214,7 @@ class PlanManagementScreen extends ConsumerWidget {
           Icon(Icons.check_circle_rounded, size: 14, color: AppColors.success),
           const SizedBox(width: 8),
           Text(
-            '${component.name} (₹${component.price.toInt()})',
+            "${component.name} (₹${component.price.toInt()})",
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
@@ -203,11 +226,16 @@ class PlanManagementScreen extends ConsumerWidget {
   }
 
   void _showPlanDialog(BuildContext context, WidgetRef ref, {Plan? plan}) {
-    final nameController = TextEditingController(text: plan?.name ?? '');
-    final durationController = TextEditingController(text: plan?.durationMonths.toString() ?? '1');
-    List<PlanComponent> components = plan != null 
-        ? List.from(plan.components.map((c) => PlanComponent(id: c.id, name: c.name, price: c.price))) 
-        : [PlanComponent(id: const Uuid().v4(), name: 'Base Access', price: 500)];
+    final nameController = TextEditingController(text: plan?.name ?? "");
+    final durationController =
+        TextEditingController(text: plan?.durationMonths.toString() ?? "1");
+    List<PlanComponent> components = plan != null
+        ? List.from(plan.components
+            .map((c) => PlanComponent(id: c.id, name: c.name, price: c.price)))
+        : [
+            PlanComponent(
+                id: const Uuid().v4(), name: "Base Access", price: 500)
+          ];
 
     showDialog(
       context: context,
@@ -221,7 +249,7 @@ class PlanManagementScreen extends ConsumerWidget {
             side: BorderSide(color: AppColors.border),
           ),
           title: Text(
-            plan == null ? 'Create New Plan' : 'Edit Membership Plan',
+            plan == null ? "Create New Plan" : "Edit Membership Plan",
             style: AppTextStyles.h3,
           ),
           content: SingleChildScrollView(
@@ -229,89 +257,67 @@ class PlanManagementScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDialogField('Plan Name', nameController),
+                _buildDialogField("Plan Name", nameController),
                 const SizedBox(height: 16),
-                _buildDialogField('Duration (Months)', durationController, keyboardType: TextInputType.number),
+                _buildDialogField("Duration (Months)", durationController,
+                    keyboardType: TextInputType.number),
                 const SizedBox(height: 32),
                 Text(
-                  'COMPONENTS',
+                  "COMPONENTS",
                   style: AppTextStyles.sectionTitle.copyWith(fontSize: 10),
                 ),
                 const SizedBox(height: 12),
-                ...components.map((c) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.elevation2,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            c.name,
-                            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Text(
-                          '₹${c.price.toInt()}',
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )),
+                ...components.map((c) => _buildDialogComponentItem(c)),
                 const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setDialogState(() {
-                      components.add(PlanComponent(id: const Uuid().v4(), name: 'New Service', price: 100));
-                    });
-                  },
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-                  label: const Text('Add Component'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
+                _buildAddComponentButton(() {
+                  setDialogState(() {
+                    components.add(PlanComponent(
+                        id: const Uuid().v4(),
+                        name: "New Service",
+                        price: 100));
+                  });
+                }),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+              child:
+                  Text("Cancel", style: TextStyle(color: AppColors.textMuted)),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            _buildSavePlanButton(context, ref, plan, nameController,
+                durationController, components),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialogComponentItem(PlanComponent component) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.elevation2,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                component.name,
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
               ),
-              onPressed: () {
-                final newPlan = Plan(
-                  id: plan?.id ?? const Uuid().v4(),
-                  name: nameController.text,
-                  durationMonths: int.tryParse(durationController.text) ?? 1,
-                  components: components,
-                );
-                if (plan == null) {
-                  ref.read(planProvider.notifier).addPlan(newPlan);
-                } else {
-                  ref.read(planProvider.notifier).updatePlan(newPlan);
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('Save Plan', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            Text(
+              "₹${component.price.toInt()}",
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ],
         ),
@@ -319,7 +325,56 @@ class PlanManagementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDialogField(String label, TextEditingController controller, {TextInputType? keyboardType}) {
+  Widget _buildAddComponentButton(VoidCallback onPressed) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+      label: const Text("Add Component"),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
+  Widget _buildSavePlanButton(
+    BuildContext context,
+    WidgetRef ref,
+    Plan? plan,
+    TextEditingController nameController,
+    TextEditingController durationController,
+    List<PlanComponent> components,
+  ) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      onPressed: () {
+        final newPlan = Plan(
+          id: plan?.id ?? const Uuid().v4(),
+          name: nameController.text,
+          durationMonths: int.tryParse(durationController.text) ?? 1,
+          components: components,
+        );
+        if (plan == null) {
+          ref.read(planProvider.notifier).addPlan(newPlan);
+        } else {
+          ref.read(planProvider.notifier).updatePlan(newPlan);
+        }
+        Navigator.pop(context);
+      },
+      child: const Text("Save Plan",
+          style: TextStyle(fontWeight: FontWeight.w700)),
+    );
+  }
+
+  Widget _buildDialogField(String label, TextEditingController controller,
+      {TextInputType? keyboardType}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -347,7 +402,8 @@ class PlanManagementScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide(color: AppColors.primary),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ],
