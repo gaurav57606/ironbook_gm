@@ -106,9 +106,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       settings = AppSettings();
     }
 
-    // Remove bypass logic for auditMode/kIsWeb
-    // if (settings.auditMode || kIsWeb) { ... }
-
     // Set initial state with all known values before listening to auth changes
     if (mounted) {
       state = state.copyWith(
@@ -137,7 +134,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     // Finalize loading state if Firebase wasn't ready or was skipped
     if (mounted && state.isLoading) {
-       state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoading: false);
     }
   }
 
@@ -317,10 +314,10 @@ final entitlementProvider = Provider<EntitlementGuard?>((ref) {
   final auth = ref.watch(firebaseAuthProvider);
   final firestore = ref.watch(firestoreProvider);
   final clock = ref.watch(clockProvider);
-  
+
   // On Web/Audit mode, we might not have Firebase initialized
   if (auth == null || firestore == null) return null;
-  
+
   return EntitlementGuard(storage, auth, firestore, clock);
 });
 
