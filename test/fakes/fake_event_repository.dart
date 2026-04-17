@@ -49,6 +49,9 @@ class FakeEventRepository implements IEventRepository {
     }
   }
 
+  @override
+  Future<Set<String>> getAllIds() async => _events.map((e) => e.id).toSet();
+
   // Additional helper for tests
   void clear() => _events.clear();
   List<DomainEvent> debugEvents() => List.unmodifiable(_events);

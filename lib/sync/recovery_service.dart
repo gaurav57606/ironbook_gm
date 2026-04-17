@@ -44,8 +44,17 @@ class RecoveryService {
       int recoveredCount = 0;
       int tamperedCount = 0;
 
+      // Audit 6.2: Pre-fetch IDs to avoid N+1 lookups
+      final existingIds = await _eventRepo.getAllIds();
+
       for (final doc in snapshot.docs) {
-        final event = DomainEvent.fromFirestore(doc.data());
+        final data = doc.data();
+        final eventId = data['id'] as String;
+
+        // Skip if already exists locally - avoids expensive HMAC verify + Repo lookup
+        if (existingIds.contains(eventId)) continue;
+
+        final event = DomainEvent.fromFirestore(data);
         
         final isValid = await _hmac.verifyInstance(event);
         if (!isValid) {
@@ -54,12 +63,9 @@ class RecoveryService {
           continue;
         }
 
-        final existing = await _eventRepo.getById(event.id);
-        if (existing == null) {
-          event.synced = true; 
-          await _eventRepo.persist(event);
-          recoveredCount++;
-        }
+        event.synced = true;
+        await _eventRepo.persist(event);
+        recoveredCount++;
       }
 
       debugPrint('RecoveryService: Recovery complete.');

@@ -37,6 +37,9 @@ class MockRepo implements IEventRepository {
 
   @override
   Future<void> markAsSynced(String eventId) async {}
+
+  @override
+  Future<Set<String>> getAllIds() async => events.map((e) => e.id).toSet();
   
   @override
   Stream<DomainEvent> watch() => const Stream.empty();
@@ -51,7 +54,7 @@ void main() {
       Hive.init(tempDir.path);
       if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(DomainEventAdapter());
       if (!Hive.isAdapterRegistered(11)) Hive.registerAdapter(MemberSnapshotAdapter());
-      await Hive.openBox<MemberSnapshot>('snapshots');
+      await Hive.openLazyBox<MemberSnapshot>('snapshots');
     });
 
     tearDown(() async {
@@ -76,11 +79,14 @@ void main() {
       final hmac = FakeHmacService();
       final notifier = MemberNotifier(repo, clock, hmac);
       
-      // 3. Verify recovery
+      // 3. Wait for reconciliation to complete
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // 4. Verify recovery
       expect(notifier.state.length, 1);
       expect(notifier.state.first.name, 'Survivor');
       
-      final box = Hive.box<MemberSnapshot>('snapshots');
+      final box = Hive.lazyBox<MemberSnapshot>('snapshots');
       expect(box.length, 1, reason: 'Snapshots should have been rebuilt in the box');
     });
   });

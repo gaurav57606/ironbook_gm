@@ -13,6 +13,7 @@ abstract class IEventRepository {
   Future<DomainEvent?> getById(String id);
   Future<List<DomainEvent>> getByEntityId(String entityId);
   Future<void> markAsSynced(String eventId);
+  Future<Set<String>> getAllIds();
   Stream<DomainEvent> watch();
 }
 
@@ -99,6 +100,9 @@ class HiveEventRepository implements IEventRepository {
       await _box.put(eventId, event);
     }
   }
+
+  @override
+  Future<Set<String>> getAllIds() async => _box.keys.cast<String>().toSet();
 
   @override
   Stream<DomainEvent> watch() => _eventBus.stream;
