@@ -36,6 +36,9 @@ class FirestoreRecovery {
     final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
 
     // 3. Replay
+    final Map<String, DomainEvent> eventsBatch = {};
+    final Map<String, MemberSnapshot> snapshotsBatch = {};
+
     for (int i = 0; i < total; i++) {
       onProgress(i + 1, total);
 
@@ -49,27 +52,36 @@ class FirestoreRecovery {
       }
 
       event.synced = true;
-      await eventBox.put(event.id, event);
+      eventsBatch[event.id] = event;
 
-      await _applyEventToSnapshot(event, snapshotBox);
+      await _applyEventToSnapshot(event, snapshotBox, snapshotsBatch);
+    }
+
+    // 4. Batch Writes
+    if (eventsBatch.isNotEmpty) {
+      await eventBox.putAll(eventsBatch);
+    }
+    if (snapshotsBatch.isNotEmpty) {
+      await snapshotBox.putAll(snapshotsBatch);
     }
   }
 
   static Future<void> _applyEventToSnapshot(
     DomainEvent event,
     LazyBox<MemberSnapshot> snapshotBox,
+    Map<String, MemberSnapshot> snapshotsBatch,
   ) async {
     final type = event.eventType;
     
     switch (type) {
       case EventType.memberCreated:
         final snap = MemberSnapshot.fromPayload(event.entityId, event.payload);
-        await snapshotBox.put(event.entityId, snap);
+        snapshotsBatch[event.entityId] = snap;
         break;
       case EventType.paymentAdded:
       case EventType.membershipRenewed:
       case EventType.paymentRecorded:
-        final snap = await snapshotBox.get(event.entityId);
+        final snap = snapshotsBatch[event.entityId] ?? await snapshotBox.get(event.entityId);
         if (snap == null) break;
         final newExpiryStr = event.payload[EventPayloadKeys.newExpiry];
         if (newExpiryStr != null) {
@@ -78,10 +90,10 @@ class FirestoreRecovery {
         snap.totalPaid += (event.payload[EventPayloadKeys.amount] as num).toInt();
         snap.paymentIds.add(event.payload[EventPayloadKeys.paymentId]);
         snap.lastUpdated = event.deviceTimestamp;
-        await snapshotBox.put(event.entityId, snap);
+        snapshotsBatch[event.entityId] = snap;
         break;
       case EventType.joinDateEdited:
-        final snap = await snapshotBox.get(event.entityId);
+        final snap = snapshotsBatch[event.entityId] ?? await snapshotBox.get(event.entityId);
         if (snap == null) break;
         snap.joinDate = DateTime.parse(event.payload['newDate']);
         snap.joinDateHistory.add(JoinDateChange(
@@ -90,13 +102,13 @@ class FirestoreRecovery {
           reason: event.payload['reason'],
           changedAt: event.deviceTimestamp,
         ));
-        await snapshotBox.put(event.entityId, snap);
+        snapshotsBatch[event.entityId] = snap;
         break;
       case EventType.memberArchived:
-        final snap = await snapshotBox.get(event.entityId);
+        final snap = snapshotsBatch[event.entityId] ?? await snapshotBox.get(event.entityId);
         if (snap == null) break;
         snap.archived = true;
-        await snapshotBox.put(event.entityId, snap);
+        snapshotsBatch[event.entityId] = snap;
         break;
       default:
         break;
