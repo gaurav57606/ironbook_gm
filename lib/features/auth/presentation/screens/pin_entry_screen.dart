@@ -19,6 +19,17 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   bool _error = false;
   bool _isLoading = false;
   int _attempts = 0;
+ 
+  @override
+  void initState() {
+    super.initState();
+    // Audit Requirement: Biometrics First
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!widget.isLockout) {
+        _handleBiometric();
+      }
+    });
+  }
 
   void _onKeyPress(String key) {
     if (widget.isLockout || _isLoading) return;

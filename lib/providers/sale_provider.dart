@@ -85,10 +85,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
       invoiceNumber: invoiceNumber,
     );
 
-    await _saleBox.put(sale.id, sale);
-    state = [sale, ...state];
-
-    // Emit Domain Event
+    // Emit Domain Event FIRST (Enforce Outbox-First Rule)
     final event = DomainEvent(
       entityId: saleId,
       eventType: EventType.paymentRecorded,
@@ -106,7 +103,13 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
         'invoiceNumber': invoiceNumber,
       },
     );
+    
+    // Anchor point: This must succeed before local Hive is touched
     await _eventRepo.persist(event);
+
+    // Persist Cache Locally
+    await _saleBox.put(sale.id, sale);
+    state = [sale, ...state];
   }
 }
 

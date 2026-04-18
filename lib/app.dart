@@ -16,28 +16,11 @@ class IronBookApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bootstrap = ref.watch(bootstrapStateProvider);
-    final isDegraded = bootstrap == BootstrapPhase.tier2Degraded || !hiveHealthy;
-
-    Widget app = MaterialApp.router(
+    return MaterialApp.router(
       title: 'IronBook GM',
       theme: AppTheme.darkTheme(useGoogleFonts: useGoogleFonts),
       routerConfig: ref.watch(routerProvider(hiveHealthy)),
       debugShowCheckedModeBanner: false,
     );
-
-    if (isDegraded) {
-      return Directionality(
-        textDirection: TextDirection.ltr,
-        child: Banner(
-          message: !hiveHealthy ? 'STORAGE ERROR' : 'OFFLINE MODE',
-          location: BannerLocation.topEnd,
-          color: !hiveHealthy ? Colors.red : Colors.orange,
-          child: app,
-        ),
-      );
-    }
-
-    return app;
   }
 }

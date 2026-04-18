@@ -66,27 +66,31 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<void> persist(DomainEvent event) async {
-    debugPrint('HiveEventRepository: Persisting event ${event.eventType} (ID: ${event.id})...');
+    debugPrint('HiveEventRepository: ACID Dual-Write Start: ${event.eventType}');
     
-    // 1. Sign FIRST (Security Enforcement)
+    // 1. Sign (Security Enforcement)
     event.hmacSignature = await _hmacService.signEvent(event);
     
-    // 2. Outbox write (ACID anchor point)
-    // If this throws, operation fails and Hive is never touched.
-    await _outboxRepo.insertEvent(event);
+    try {
+      // 2. Drift Outbox write (The Source of Truth for Sync)
+      // If this fails, the whole operation aborts.
+      await _outboxRepo.insertEvent(event);
+      debugPrint('HiveEventRepository: 1/2 Drift Outbox Success');
 
-    // 3. Hive write
-    _unsyncedIds.add(event.id);
-    _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
-    await _box.put(event.id, event);
+      // 3. Local Hive write (The Source of Truth for Local UI)
+      _unsyncedIds.add(event.id);
+      _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
+      await _box.put(event.id, event);
+      debugPrint('HiveEventRepository: 2/2 Hive Event Log Success');
 
-    // 4. Dispatch to internal bus for Snapshot rebuilding
-    _eventBus.publish(event);
-    
-    // 5. Trigger Sync (Reactive decoupling)
-    _syncCoordinator.triggerSync();
-    
-    debugPrint('HiveEventRepository: Event persisted and sync triggered: ${event.eventType}');
+      // 4. Dispatch and Trigger
+      _eventBus.publish(event);
+      _syncCoordinator.triggerSync();
+      
+    } catch (e) {
+      debugPrint('HiveEventRepository: ACID FAILURE - Transaction Aborted: $e');
+      rethrow;
+    }
   }
 
   @override

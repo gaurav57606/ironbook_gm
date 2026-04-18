@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -71,23 +72,25 @@ class AppBootstrap {
 
   static Future<void> _runTier2(ProviderContainer container) async {
     debugPrint('Bootstrap Tier 2: Starting...');
+    container.read(tier2StatusProvider.notifier).state = Tier2Status.pending;
     
     try {
-      // 1. Firebase (Web Bypassed)
+      // 1. Firebase & Cloud Services (Web Bypassed) with 10s global timeout
       if (!kIsWeb) {
-        debugPrint('Bootstrap Tier 2: Firebase...');
-        await Firebase.initializeApp().timeout(const Duration(seconds: 30));
+        debugPrint('Bootstrap Tier 2: Cloud Services (10s timeout)...');
         
+        await Future.wait([
+          Firebase.initializeApp(),
+          FcmService.init(),
+          HmacService.init(),
+          NotificationService.init(),
+        ]).timeout(const Duration(seconds: 10));
+
         // Notify AuthNotifier that Firebase is ready
         final auth = FirebaseAuth.instance;
         container.read(authProvider.notifier).onFirebaseReady(auth);
         
-        debugPrint('Bootstrap Tier 2: FCM & Services...');
-        await FcmService.init().timeout(const Duration(seconds: 20));
-        await HmacService.init().timeout(const Duration(seconds: 20));
-        await NotificationService.init().timeout(const Duration(seconds: 20));
-        
-        // 2. Background Tasks
+        // 2. Background Tasks (Doesn't block 'ready' state if slightly slower)
         debugPrint('Bootstrap Tier 2: Workmanager...');
         await Workmanager().initialize(
           MidnightEngine.callbackDispatcher,
@@ -109,13 +112,26 @@ class AppBootstrap {
       debugPrint('Bootstrap Tier 2: SyncWorker...');
       container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
 
+      // Successfully ready
+      container.read(tier2StatusProvider.notifier).state = Tier2Status.ready;
       container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Ready;
       debugPrint('Bootstrap Tier 2: Complete.');
       
     } catch (e, stack) {
-      debugPrint('Bootstrap Tier 2 Error: $e');
-      debugPrint(stack.toString());
+      debugPrint('Bootstrap Tier 2 (Degraded): $e');
+      if (e is TimeoutException) {
+        debugPrint('Bootstrap Tier 2: Cloud services timed out after 10s.');
+      }
+      
+      container.read(tier2StatusProvider.notifier).state = Tier2Status.degraded;
       container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Degraded;
+      
+      // Still attempt to start local services even if cloud timed out
+      try {
+        final outboxRepo = container.read(outboxRepositoryProvider);
+        await HiveToDriftMigration.runIfNeeded(outboxRepo);
+        container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
+      } catch (_) {}
     }
   }
 }

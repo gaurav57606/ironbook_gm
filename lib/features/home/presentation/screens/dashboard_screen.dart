@@ -14,6 +14,8 @@ import '../widgets/stats_card.dart';
 import '../widgets/member_health_donut.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/member_row.dart';
+import '../../../../data/sync_worker.dart';
+import '../../../../core/bootstrap.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -23,6 +25,8 @@ class DashboardScreen extends ConsumerWidget {
     final members = ref.watch(membersProvider);
     final now = DateTime.now();
     final auth = ref.watch(authProvider);
+    final unsyncedCount = ref.watch(unsyncedCountProvider).valueOrNull ?? 0;
+    final tier2Status = ref.watch(tier2StatusProvider);
     
     final activeCount = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
     final expiringCount = members.where((m) => m.getStatus(now) == MemberStatus.expiring).length;
@@ -44,7 +48,7 @@ class DashboardScreen extends ConsumerWidget {
             },
             child: CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _buildHeader(auth)),
+                SliverToBoxAdapter(child: _buildHeader(auth, unsyncedCount, tier2Status)),
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   sliver: SliverToBoxAdapter(
@@ -92,7 +96,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(AuthState auth) {
+  Widget _buildHeader(AuthState auth, int unsyncedCount, Tier2Status tier2Status) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
       child: Row(
@@ -115,6 +119,8 @@ class DashboardScreen extends ConsumerWidget {
                 DateFormatter.format(DateTime.now()).toUpperCase(),
                 style: AppTextStyles.bodySmall.copyWith(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.textMuted, letterSpacing: 1.0),
               ),
+              const SizedBox(height: 8),
+              _buildSyncBadge(unsyncedCount, tier2Status),
             ],
           ),
           Container(
@@ -136,6 +142,44 @@ class DashboardScreen extends ConsumerWidget {
                 fit: BoxFit.contain,
                 errorBuilder: (c, e, s) => const Icon(Icons.fitness_center_rounded, size: 24, color: AppColors.primary),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSyncBadge(int count, Tier2Status status) {
+    if (count == 0 && status != Tier2Status.degraded) return const SizedBox.shrink();
+
+    final isSyncing = count > 0;
+    final isDegraded = status == Tier2Status.degraded;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSyncing ? AppColors.primary.withValues(alpha: 0.1) : AppColors.amber.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isSyncing ? AppColors.primary.withValues(alpha: 0.2) : AppColors.amber.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isSyncing ? Icons.cloud_sync_rounded : Icons.cloud_off_rounded,
+            size: 10,
+            color: isSyncing ? AppColors.primary : AppColors.amber,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isSyncing ? '$count ITEM(S) SYNCING' : 'OFFLINE MODE',
+            style: AppTextStyles.sectionTitle.copyWith(
+              fontSize: 7,
+              letterSpacing: 0.5,
+              color: isSyncing ? AppColors.primary : AppColors.amber,
             ),
           ),
         ],

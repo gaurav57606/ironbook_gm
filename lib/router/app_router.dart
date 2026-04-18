@@ -12,6 +12,7 @@ import '../features/auth/presentation/screens/signup_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/auth/presentation/screens/pin_setup_screen.dart';
 import '../features/auth/presentation/screens/pin_entry_screen.dart';
+import '../features/auth/presentation/screens/license_sync_screen.dart';
 import '../features/home/presentation/screens/dashboard_screen.dart';
 import '../features/members/presentation/screens/members_list_screen.dart';
 import '../features/members/presentation/screens/member_detail_screen.dart';
@@ -44,6 +45,7 @@ import '../security/entitlement_guard.dart';
 
 final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
   final authState = ref.watch(authProvider);
+  final tier2Status = ref.watch(tier2StatusProvider);
   final bootstrap = ref.watch(bootstrapStateProvider);
   final entitlementStatus = ref.watch(entitlementStatusProvider);
 
@@ -55,12 +57,12 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       ),
     ),
     redirect: (context, state) {
-      // 0. Hard Block until Phase 1 is done
+      // 0. Hard Block until Phase 1 (Core) is done
       if (bootstrap == BootstrapPhase.tier1Pending) return null;
 
-      // 1. Splash Screen Holding Pattern
+      // 1. Splash Screen Holding Pattern (Stay until Tier 2 is determined)
       final isSplash = state.matchedLocation == '/';
-      if (bootstrap == BootstrapPhase.tier1Ready && isSplash) return null;
+      if (tier2Status == Tier2Status.pending && isSplash) return null;
 
       // 2. Auth Loading Guard
       if (authState.isLoading) return null;
@@ -85,14 +87,11 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
 
       // 4. Tier 2 Guard for Protected Routes
       // We allow Login/Onboarding screens after Tier 1 Ready.
-      // But we BLOCK dashboard/gym access until Tier 2 (Firebase Auth) is resolved.
+      // But we BLOCK dashboard/gym access until Tier 2 (Firebase Auth) is determined (Ready/Degraded).
       final isProtectedRoute = !isLoggingIn && !isOnboarding && !isSplash;
       
-      if (isProtectedRoute && 
-          bootstrap != BootstrapPhase.tier2Ready && 
-          bootstrap != BootstrapPhase.tier2Degraded) {
-        // Stay on current path or go to splash if trying to jump deep
-        return isSplash ? null : '/'; 
+      if (isProtectedRoute && tier2Status == Tier2Status.pending) {
+        return '/'; // Hold on Splash
       }
 
       // 5. Auth Redirect
@@ -122,7 +121,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       if (isAuth && !isSettings && state.matchedLocation != '/paywall') {
         final status = entitlementStatus.valueOrNull ?? EntitlementStatus.valid;
         if (status == EntitlementStatus.expired) {
-          return '/paywall';
+          return '/license-sync';
         }
       }
 
@@ -164,6 +163,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       GoRoute(
         path: '/character-creation',
         builder: (context, state) => const CharacterCreationScreen(),
+      ),
+      GoRoute(
+        path: '/license-sync',
+        builder: (context, state) => const LicenseSyncScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

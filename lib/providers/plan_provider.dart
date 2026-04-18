@@ -24,16 +24,15 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   }
 
   Future<void> addPlan(Plan plan) async {
-    await _box.add(plan);
-    state = [...state, plan];
-
-    // Emit sync event
+    final now = DateTime.now();
+    
+    // Emit sync event FIRST (Enforce Outbox-First Rule)
     final event = DomainEvent(
       entityId: 'gym-plans',
       eventType: EventType.plansUpdated, 
       deviceId: _deviceId,
-      deviceTimestamp: DateTime.now(),
-      payload: {'plans': state.map((p) => {
+      deviceTimestamp: now,
+      payload: {'plans': [...state, plan].map((p) => {
         'id': p.id,
         'name': p.name,
         'durationMonths': p.durationMonths,
@@ -42,20 +41,28 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
       }).toList()},
     );
 
+    // Anchor point: Drift Outbox write
     await _eventRepo.persist(event);
+
+    // Persist Cache Locally
+    await _box.add(plan);
+    state = [...state, plan];
+    
     await _syncWorker.performSync();
   }
 
   Future<void> updatePlan(Plan plan) async {
-    await plan.save();
-    _loadPlans();
+    final now = DateTime.now();
+    
+    // Temporary state to build the payload
+    final updatedList = state.map((p) => p.id == plan.id ? plan : p).toList();
 
     final event = DomainEvent(
       entityId: 'gym-plans',
       eventType: EventType.plansUpdated,
       deviceId: _deviceId,
-      deviceTimestamp: DateTime.now(),
-      payload: {'plans': state.map((p) => {
+      deviceTimestamp: now,
+      payload: {'plans': updatedList.map((p) => {
         'id': p.id,
         'name': p.name,
         'durationMonths': p.durationMonths,
@@ -63,7 +70,14 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
         'components': p.components.map((c) => {'id': c.id, 'name': c.name, 'price': c.price}).toList(),
       }).toList()},
     );
+
+    // Anchor point: Drift Outbox write
     await _eventRepo.persist(event);
+
+    // Persist Cache Locally
+    await plan.save();
+    _loadPlans();
+    
     await _syncWorker.performSync();
   }
 }

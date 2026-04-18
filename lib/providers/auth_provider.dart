@@ -242,21 +242,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
           phone: phone ?? '',
           address: '',
         );
-        await Hive.box<OwnerProfile>('owner').add(owner);
-
-        // Data Pipeline: Queue for Sync
+        // Data Pipeline: Queue for Sync FIRST (Enforce Outbox-First Rule)
         final event = DomainEvent(
           entityId: 'owner',
           eventType: EventType.ownerProfileCreated,
           deviceId: _deviceId,
           deviceTimestamp: DateTime.now(),
           payload: {
-            EventPayloadKeys.name: gymName, // gymName is the owner's gym name
+            EventPayloadKeys.name: gymName, 
             'ownerName': ownerName ?? '',
             EventPayloadKeys.phone: phone ?? '',
           },
         );
+        
+        // This will throw if the Drift Outbox write fails, preventing local Hive corruption
         await _eventRepo.persist(event);
+
+        // Persist Cache Locally
+        await Hive.box<OwnerProfile>('owner').add(owner);
         _ref.read(syncWorkerProvider).performSync();
 
         state = state.copyWith(owner: owner);

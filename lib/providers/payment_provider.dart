@@ -110,11 +110,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
         )).toList(),
       );
 
-      // 5. Persist Locally
-      await _paymentBox.put(payment.id, payment);
-      state = [payment, ...state];
-
-      // 6. Emit Domain Event (Consolidated)
+      // 5. Emit Domain Event FIRST (Enforce Outbox-First Rule)
       final event = DomainEvent(
         entityId: memberId, // Target is the member for state updates
         eventType: EventType.paymentRecorded,
@@ -133,7 +129,13 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
           EventPayloadKeys.updatedAt: now.toUtc().toIso8601String(),
         },
       );
+      
+      // This will throw if the Drift Outbox write fails, preventing local Hive corruption
       await _eventRepo.persist(event);
+
+      // 6. Persist Cache Locally
+      await _paymentBox.put(payment.id, payment);
+      state = [payment, ...state];
 
       return payment;
     } finally {

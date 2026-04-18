@@ -18,26 +18,33 @@ class EntitlementGuard {
 
   Future<EntitlementStatus> checkEntitlement() async {
     final expiryRaw = await _storage.read(key: 'ent_expiry');
-    final cachedAtRaw = await _storage.read(key: 'ent_cached_at');
+    final heartbeatRaw = await _storage.read(key: 'lease_heartbeat');
     
     final expiry = expiryRaw != null ? DateTime.tryParse(expiryRaw) : null;
-    final cachedAt = cachedAtRaw != null ? DateTime.tryParse(cachedAtRaw) : null;
+    final lastHeartbeat = heartbeatRaw != null ? DateTime.tryParse(heartbeatRaw) : null;
 
-    if (expiry != null && cachedAt != null) {
-      final now = _clock.now;
-      final cacheAge = now.difference(cachedAt).inDays;
-      if (cacheAge < 7 && expiry.isAfter(now)) {
+    final now = _clock.now;
+
+    // 1. Check local "Rental Persistence" (Heartbeat)
+    if (lastHeartbeat != null) {
+      final heartbeatAge = now.difference(lastHeartbeat).inDays;
+      if (heartbeatAge >= 7) {
+        debugPrint('EntitlementGuard: Lease heartbeat stale ($heartbeatAge days). Lock required.');
+        return EntitlementStatus.expired;
+      }
+    }
+
+    // 2. Check Expiry from last successful check
+    if (expiry != null && lastHeartbeat != null) {
+      if (expiry.isAfter(now)) {
         return EntitlementStatus.valid;
       }
     }
 
-    if (const bool.fromEnvironment('dart.library.js_util')) {
-      // Bypassing Firebase check on Web for visual audit
-      return EntitlementStatus.valid;
-    }
-
+    // 3. Web/Audit Bypass
     if (kIsWeb) return EntitlementStatus.valid;
 
+    // 4. Fresh Cloud Check
     try {
       final user = _auth?.currentUser;
       if (user == null) return EntitlementStatus.expired;
@@ -49,16 +56,20 @@ class EntitlementGuard {
 
       if (doc != null && doc.exists) {
         final freshExpiry = (doc.data()!['expiresAt'] as Timestamp).toDate();
+        
+        // Update both Expiry and Heartbeat
         await _storage.write(key: 'ent_expiry', value: freshExpiry.toIso8601String());
-        await _storage.write(key: 'ent_cached_at', value: _clock.now.toIso8601String());
+        await _storage.write(key: 'lease_heartbeat', value: now.toIso8601String());
 
-        return freshExpiry.isAfter(_clock.now)
+        return freshExpiry.isAfter(now)
             ? EntitlementStatus.valid
             : EntitlementStatus.expired;
       }
-    } catch (_) {
-      if (cachedAt != null) {
-        final graceDays = _clock.now.difference(cachedAt).inDays;
+    } catch (e) {
+      debugPrint('EntitlementGuard Cloud Check Error: $e');
+      // If offline, allow grace if heartbeat is still fresh (<7 days)
+      if (lastHeartbeat != null) {
+        final graceDays = now.difference(lastHeartbeat).inDays;
         if (graceDays < 7) return EntitlementStatus.grace;
       }
     }

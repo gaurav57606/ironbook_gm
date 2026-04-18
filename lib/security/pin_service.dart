@@ -166,19 +166,22 @@ class PinService {
   }
 
   /// Unified entry point for authentication.
-  /// Attempts biometrics first (if enrolled), then falls back to PIN.
+  /// Mandatory for: Biometrics First -> PIN Fallback flow.
   Future<AuthResult> authenticate({String? pinFallback}) async {
-    // 1. Try Biometrics
-    final bioResult = await authenticateWithBiometric();
-    if (bioResult == AuthResult.success) return AuthResult.success;
-    
-    // 2. Fallback to PIN if provided and biometrics didn't succeed
-    if (pinFallback != null) {
-      final pinSuccess = await verifyPin(pinFallback);
-      return pinSuccess ? AuthResult.success : AuthResult.failure;
+    // 1. Try Biometrics if available and supported
+    final biometricStatus = await authenticateWithBiometric();
+    if (biometricStatus == AuthResult.success) {
+      return AuthResult.success;
     }
 
-    return bioResult;
+    // 2. Fallback to PIN if provided (e.g., from PinEntryScreen)
+    if (pinFallback != null) {
+      final pinVerified = await verifyPin(pinFallback);
+      return pinVerified ? AuthResult.success : AuthResult.failure;
+    }
+
+    // 3. If biometrics were canceled/failed and no PIN provided, report back
+    return biometricStatus;
   }
 }
 

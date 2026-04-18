@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/features/auth/presentation/screens/pin_entry_screen.dart';
 import 'package:ironbook_gm/providers/auth_provider.dart';
 import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthNotifier extends StateNotifier<AuthState> with Mock implements AuthNotifier {
@@ -17,18 +18,31 @@ void main() {
     mockAuth = MockAuthNotifier();
     // Default stub to avoid MissingStubError in async calls
     when(() => mockAuth.verifyPin(any())).thenAnswer((_) async => false);
+    when(() => mockAuth.checkBiometrics()).thenAnswer((_) async => false);
+    when(() => mockAuth.unlockWithBiometrics()).thenAnswer((_) async => false);
   });
 
   Widget wrap(Widget child) {
+    final router = GoRouter(
+      initialLocation: '/unlock',
+      routes: [
+        GoRoute(
+          path: '/unlock',
+          builder: (context, state) => child,
+        ),
+        GoRoute(
+          path: '/dashboard',
+          builder: (context, state) => const Scaffold(body: Text('Dashboard Page')),
+        ),
+      ],
+    );
+
     return ProviderScope(
       overrides: [
         authProvider.overrideWith((ref) => mockAuth),
       ],
-      child: MaterialApp(
-        home: Scaffold(body: child),
-        routes: {
-          '/dashboard': (_) => const Scaffold(body: Text('Dashboard Page')),
-        },
+      child: MaterialApp.router(
+        routerConfig: router,
       ),
     );
   }

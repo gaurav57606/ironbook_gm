@@ -10,7 +10,7 @@ import 'app.dart';
 void main() async {
   final container = ProviderContainer();
   
-  // AppBootstrap handles tiered init (Tier 1 blocking, Tier 2 post-frame)
+  // AppBootstrap handles Tier 1 (blocking) and Tier 2 (post-frame) init
   final result = await AppBootstrap.initialize(container);
 
   runApp(
