@@ -6,17 +6,24 @@ import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/utils/clock.dart';
-import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart' hide InvoiceSequenceAdapter;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
 import 'dart:io';
 
 class MockEventRepository extends Mock implements IEventRepository {
   @override
-  Future<void> persist(dynamic event) async => null;
+  Future<void> persist(dynamic event) async {}
+
+  @override
+  Future<List<DomainEvent>> getAll() async => [];
+
+  @override
+  Stream<DomainEvent> watch() => const Stream.empty();
 }
 
 class MockHmacService extends Mock implements HmacService {
