@@ -123,6 +123,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                     _buildPaymentChips(),
                     const SizedBox(height: 32),
                     AppButton(
+                      key: const Key('register_button'),
                       text: _isSaving ? 'Registering...' : 'Register & Generate Invoice',
                       onPressed: _isSaving ? null : _handleSave,
                     ),

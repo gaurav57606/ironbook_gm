@@ -33,15 +33,18 @@ class MidnightEngine {
         }
 
         // 3. Acquire global sync lock to prevent foreground/background conflict
+        final container = ProviderContainer();
+        final syncCoord = container.read(syncCoordinatorProvider);
         final holderId = 'background_midnight_engine';
-        if (!await SyncCoordinator.acquireLock(holderId)) {
+        
+        if (!await syncCoord.acquireLock(holderId)) {
           debugPrint("MidnightEngine: Lock held by another process. Skipping current run.");
+          container.dispose();
           return true; 
         }
 
         try {
           // 4. Run Maintenance Tasks (Alerts, Cleanups)
-          final container = ProviderContainer();
           try {
             final clock = container.read(clockProvider);
             await _runMemberAlerts(clock);
@@ -50,12 +53,13 @@ class MidnightEngine {
             final syncWorker = container.read(syncWorkerProvider);
             await syncWorker.performSync();
           } finally {
-            container.dispose();
+            // Container disposed in outer block
           }
 
           debugPrint("MidnightEngine: All background maintenance completed successfully.");
         } finally {
-          await SyncCoordinator.releaseLock(holderId);
+          await syncCoord.releaseLock(holderId);
+          container.dispose();
         }
       } catch (e, stack) {
         debugPrint("MidnightEngine Error: $e\n$stack");

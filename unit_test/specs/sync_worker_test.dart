@@ -1,18 +1,35 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/data/local/drift/outbox_repository.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/data/sync_worker.dart';
 import '../../test/fakes/fake_event_repository.dart';
 import '../../test/fakes/fake_firestore.dart';
 
+class MockOutboxRepository extends Mock implements OutboxRepository {}
+class MockSyncCoordinator extends Mock implements SyncCoordinator {}
+
 void main() {
   late FakeEventRepository mockRepo;
   late FakeFirestore mockFirestore;
+  late MockOutboxRepository mockOutbox;
+  late MockSyncCoordinator mockCoordinator;
   late SyncWorker syncWorker;
 
   setUp(() {
     mockRepo = FakeEventRepository();
     mockFirestore = FakeFirestore();
-    syncWorker = SyncWorker(mockRepo, mockFirestore.set, () => 'user-1');
+    mockOutbox = MockOutboxRepository();
+    mockCoordinator = MockSyncCoordinator();
+
+    // Default stubs
+    when(() => mockCoordinator.onSyncRequested).thenAnswer((_) => const Stream.empty());
+    when(() => mockCoordinator.acquireLock(any())).thenAnswer((_) async => true);
+    when(() => mockCoordinator.releaseLock(any())).thenAnswer((_) async {});
+    when(() => mockOutbox.markSynced(any())).thenAnswer((_) async {});
+
+    syncWorker = SyncWorker(mockRepo, mockOutbox, mockCoordinator, mockFirestore.set, () => 'user-1');
   });
 
   test('SyncWorker should push unsynced events to Firestore idempotently', () async {
@@ -53,7 +70,11 @@ void main() {
     await mockRepo.persist(e2);
 
     mockFirestore.failNextWrite = true; // First one fails immediately
-    await syncWorker.performSync();
+    try {
+      await syncWorker.performSync();
+    } catch (_) {
+      // Expected
+    }
     
     expect((await mockRepo.getAllUnsynced()).length, 2, reason: 'Failures should prevent local sync mark');
     expect(mockFirestore.writeCount, 0);

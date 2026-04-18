@@ -4,6 +4,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/services/hmac_service.dart';
 import '../../core/utils/event_bus.dart';
 import '../local/models/domain_event_model.dart';
+import '../local/drift/outbox_repository.dart';
+import '../../core/services/sync_coordinator.dart';
 import '../../providers/base_providers.dart';
 
 abstract class IEventRepository {
@@ -20,6 +22,8 @@ class HiveEventRepository implements IEventRepository {
   final LazyBox<DomainEvent> _box;
   final EventBus _eventBus;
   final HmacService _hmacService;
+  final OutboxRepository _outboxRepo;
+  final SyncCoordinator _syncCoordinator;
 
   // Audit 6.2: In-memory index for performance (IDs only)
   final Set<String> _unsyncedIds = {};
@@ -27,10 +31,13 @@ class HiveEventRepository implements IEventRepository {
   bool _isIndexLoaded = false;
   Future<void>? _loadingIndex;
 
-  HiveEventRepository(this._box, this._eventBus, this._hmacService) {
-    // We can't iterate values of LazyBox in constructor sync,
-    // but we can schedule a microtask or just rely on persist/markSynced
-  }
+  HiveEventRepository(
+    this._box,
+    this._eventBus,
+    this._hmacService,
+    this._outboxRepo,
+    this._syncCoordinator,
+  );
 
   // Helper to load indexes asynchronously
   Future<void> ensureIndexLoaded() async {
@@ -59,20 +66,27 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<void> persist(DomainEvent event) async {
-    debugPrint(
-        'HiveEventRepository: Persisting event ${event.eventType} (ID: ${event.id})...');
-    // 1. Sign the event (Security Enforcement)
+    debugPrint('HiveEventRepository: Persisting event ${event.eventType} (ID: ${event.id})...');
+    
+    // 1. Sign FIRST (Security Enforcement)
     event.hmacSignature = await _hmacService.signEvent(event);
-    debugPrint('HiveEventRepository: HMAC generated.');
+    
+    // 2. Outbox write (ACID anchor point)
+    // If this throws, operation fails and Hive is never touched.
+    await _outboxRepo.insertEvent(event);
 
-    // 2. Write-Ahead Log (WAL)
+    // 3. Hive write
     _unsyncedIds.add(event.id);
     _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
     await _box.put(event.id, event);
 
-    // 3. Dispatch to internal bus for Snapshot rebuilding
+    // 4. Dispatch to internal bus for Snapshot rebuilding
     _eventBus.publish(event);
-    debugPrint('HiveEventRepository: Event persisted: ${event.eventType}');
+    
+    // 5. Trigger Sync (Reactive decoupling)
+    _syncCoordinator.triggerSync();
+    
+    debugPrint('HiveEventRepository: Event persisted and sync triggered: ${event.eventType}');
   }
 
   @override
@@ -129,5 +143,8 @@ final eventRepositoryProvider = Provider<IEventRepository>((ref) {
   final box = Hive.lazyBox<DomainEvent>('events');
   final bus = ref.watch(eventBusProvider);
   final hmac = ref.watch(hmacServiceProvider);
-  return HiveEventRepository(box, bus, hmac);
+  final outboxRepo = ref.watch(outboxRepositoryProvider);
+  final syncCoord = ref.watch(syncCoordinatorProvider);
+  
+  return HiveEventRepository(box, bus, hmac, outboxRepo, syncCoord);
 });

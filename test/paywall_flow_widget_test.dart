@@ -1,87 +1,90 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ironbook_gm/app.dart';
-import 'package:ironbook_gm/providers/auth_provider.dart';
-import 'package:ironbook_gm/security/entitlement_guard.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:ironbook_gm/providers/base_providers.dart';
-
-import '../integration_test/mocks/mock_firebase.dart';
-import '../integration_test/mocks/mock_secure_storage.dart';
-import '../integration_test/mocks/mock_entitlement.dart';
+import 'test_helper.dart';
 
 void main() {
-  GoogleFonts.config.allowRuntimeFetching = false;
-
   group('Scenario C: Subscription/Paywall Flow', () {
     late MockFirebaseAuth mockAuth;
     late MockFlutterSecureStorage mockStorage;
-    late MockEntitlementGuard mockEntitlement;
 
-    setUp(() {
+    setUp(() async {
+      await TestHelper.setupHive('paywall');
       mockAuth = MockFirebaseAuth();
       mockStorage = MockFlutterSecureStorage();
-      mockEntitlement = MockEntitlementGuard();
       
       // Mock authenticated user
       final mockUser = MockUser();
       when(() => mockAuth.currentUser).thenReturn(mockUser);
       when(() => mockAuth.authStateChanges()).thenAnswer((_) => Stream.value(mockUser));
+      when(() => mockAuth.idTokenChanges()).thenAnswer((_) => Stream.value(mockUser));
+      when(() => mockAuth.userChanges()).thenAnswer((_) => Stream.value(mockUser));
       
       when(() => mockStorage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
       when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value')))
           .thenAnswer((_) async {});
     });
 
+    tearDown(() async {
+      await TestHelper.cleanHive();
+    });
+
     testWidgets('Redirect to paywall when entitlement is expired', (WidgetTester tester) async {
-       when(() => mockEntitlement.checkEntitlement())
-          .thenAnswer((_) async => EntitlementStatus.expired);
+       // Register fallbacks
+      try {
+        registerFallbackValue(EntitlementStatus.valid);
+      } catch (_) {}
 
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              appSecureStorageProvider.overrideWithValue(mockStorage),
-              firebaseAuthProvider.overrideWithValue(mockAuth),
-              entitlementProvider.overrideWithValue(mockEntitlement),
-            ],
-            child: const IronBookApp(hiveHealthy: true),
-          ),
-        );
+      await TestHelper.pumpIronBookWidget(
+        tester,
+        const IronBookApp(
+          hiveHealthy: true,
+          useGoogleFonts: false,
+        ),
+        overrides: [
+          appSecureStorageProvider.overrideWithValue(mockStorage),
+          firebaseAuthProvider.overrideWithValue(mockAuth),
+          authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
+          entitlementStatusProvider.overrideWith((ref) => EntitlementStatus.expired),
+        ],
+      );
 
-        // Should bypass splash
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 3));
-        await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      
+      // Skip splash if visible
+      if (find.textContaining('IronBook').evaluate().isNotEmpty) {
+           await tester.pump(const Duration(seconds: 4));
+           await tester.pump();
+      }
 
-        // Redirect logic should trigger and land on Paywall
-        expect(find.text('Paywall'), findsOneWidget);
-      });
+      // Redirect logic should trigger and land on Paywall
+      expect(find.text('Paywall'), findsOneWidget);
     });
 
     testWidgets('Allow access when entitlement is valid', (WidgetTester tester) async {
-       when(() => mockEntitlement.checkEntitlement())
-          .thenAnswer((_) async => EntitlementStatus.valid);
+      await TestHelper.pumpIronBookWidget(
+        tester,
+        const IronBookApp(
+          hiveHealthy: true,
+          useGoogleFonts: false,
+        ),
+        overrides: [
+          appSecureStorageProvider.overrideWithValue(mockStorage),
+          firebaseAuthProvider.overrideWithValue(mockAuth),
+          authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
+          entitlementStatusProvider.overrideWith((ref) => EntitlementStatus.valid),
+        ],
+      );
 
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              appSecureStorageProvider.overrideWithValue(mockStorage),
-              firebaseAuthProvider.overrideWithValue(mockAuth),
-              entitlementProvider.overrideWithValue(mockEntitlement),
-            ],
-            child: const IronBookApp(hiveHealthy: true),
-          ),
-        );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      
+      // Skip splash if visible
+      if (find.textContaining('IronBook').evaluate().isNotEmpty) {
+           await tester.pump(const Duration(seconds: 4));
+           await tester.pump();
+      }
 
-        await tester.pump(const Duration(seconds: 3));
-        await tester.pumpAndSettle();
-
-        // Should NOT be on paywall (assuming it goes to PIN Setup or Dashboard)
-        expect(find.text('Paywall'), findsNothing);
-      });
+      // Should NOT be on paywall
+      expect(find.text('Paywall'), findsNothing);
     });
   });
 }

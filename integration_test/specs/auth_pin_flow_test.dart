@@ -9,6 +9,8 @@ import 'package:ironbook_gm/security/pin_service.dart';
 import 'package:ironbook_gm/data/sync_worker.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/data/local/hive_init.dart';
+import 'package:ironbook_gm/providers/bootstrap_provider.dart';
 import '../mocks/mock_firebase.dart';
 import '../mocks/mock_services.dart';
 
@@ -46,7 +48,7 @@ void main() {
     
     tempDir = await Directory.systemTemp.createTemp('ironbook_auth_');
     await Hive.initFlutter(tempDir.path);
-    registerAllAdapters();
+    await HiveInit.openWithCorruptionGuard();
 
     when(() => mockAuth.currentUser).thenReturn(MockUser());
   });
@@ -73,6 +75,7 @@ void main() {
           firebaseAuthProvider.overrideWithValue(mockAuth),
           pinServiceProvider.overrideWithValue(mockPin),
           syncWorkerProvider.overrideWithValue(mockSync),
+          bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
         ],
         child: const IronBookApp(hiveHealthy: true),
       ),

@@ -1,131 +1,162 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
 import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/data/local/models/plan_component_model.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
-import 'package:ironbook_gm/core/widgets/app_text_field.dart';
-import 'package:ironbook_gm/core/widgets/app_button.dart';
-import 'package:ironbook_gm/core/theme/app_theme.dart';
-import 'package:hive/hive.dart';
+import 'package:ironbook_gm/data/local/models/payment_model.dart';
+import 'package:ironbook_gm/providers/member_provider.dart';
+import 'package:ironbook_gm/providers/payment_provider.dart';
+import 'package:ironbook_gm/providers/plan_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../helpers/hive_test_helper.dart';
+import '../test_helper.dart';
+
+// Mocks for Notifiers
+class MockMemberNotifier extends Mock implements MemberNotifier {}
+class MockPaymentNotifier extends Mock implements PaymentNotifier {}
+class MockPlanNotifier extends Mock implements PlanNotifier {}
+
+class PlanFake extends Fake implements Plan {}
 
 void main() {
+  late MockMemberNotifier mockMemberNotifier;
+  late MockPaymentNotifier mockPaymentNotifier;
+  late MockPlanNotifier mockPlanNotifier;
+
+  setUpAll(() {
+    registerFallbackValue(PlanFake());
+    registerFallbackValue(DateTime.now());
+  });
+
+  setUp(() async {
+    mockMemberNotifier = MockMemberNotifier();
+    mockPaymentNotifier = MockPaymentNotifier();
+    mockPlanNotifier = MockPlanNotifier();
+    
+    // Default Plan
+    final testPlan = Plan(
+      id: 'plan-monthly',
+      name: 'Monthly',
+      durationMonths: 1,
+      components: [
+        PlanComponent(id: 'c1', name: 'Base', price: 1000),
+      ],
+    );
+    
+    // Stub state
+    when(() => mockPlanNotifier.state).thenReturn([testPlan]);
+    when(() => mockMemberNotifier.state).thenReturn([]);
+    when(() => mockPaymentNotifier.state).thenReturn([]);
+
+    // Success behaviors
+    when(() => mockMemberNotifier.addMember(
+      name: any(named: 'name'),
+      phone: any(named: 'phone'),
+      planId: any(named: 'planId'),
+      joinDate: any(named: 'joinDate'),
+    )).thenAnswer((_) async => 'test-member-id');
+
+    when(() => mockPaymentNotifier.recordMemberPayment(
+      memberId: any(named: 'memberId'),
+      plan: any(named: 'plan'),
+      method: any(named: 'method'),
+    )).thenAnswer((_) async => Payment(
+      id: 'p-1',
+      memberId: 'test-member-id',
+      date: DateTime.now(),
+      amount: 1000,
+      method: 'Cash',
+      planId: 'plan-monthly',
+      planName: 'Monthly',
+      components: [],
+      invoiceNumber: 'INV-1',
+      subtotal: 847.45,
+      gstAmount: 152.55,
+      gstRate: 18,
+      durationMonths: 1,
+    ));
+
+    await TestHelper.setupHive('add_member_mock');
+  });
+
+  tearDown(() async {
+    await TestHelper.cleanHive();
+  });
+
   group('Add Member Form Test (TC-WID-02)', () {
-    setUp(() async {
-      await HiveTestHelper.setup();
-      
-      final plansBox = await Hive.openBox<Plan>('plans');
-      final settingsBox = await Hive.openBox<AppSettings>('settings');
-      await Hive.openBox<DomainEvent>('events');
-      await Hive.openBox<MemberSnapshot>('snapshots');
-
-      await plansBox.put('plan-monthly', Plan(
-        id: 'plan-monthly',
-        name: 'Monthly',
-        durationMonths: 1,
-        components: [
-          PlanComponent(id: 'c1', name: 'Base', price: 1000),
-        ],
-      ));
-      
-      await settingsBox.put('settings', AppSettings(gstRate: 18));
-    });
-
-    tearDown(() async {
-      await HiveTestHelper.tearDown();
-    });
-
-    testWidgets('Should add member and persist through provider on submit', (tester) async {
-       // Setup minimal GoRouter
+    testWidgets('Should add member and navigate to invoice on submit', (tester) async {
       final router = GoRouter(
-        initialLocation: '/',
+        initialLocation: '/add',
         routes: [
           GoRoute(
-            path: '/',
+            path: '/add',
             builder: (context, state) => const QuickAddMemberScreen(),
           ),
           GoRoute(
-            path: '/members',
-            builder: (context, state) => const Scaffold(body: Text('Members List')),
-          ),
-          GoRoute(
-            path: '/dashboard',
-             builder: (context, state) => const Scaffold(body: Text('Dashboard')),
+            path: '/invoice',
+            builder: (context, state) => const Scaffold(body: Text('Invoice Page')),
           ),
         ],
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp.router(
-            theme: AppTheme.darkTheme(),
-            routerConfig: router,
-          ),
-        ),
+      await TestHelper.pumpIronBookWidget(
+        tester,
+        const SizedBox(),
+        routerConfig: router,
+        overrides: [
+          membersProvider.overrideWith((ref) => mockMemberNotifier),
+          paymentsProvider.overrideWith((ref) => mockPaymentNotifier),
+          planProvider.overrideWith((ref) => mockPlanNotifier),
+        ],
       );
-
-      // Verify form is present
-      expect(find.text('FULL NAME'), findsOneWidget);
-      
-      // Enter "Alice Smith"
-      final nameField = find.descendant(
-        of: find.widgetWithText(AppTextField, 'FULL NAME'),
-        matching: find.byType(TextFormField),
-      );
-      await tester.enterText(nameField, 'Alice Smith');
-
-      // Enter phone
-      final phoneField = find.descendant(
-        of: find.widgetWithText(AppTextField, 'PHONE NUMBER'),
-        matching: find.byType(TextFormField),
-      );
-      await tester.enterText(phoneField, '1234567890');
-
-      // Select Monthly Plan (index 0 - already selected by default state if 0)
-      // The screen initializes _selectedPlan = 0
-      
-      // Click Register
-      await tester.tap(find.byType(AppButton));
-      
-      // Wait for async operations
       await tester.pumpAndSettle();
 
-      // Verify Hive persistence directly (robust check)
-      final snapshotsBox = Hive.box<MemberSnapshot>('snapshots');
-      expect(snapshotsBox.length, 1);
-      expect(snapshotsBox.values.first.name, 'Alice Smith');
+      await tester.enterText(find.byType(TextField).at(0), 'Alice Smith');
+      await tester.enterText(find.byType(TextField).at(1), '1234567890');
+
+      final button = find.byKey(const Key('register_button'));
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+
+      verify(() => mockMemberNotifier.addMember(
+        name: 'Alice Smith',
+        phone: '1234567890',
+        planId: any(named: 'planId'),
+        joinDate: any(named: 'joinDate'),
+      )).called(1);
+
+      expect(find.text('Invoice Page'), findsOneWidget);
     });
 
     testWidgets('Should show validation error if name is empty', (tester) async {
        final router = GoRouter(
-        initialLocation: '/',
+        initialLocation: '/add',
         routes: [
           GoRoute(
-            path: '/',
+            path: '/add',
             builder: (context, state) => const QuickAddMemberScreen(),
           ),
         ],
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp.router(
-            theme: AppTheme.darkTheme(),
-            routerConfig: router,
-          ),
-        ),
+      await TestHelper.pumpIronBookWidget(
+        tester,
+        const SizedBox(),
+        routerConfig: router,
+        overrides: [
+          membersProvider.overrideWith((ref) => mockMemberNotifier),
+          paymentsProvider.overrideWith((ref) => mockPaymentNotifier),
+          planProvider.overrideWith((ref) => mockPlanNotifier),
+        ],
       );
+      await tester.pumpAndSettle();
 
-      // Click Register without entering name
-      await tester.tap(find.byType(AppButton));
-      await tester.pump();
+      final button = find.byKey(const Key('register_button'));
+      await tester.tap(button);
+      await tester.pumpAndSettle();
 
-      // Verify snackbar
       expect(find.text('Please enter name'), findsOneWidget);
     });
   });

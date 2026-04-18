@@ -105,17 +105,18 @@ void main() {
 
   group('Sprint 2: Sync Coordination (Locking)', () {
     test('Should coordinate locks between holders', () async {
-      await SyncCoordinator.clearAllLocks();
+      final coordinator = SyncCoordinator();
+      await coordinator.clearAllLocks();
       
-      final ok = await SyncCoordinator.acquireLock('h1');
+      final ok = await coordinator.acquireLock('h1');
       expect(ok, isTrue);
       
-      final fail = await SyncCoordinator.acquireLock('h2');
+      final fail = await coordinator.acquireLock('h2');
       expect(fail, isFalse);
       
-      await SyncCoordinator.releaseLock('h1');
+      await coordinator.releaseLock('h1');
       
-      final ok2 = await SyncCoordinator.acquireLock('h2');
+      final ok2 = await coordinator.acquireLock('h2');
       expect(ok2, isTrue);
     });
   });

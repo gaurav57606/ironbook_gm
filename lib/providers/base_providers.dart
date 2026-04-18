@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:ironbook_gm/core/services/hmac_service.dart';
+import 'package:ironbook_gm/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/data/local/drift/outbox_repository.dart';
 
 final firebaseAuthProvider = Provider<FirebaseAuth?>((ref) {
   if (kIsWeb) return null;
@@ -18,6 +20,17 @@ final firestoreProvider = Provider<FirebaseFirestore?>((ref) {
 
 final appSecureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
+});
+
+final outboxDatabaseProvider = Provider<OutboxDatabase>((ref) {
+  final db = OutboxDatabase();
+  ref.onDispose(() => db.close());
+  return db;
+});
+
+final outboxRepositoryProvider = Provider<OutboxRepository>((ref) {
+  final db = ref.watch(outboxDatabaseProvider);
+  return OutboxRepository(db);
 });
 
 final hmacServiceProvider = Provider<HmacService>((ref) {

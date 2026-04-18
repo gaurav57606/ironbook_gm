@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ironbook_gm/core/services/csv_export_service.dart';
 import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
@@ -40,9 +41,9 @@ void main() {
       ];
 
       final csv = service.generateMembersCsv(members);
-      final lines = csv.split('\r\n'); // csv package uses \r\n by default
+      final lines = const LineSplitter().convert(csv).where((l) => l.isNotEmpty).toList();
       
-      expect(lines.length, 3); // Header + 1 Row + Empty line at end
+      expect(lines.length, 2); // Header + 1 Row
       expect(lines[0], contains('Member ID,Name,Phone,Join Date'));
       expect(lines[1], contains('M1,Ravi Kumar'));
       expect(lines[1], contains('5000.00'));
@@ -68,9 +69,9 @@ void main() {
       ];
 
       final csv = service.generatePaymentsCsv(payments);
-      final lines = csv.split('\r\n');
+      final lines = const LineSplitter().convert(csv).where((l) => l.isNotEmpty).toList();
       
-      expect(lines.length, 3); // Header + 1 Row + Empty line at end
+      expect(lines.length, 2); // Header + 1 Row
       expect(lines[0], contains('Invoice #,Date,Member ID'));
       expect(lines[1], contains('INV-001,2024-01-01,M1,Gold Plan,5000.00'));
     });
@@ -107,7 +108,6 @@ void main() {
       await spy.exportAllData(members: members, payments: payments);
 
       expect(spy.callCount, 2);
-      // It should have called saveAndShareString twice, last one being payments
       expect(spy.lastFileName, contains('payments'));
       expect(spy.lastCsv, contains('INV-1'));
     });

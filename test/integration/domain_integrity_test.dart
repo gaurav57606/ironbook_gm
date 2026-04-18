@@ -12,25 +12,13 @@ import 'package:ironbook_gm/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/data/local/models/plan_component_model.dart';
 import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
 
+import '../test_helper.dart';
+
 void main() {
-  late Directory tempDir;
   late ProviderContainer container;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('ironbook_test');
-    Hive.init(tempDir.path);
-
-    // Register adapters
-    if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(DomainEventAdapter());
-      Hive.registerAdapter(MemberSnapshotAdapter());
-      Hive.registerAdapter(PaymentAdapter());
-      Hive.registerAdapter(PlanAdapter());
-      Hive.registerAdapter(PlanComponentAdapter());
-      Hive.registerAdapter(PlanComponentSnapshotAdapter());
-      Hive.registerAdapter(InvoiceSequenceAdapter());
-      Hive.registerAdapter(AppSettingsAdapter());
-    }
+    await TestHelper.setupHive('integrity');
 
     HmacService.setKeyForTest('dGhpcy1pcy1hLXZlcnktc2VjdXJlLTMyLWJ5dGUta2V5');
 
@@ -40,11 +28,7 @@ void main() {
       ],
     );
 
-    // Open boxes needed for the test
-    await Hive.openBox<DomainEvent>('events');
-    await Hive.openBox<MemberSnapshot>('snapshots');
-    final plansBox = await Hive.openBox<Plan>('plans');
-    await Hive.openBox<AppSettings>('settings');
+    final plansBox = Hive.box<Plan>('plans');
 
     // Seed a test plan
     await plansBox.put('plan-1', Plan(
@@ -56,10 +40,7 @@ void main() {
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (tempDir.existsSync()) {
-      await tempDir.delete(recursive: true);
-    }
+    await TestHelper.cleanHive();
   });
 
   test('Full Integrity Flow: Add Member -> Persist -> EventBus -> Notifier Update', () async {
@@ -82,19 +63,24 @@ void main() {
     expect(members.first.name, 'Integration Test');
 
     // 3. Verify Local Persistence (Hive)
-    final snapshotBox = Hive.box<MemberSnapshot>('snapshots');
+    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
     expect(snapshotBox.length, 1);
-    expect(snapshotBox.values.first.name, 'Integration Test');
+    final persistedSnapshot = await snapshotBox.getAt(0);
+    expect(persistedSnapshot?.name, 'Integration Test');
 
-    final eventBox = Hive.box<DomainEvent>('events');
+    final eventBox = Hive.lazyBox<DomainEvent>('events');
     expect(eventBox.length, 1); // Only MEMBER_CREATED from addMember
-    expect(eventBox.values.any((e) => e.eventType == EventType.memberCreated), isTrue);
-    expect(eventBox.values.every((e) => e.hmacSignature.isNotEmpty), isTrue);
+    final firstEvent = await eventBox.getAt(0);
+    expect(firstEvent?.eventType, EventType.memberCreated);
+    expect(firstEvent?.hmacSignature.isNotEmpty, isTrue);
 
     // 4. Verify HMAC Integrity on Persisted Events
-    for (final event in eventBox.values) {
-      final isValid = await HmacService.verify(event);
-      expect(isValid, isTrue, reason: 'Event ${event.eventType} should have valid HMAC');
+    for (int i = 0; i < eventBox.length; i++) {
+      final event = await eventBox.getAt(i);
+      if (event != null) {
+        final isValid = await HmacService.verify(event);
+        expect(isValid, isTrue, reason: 'Event ${event.eventType} should have valid HMAC');
+      }
     }
   });
 }

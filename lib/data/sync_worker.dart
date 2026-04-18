@@ -3,19 +3,31 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
-import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'local/drift/outbox_repository.dart';
+import 'repositories/event_repository.dart';
+import '../core/services/sync_coordinator.dart';
+import '../providers/base_providers.dart';
 
 /// Worker responsible for pushing local events to Firestore.
 /// Ensures idempotency using eventId as Firestore Document ID.
 class SyncWorker {
   final IEventRepository _repo;
+  final OutboxRepository _outboxRepo;
+  final SyncCoordinator _coordinator;
   final Future<void> Function(String collection, String id, Map<String, dynamic> data) _recordPusher;
   final String? Function() _currentUserId;
   bool _isSyncing = false;
   int _consecutiveFailures = 0;
+  StreamSubscription? _syncSubscription;
 
-  SyncWorker(this._repo, this._recordPusher, this._currentUserId);
+  SyncWorker(this._repo, this._outboxRepo, this._coordinator, this._recordPusher, this._currentUserId) {
+    // Subscribe to manual sync requests from the UI or Repositories
+    _syncSubscription = _coordinator.onSyncRequested.listen((_) => performSync());
+  }
+
+  void dispose() {
+    _syncSubscription?.cancel();
+  }
 
   Future<void> performSync() async {
     final uid = _currentUserId();
@@ -30,7 +42,7 @@ class SyncWorker {
     }
 
     final holderId = 'foreground_worker';
-    if (!await SyncCoordinator.acquireLock(holderId)) {
+    if (!await _coordinator.acquireLock(holderId)) {
       debugPrint('SyncWorker: Global sync lock held, skipping push.');
       return;
     }
@@ -50,6 +62,7 @@ class SyncWorker {
         debugPrint('SyncWorker: Syncing event ${event.id} (${event.eventType})');
         await _recordPusher('users/$uid/events', event.id, event.toFirestore());
         await _repo.markAsSynced(event.id);
+        await _outboxRepo.markSynced(event.id); // Also sync in Drift
       }
       
       _consecutiveFailures = 0;
@@ -60,7 +73,7 @@ class SyncWorker {
       rethrow; // Rethrow to allow scheduler to handle backoff
     } finally {
       _isSyncing = false;
-      await SyncCoordinator.releaseLock(holderId);
+      await _coordinator.releaseLock(holderId);
     }
   }
 
@@ -95,18 +108,22 @@ class SyncWorker {
 
 final syncWorkerProvider = Provider<SyncWorker>((ref) {
   final repo = ref.watch(eventRepositoryProvider);
-  return SyncWorker(
+  final outboxRepo = ref.watch(outboxRepositoryProvider);
+  final coordinator = ref.watch(syncCoordinatorProvider);
+  
+  final worker = SyncWorker(
     repo,
+    outboxRepo,
+    coordinator,
     (coll, id, data) => FirebaseFirestore.instance.collection(coll).doc(id).set(data, SetOptions(merge: true)),
     () => FirebaseAuth.instance.currentUser?.uid,
   );
+
+  ref.onDispose(() => worker.dispose());
+  return worker;
 });
 
 final unsyncedCountProvider = StreamProvider<int>((ref) {
-  final repo = ref.watch(eventRepositoryProvider);
-  return Stream.periodic(const Duration(seconds: 10))
-      .asyncMap((_) async {
-        final unsynced = await repo.getAllUnsynced();
-        return unsynced.length;
-      });
+  final outboxRepo = ref.watch(outboxRepositoryProvider);
+  return outboxRepo.watchUnsyncedCount();
 });

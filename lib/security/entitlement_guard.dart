@@ -67,10 +67,4 @@ class EntitlementGuard {
   }
 }
 
-final entitlementGuardProvider = Provider<EntitlementGuard>((ref) {
-  final storage = const FlutterSecureStorage();
-  final auth = ref.watch(firebaseAuthProvider);
-  final firestore = ref.watch(firestoreProvider);
-  final clock = ref.watch(clockProvider);
-  return EntitlementGuard(storage, auth, firestore, clock);
-});
+// entitlementGuardProvider removed in favor of entitlementProvider in auth_provider.dart

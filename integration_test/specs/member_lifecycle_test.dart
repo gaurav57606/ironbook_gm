@@ -9,6 +9,9 @@ import 'package:ironbook_gm/providers/base_providers.dart';
 import 'package:ironbook_gm/security/pin_service.dart';
 import 'package:ironbook_gm/data/sync_worker.dart';
 import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/data/local/hive_init.dart';
+import 'package:ironbook_gm/providers/bootstrap_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mocktail/mocktail.dart';
 import '../mocks/mock_firebase.dart';
 import '../mocks/mock_services.dart';
@@ -43,9 +46,9 @@ void main() {
     mockSync = MockSyncWorker();
     
     // Set up a unique temp directory for Hive
-    tempDir = await Directory.systemTemp.createTemp('ironbook_test_');
+    tempDir = await Directory.systemTemp.createTemp('ironbook_lifecycle_');
     await Hive.initFlutter(tempDir.path);
-    registerAllAdapters();
+    await HiveInit.openWithCorruptionGuard();
 
     // Mock successful pin verification
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
@@ -65,9 +68,10 @@ void main() {
       ProviderScope(
         overrides: [
           firebaseAuthProvider.overrideWithValue(mockAuth),
+          firestoreProvider.overrideWithValue(null), // Mock firestore too
           pinServiceProvider.overrideWithValue(mockPin),
           syncWorkerProvider.overrideWithValue(mockSync),
-          // We let repository use REAL Hive boxes in the temp dir
+          bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
         ],
         child: const IronBookApp(hiveHealthy: true),
       ),

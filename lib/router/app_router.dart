@@ -39,11 +39,13 @@ import '../features/notifications/presentation/screens/notifications_hub_screen.
 import '../features/character_creation/presentation/screens/character_creation_screen.dart';
 
 import '../providers/auth_provider.dart';
-import '../providers/splash_provider.dart';
+import '../providers/bootstrap_provider.dart';
+import '../security/entitlement_guard.dart';
 
 final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
   final authState = ref.watch(authProvider);
-  final splashFinished = ref.watch(splashFinishedProvider);
+  final bootstrap = ref.watch(bootstrapStateProvider);
+  final entitlementStatus = ref.watch(entitlementStatusProvider);
 
   return GoRouter(
     initialLocation: '/',
@@ -53,6 +55,14 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       ),
     ),
     redirect: (context, state) {
+      // 0. Hard Block until Phase 1 is done
+      if (bootstrap == BootstrapPhase.tier1Pending) return null;
+
+      // 1. Splash Screen Holding Pattern
+      final isSplash = state.matchedLocation == '/';
+      if (bootstrap == BootstrapPhase.tier1Ready && isSplash) return null;
+
+      // 2. Auth Loading Guard
       if (authState.isLoading) return null;
 
       final isAuth = authState.isAuthenticated;
@@ -64,39 +74,56 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
           state.matchedLocation == '/signup' ||
           state.matchedLocation == '/forgot-password';
       final isOnboarding = state.matchedLocation == '/onboarding';
-      final isSplash = state.matchedLocation == '/';
       final isPinSetupPath = state.matchedLocation == '/setup-pin';
       final isPinEntryPath = state.matchedLocation == '/unlock';
 
-      // 1. Wait for splash if we're on the splash screen
-      // This prevents the router from redirecting immediately on startup
-      if (!splashFinished && isSplash) return null;
-
-      // 2. Redirect logic (Unified for all paths)
+      // 3. Onboarding Redirect
       if (!onboardingDone) {
          if (isOnboarding) return null;
          return '/onboarding';
       }
 
+      // 4. Tier 2 Guard for Protected Routes
+      // We allow Login/Onboarding screens after Tier 1 Ready.
+      // But we BLOCK dashboard/gym access until Tier 2 (Firebase Auth) is resolved.
+      final isProtectedRoute = !isLoggingIn && !isOnboarding && !isSplash;
+      
+      if (isProtectedRoute && 
+          bootstrap != BootstrapPhase.tier2Ready && 
+          bootstrap != BootstrapPhase.tier2Degraded) {
+        // Stay on current path or go to splash if trying to jump deep
+        return isSplash ? null : '/'; 
+      }
+
+      // 5. Auth Redirect
       if (!isAuth) {
          if (isLoggingIn || isOnboarding) return null;
          return '/login';
       }
 
-      // If auth and onboarding are done, handle PIN and landing
+      // 6. Post-Auth Routing (PIN & Landing)
       if (isSplash || isLoggingIn || isOnboarding) {
          if (isPinSetup && !unlocked) return '/unlock';
          if (!isPinSetup) return '/setup-pin';
          return '/dashboard';
       }
 
-      // PIN Enforcement
+      // 7. PIN Enforcement
       if (isPinSetup && !unlocked && !isPinEntryPath) {
         return '/unlock';
       }
 
       if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
         return '/setup-pin';
+      }
+
+      // 8. Entitlement Guard (Paywall)
+      final isSettings = state.matchedLocation.startsWith('/settings');
+      if (isAuth && !isSettings && state.matchedLocation != '/paywall') {
+        final status = entitlementStatus.valueOrNull ?? EntitlementStatus.valid;
+        if (status == EntitlementStatus.expired) {
+          return '/paywall';
+        }
       }
 
       return null;

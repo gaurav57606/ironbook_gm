@@ -1,22 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ironbook_gm/features/members/presentation/screens/members_list_screen.dart';
-import 'package:ironbook_gm/features/home/presentation/widgets/member_row.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/providers/member_provider.dart';
-import 'package:ironbook_gm/providers/auth_provider.dart';
-import 'package:ironbook_gm/core/utils/clock.dart';
-import '../helpers/mocks.dart';
+import '../test_helper.dart';
 
-class MockMemberNotifier extends MemberNotifier {
-  MockMemberNotifier(List<MemberSnapshot> members) 
-      : super(FakeRepo(), FrozenClock(DateTime(2026, 3, 25)), FakeHmacService()) {
-    state = members;
-  }
-  
-  @override
-  Future<void> init() async {} // Bypass Hive
+class MockMemberNotifier extends StateNotifier<List<MemberSnapshot>> with Mock implements MemberNotifier {
+  MockMemberNotifier(super.state);
 }
 
 void main() {
@@ -35,16 +20,15 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            authProvider.overrideWith((ref) => FakeAuth()),
-            membersProvider.overrideWith((ref) => MockMemberNotifier(members)),
-          ],
-          child: const MaterialApp(
-            home: MembersListScreen(),
-          ),
-        ),
+      final mockNotifier = MockMemberNotifier(members);
+
+      await TestHelper.pumpIronBookWidget(
+        tester,
+        const MembersListScreen(),
+        overrides: [
+          authProvider.overrideWith((ref) => FakeAuth()),
+          membersProvider.overrideWith((ref) => mockNotifier),
+        ],
       );
 
       await tester.pumpAndSettle();

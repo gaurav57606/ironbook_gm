@@ -244,6 +244,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        key: Key('btn_$key'),
         onTap: () => _onKeyPress(key),
         borderRadius: BorderRadius.circular(50),
         child: Container(

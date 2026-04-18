@@ -80,6 +80,7 @@ class HiveInit {
 
   static Future<bool> openWithCorruptionGuard() async {
     try {
+      registerAdapters();
       await openAllBoxes();
       return true;
     } catch (e) {

@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import 'package:ironbook_gm/sync/recovery_service.dart';
+import 'package:ironbook_gm/data/local/drift/outbox_repository.dart';
 import '../data/local/models/owner_profile_model.dart';
 import '../data/local/models/app_settings_model.dart';
 import '../data/sync_worker.dart';
@@ -106,18 +107,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       settings = AppSettings();
     }
 
-    // Set initial state with all known values before listening to auth changes
-    if (mounted) {
-      state = state.copyWith(
-        isFirstLaunch: onboardingDone != 'true',
-        isPinSetup: pinHash != null,
-        owner: owner,
-        settings: settings,
-        // Keep isLoading true until either auth listener or direct set completes
-      );
+    // Finalize loading state if Firebase wasn't ready or was skipped
+    if (mounted && state.isLoading) {
+      state = state.copyWith(isLoading: false);
     }
+  }
 
-    _authSubscription = _firebaseAuth?.authStateChanges().listen((user) {
+  void onFirebaseReady(fb.FirebaseAuth auth) {
+    debugPrint('AuthNotifier: Firebase Ready. Starting listener.');
+    _authSubscription?.cancel();
+    _authSubscription = auth.authStateChanges().listen((user) {
       if (mounted) {
         state = state.copyWith(
           user: user,
@@ -128,13 +127,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     });
 
     // Trigger recovery if signed in
-    if (_firebaseAuth?.currentUser != null) {
+    if (auth.currentUser != null) {
       _ref.read(recoveryServiceProvider).recoverAll();
-    }
-
-    // Finalize loading state if Firebase wasn't ready or was skipped
-    if (mounted && state.isLoading) {
-      state = state.copyWith(isLoading: false);
     }
   }
 
@@ -154,11 +148,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> verifyPin(String pin) => unlockWithPin(pin);
 
   Future<bool> unlockWithBiometrics() async {
-    final success = await _pinService.authenticateWithBiometric();
-    if (success) {
+    final result = await _pinService.authenticateWithBiometric();
+    if (result == AuthResult.success) {
       state = state.copyWith(unlocked: true);
+      return true;
     }
-    return success;
+    return false;
   }
 
   Future<bool> loginWithBiometrics() => unlockWithBiometrics();
@@ -209,6 +204,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         } catch (e) {
           debugPrint('Error clearing box $name: $e');
         }
+      }
+
+      // NEW: Clear Drift Outbox
+      try {
+        await _ref.read(outboxRepositoryProvider).clearAll();
+      } catch (e) {
+        debugPrint('Error clearing Drift Outbox: $e');
       }
 
       state = AuthState(
@@ -319,6 +321,12 @@ final entitlementProvider = Provider<EntitlementGuard?>((ref) {
   if (auth == null || firestore == null) return null;
 
   return EntitlementGuard(storage, auth, firestore, clock);
+});
+
+final entitlementStatusProvider = FutureProvider<EntitlementStatus>((ref) async {
+  final guard = ref.watch(entitlementProvider);
+  if (guard == null) return EntitlementStatus.expired;
+  return await guard.checkEntitlement();
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

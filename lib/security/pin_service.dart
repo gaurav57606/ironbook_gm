@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
@@ -6,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import '../providers/base_providers.dart';
+
+enum AuthResult { success, failure, canceled }
 
 class PinService {
   final FirebaseAuth? _auth;
@@ -142,17 +145,40 @@ class PinService {
     }
   }
 
-  Future<bool> authenticateWithBiometric() async {
-    final canCheck = await _localAuth.canCheckBiometrics;
-    if (!canCheck) return false;
+  Future<AuthResult> authenticateWithBiometric() async {
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isSupported = await _localAuth.isDeviceSupported();
+      if (!canCheck || !isSupported) return AuthResult.failure;
 
-    return await _localAuth.authenticate(
-      localizedReason: 'Verify your identity to open IronBook GM',
-      options: const AuthenticationOptions(
-        biometricOnly: true,
-        stickyAuth: true,
-      ),
-    );
+      final success = await _localAuth.authenticate(
+        localizedReason: 'Verify your identity to open IronBook GM',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+      return success ? AuthResult.success : AuthResult.canceled;
+    } catch (e) {
+      debugPrint('PinService: Biometric Auth Error: $e');
+      return AuthResult.failure;
+    }
+  }
+
+  /// Unified entry point for authentication.
+  /// Attempts biometrics first (if enrolled), then falls back to PIN.
+  Future<AuthResult> authenticate({String? pinFallback}) async {
+    // 1. Try Biometrics
+    final bioResult = await authenticateWithBiometric();
+    if (bioResult == AuthResult.success) return AuthResult.success;
+    
+    // 2. Fallback to PIN if provided and biometrics didn't succeed
+    if (pinFallback != null) {
+      final pinSuccess = await verifyPin(pinFallback);
+      return pinSuccess ? AuthResult.success : AuthResult.failure;
+    }
+
+    return bioResult;
   }
 }
 

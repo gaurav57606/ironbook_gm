@@ -13,6 +13,9 @@ import 'package:ironbook_gm/data/repositories/event_repository.dart';
 import '../mocks/mock_firebase.dart';
 import '../mocks/mock_services.dart';
 import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/data/local/hive_init.dart';
+import 'package:ironbook_gm/providers/bootstrap_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void registerAllAdapters() {
   if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(DomainEventAdapter());
@@ -45,7 +48,7 @@ void main() {
     
     tempDir = await Directory.systemTemp.createTemp('ironbook_offline_');
     await Hive.initFlutter(tempDir.path);
-    registerAllAdapters();
+    await HiveInit.openWithCorruptionGuard();
 
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
     when(() => mockAuth.currentUser).thenReturn(MockUser());
@@ -64,8 +67,10 @@ void main() {
       ProviderScope(
         overrides: [
           firebaseAuthProvider.overrideWithValue(mockAuth),
+          firestoreProvider.overrideWithValue(null),
           pinServiceProvider.overrideWithValue(mockPin),
           syncWorkerProvider.overrideWithValue(mockSync),
+          bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
         ],
         child: const IronBookApp(hiveHealthy: true),
       ),

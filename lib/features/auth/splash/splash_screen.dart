@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 import '../../../core/constants/app_colors.dart';
-import '../../../providers/splash_provider.dart';
+import '../../../providers/bootstrap_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -22,18 +22,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(seconds: 1),
     )..repeat();
-
-    _initializeApp();
-  }
-
-  Future<void> _initializeApp() async {
-    // Wait for a minimum time for branding
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    // Signal router that splash is finished and it can now redirect
-    ref.read(splashFinishedProvider.notifier).state = true;
   }
 
   @override
