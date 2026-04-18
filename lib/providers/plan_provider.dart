@@ -13,7 +13,46 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   final String _deviceId;
 
   PlanNotifier(this._box, this._eventRepo, this._syncWorker, this._deviceId) : super([]) {
+    _init();
+  }
+
+  Future<void> _init() async {
     _loadPlans();
+    await _reconcilePlans();
+  }
+
+  Future<void> _reconcilePlans() async {
+    final allEvents = await _eventRepo.getAll();
+    final planEvents = allEvents.where((e) => e.eventType == EventType.plansUpdated).toList();
+    
+    if (planEvents.isEmpty) return;
+
+    // Get the latest plan update
+    final latestEvent = planEvents.reduce((a, b) => a.deviceTimestamp.isAfter(b.deviceTimestamp) ? a : b);
+    final planData = latestEvent.payload['plans'] as List?;
+    
+    if (planData != null) {
+      await _box.clear();
+      for (final data in planData) {
+        final planMap = Map<String, dynamic>.from(data);
+        final plan = Plan(
+          id: planMap['id'],
+          name: planMap['name'],
+          durationMonths: planMap['durationMonths'] ?? 1,
+          active: planMap['active'] ?? true,
+          components: (planMap['components'] as List? ?? []).map((c) {
+            final cMap = Map<String, dynamic>.from(c);
+            return PlanComponent(
+              id: cMap['id'] ?? '',
+              name: cMap['name'] ?? '',
+              price: (cMap['price'] as num?)?.toDouble() ?? 0.0,
+            );
+          }).toList(),
+        );
+        await _box.put(plan.id, plan);
+      }
+      _loadPlans();
+    }
   }
 
   @visibleForTesting

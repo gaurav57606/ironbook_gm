@@ -16,7 +16,11 @@ import 'package:ironbook_gm/data/repositories/event_repository.dart';
 import 'package:hive/hive.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironbook_gm/data/sync_worker.dart';
 import '../test_helper.dart';
+
+class MockSyncWorker extends Mock implements SyncWorker {}
+class MockAuth extends Mock implements AuthNotifier {}
 
 void main() {
   setUpAll(() async {
@@ -35,6 +39,10 @@ void main() {
       final fakeHmac = FakeHmacService();
       final fakeClock = FakeClock();
       final mockSync = MockSyncWorker();
+      final mockAuth = MockAuth();
+
+      when(() => mockAuth.verifyPin(any())).thenAnswer((_) async => false);
+      when(() => mockAuth.unlockWithBiometrics()).thenAnswer((_) async => false);
 
       final router = GoRouter(
         initialLocation: '/add',

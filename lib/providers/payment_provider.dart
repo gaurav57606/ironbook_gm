@@ -39,6 +39,28 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   Future<void> _init() async {
     _deviceId = await _hmac.getInstallationId();
     _loadPayments();
+    await _reconcilePayments();
+  }
+
+  Future<void> _reconcilePayments() async {
+    final allEvents = await _eventRepo.getAll();
+    final paymentEvents = allEvents.where((e) => e.eventType == EventType.paymentRecorded).toList();
+    
+    bool updatedAny = false;
+    for (final event in paymentEvents) {
+      final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
+      if (paymentId == null) continue;
+
+      if (!_paymentBox.containsKey(paymentId)) {
+        final payment = Payment.fromPayload(paymentId, event.payload, event.deviceTimestamp);
+        await _paymentBox.put(paymentId, payment);
+        updatedAny = true;
+      }
+    }
+
+    if (updatedAny) {
+      _loadPayments();
+    }
   }
 
   @visibleForTesting

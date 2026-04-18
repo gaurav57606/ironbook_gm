@@ -30,6 +30,11 @@ class OutboxRepository {
     return (_db.select(_db.outboxEvents)..where((t) => t.isSynced.equals(0))).get();
   }
 
+  Future<List<DomainEvent>> getUnsyncedEvents() async {
+    final docs = await getUnsynced();
+    return docs.map((d) => DomainEvent.fromOutbox(d)).toList();
+  }
+
   Future<void> markSynced(String id) async {
     await (_db.update(_db.outboxEvents)..where((t) => t.id.equals(id))).write(
       const OutboxEventsCompanion(isSynced: Value(1)),

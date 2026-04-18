@@ -3,7 +3,6 @@ import 'package:hive/hive.dart';
 import 'package:ironbook_gm/core/services/invoice_service.dart';
 import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/core/utils/clock.dart';
-import '../../test/helpers/hive_test_helper.dart';
 
 void main() {
   group('Invoice Generation Logic (TC-UNIT-03)', () {
@@ -11,13 +10,17 @@ void main() {
     late Box<InvoiceSequence> box;
 
     setUp(() async {
-      await HiveTestHelper.setup();
+      Hive.init('.');
+      if (!Hive.isAdapterRegistered(0)) {
+        Hive.registerAdapter(InvoiceSequenceAdapter());
+      }
       box = await Hive.openBox<InvoiceSequence>('invoice_seq');
       service = InvoiceService(box, SystemClock());
     });
 
     tearDown(() async {
-      await HiveTestHelper.tearDown();
+      await box.clear();
+      await box.close();
     });
 
     test('Should increment invoice number sequentially', () async {

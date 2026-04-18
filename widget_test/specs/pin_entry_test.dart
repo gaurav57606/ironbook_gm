@@ -16,9 +16,7 @@ void main() {
 
   setUp(() {
     mockAuth = MockAuthNotifier();
-    // Default stub to avoid MissingStubError in async calls
     when(() => mockAuth.verifyPin(any())).thenAnswer((_) async => false);
-    when(() => mockAuth.checkBiometrics()).thenAnswer((_) async => false);
     when(() => mockAuth.unlockWithBiometrics()).thenAnswer((_) async => false);
   });
 

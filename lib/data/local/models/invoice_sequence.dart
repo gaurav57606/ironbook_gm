@@ -1,5 +1,7 @@
 import 'package:hive/hive.dart';
 
+part 'invoice_sequence.g.dart';
+
 @HiveType(typeId: 12)
 class InvoiceSequence extends HiveObject {
   @HiveField(0)

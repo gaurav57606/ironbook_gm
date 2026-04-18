@@ -49,8 +49,8 @@ class SyncWorker {
 
     _isSyncing = true;
     try {
-      final unsynced = await _repo.getAllUnsynced();
-      debugPrint('SyncWorker: Found ${unsynced.length} unsynced events for user $uid');
+      final unsynced = await _outboxRepo.getUnsyncedEvents();
+      debugPrint('SyncWorker: Found ${unsynced.length} unsynced events in Drift Outbox for user $uid');
       if (unsynced.isEmpty) {
          _consecutiveFailures = 0; // Reset on "success" (even if empty)
          return;

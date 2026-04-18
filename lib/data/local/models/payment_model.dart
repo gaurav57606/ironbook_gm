@@ -60,6 +60,25 @@ class Payment extends HiveObject {
     required this.gstRate,
     required this.durationMonths,
   });
+
+  factory Payment.fromPayload(String id, Map<String, dynamic> payload, DateTime timestamp) {
+    return Payment(
+      id: id,
+      memberId: payload['memberId'],
+      date: timestamp,
+      amount: (payload['amount'] as num).toDouble(),
+      method: payload['paymentMethod'] ?? 'Cash',
+      reference: payload['reference'],
+      planId: payload['planId'] ?? 'unknown',
+      planName: payload['planName'] ?? 'No Plan',
+      invoiceNumber: payload['invoiceNumber'] ?? 'INV-0000',
+      durationMonths: payload['durationMonths'] ?? 1,
+      subtotal: (payload['amount'] as num).toDouble() / 1.18,
+      gstAmount: (payload['amount'] as num).toDouble() - ((payload['amount'] as num).toDouble() / 1.18),
+      gstRate: 0.18,
+      components: [], // Simplified for reconciliation as components are snapshots
+    );
+  }
 }
 
 @HiveType(typeId: 13)

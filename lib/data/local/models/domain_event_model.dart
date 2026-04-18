@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
+import '../drift/outbox_database.dart';
 
 @HiveType(typeId: 10)
 class DomainEvent extends HiveObject {
@@ -87,6 +89,19 @@ class DomainEvent extends HiveObject {
       synced: true,
       hmacSignature: data['hmacSignature'],
       deviceId: data['deviceId'],
+    );
+  }
+
+  factory DomainEvent.fromOutbox(OutboxEvent doc) {
+    return DomainEvent(
+      id: doc.id,
+      entityId: doc.entityId,
+      eventType: EventType.values.byName(doc.eventType),
+      payload: Map<String, dynamic>.from(jsonDecode(doc.payloadJson)),
+      deviceTimestamp: DateTime.fromMillisecondsSinceEpoch(doc.deviceTimestamp),
+      synced: doc.isSynced == 1,
+      hmacSignature: doc.hmacSignature,
+      deviceId: doc.deviceId,
     );
   }
 }
