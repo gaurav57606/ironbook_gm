@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../data/local/models/plan_model.dart';
 import '../data/local/models/domain_event_model.dart';
+import '../data/local/models/plan_component_model.dart';
 import '../data/repositories/event_repository.dart';
 import '../data/sync_worker.dart';
 
@@ -40,7 +41,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
           name: planMap['name'],
           durationMonths: planMap['durationMonths'] ?? 1,
           active: planMap['active'] ?? true,
-          components: (planMap['components'] as List? ?? []).map((c) {
+          components: (planMap['components'] as List? ?? []).map<PlanComponent>((c) {
             final cMap = Map<String, dynamic>.from(c);
             return PlanComponent(
               id: cMap['id'] ?? '',
