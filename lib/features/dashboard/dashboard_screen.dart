@@ -26,9 +26,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
-    final activeCount = members.where((m) => m.status == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.status == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.status == MemberStatus.expired).length;
+
+    // ⚡ Bolt: Consolidated multiple `.where().length` list traversals into a single O(N) loop
+    // to compute member status counts efficiently, avoiding redundant iterations.
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+    for (final m in members) {
+      if (m.status == MemberStatus.active) {
+        activeCount++;
+      } else if (m.status == MemberStatus.expiring) {
+        expiringCount++;
+      } else if (m.status == MemberStatus.expired) {
+        expiredCount++;
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -37,64 +49,77 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _buildAppBar(context),
           SliverToBoxAdapter(
             child: ref.watch(unsyncedCountProvider).when(
-              data: (count) => count > 0 
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.orange.withOpacity(0.15), AppColors.orange.withOpacity(0.05)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.orange.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.sync_problem_rounded, color: AppColors.orange, size: 24),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  data: (count) => count > 0
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.orange.withOpacity(0.15),
+                                AppColors.orange.withOpacity(0.05)
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: AppColors.orange.withOpacity(0.3)),
+                          ),
+                          child: Row(
                             children: [
-                              Text(
-                                '$count Unsynced Changes',
-                                style: AppTextStyles.label.copyWith(
-                                  color: AppColors.orange,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                              const Icon(Icons.sync_problem_rounded,
+                                  color: AppColors.orange, size: 24),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$count Unsynced Changes',
+                                      style: AppTextStyles.label.copyWith(
+                                        color: AppColors.orange,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      count > 10
+                                          ? 'CRITICAL: Do not uninstall the app. Data loss will occur.'
+                                          : 'Tap to sync your local changes to the cloud.',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: AppColors.orange
+                                            .withValues(alpha: 0.8),
+                                        fontSize: 12,
+                                        fontWeight: count > 10
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                count > 10 
-                                  ? 'CRITICAL: Do not uninstall the app. Data loss will occur.'
-                                  : 'Tap to sync your local changes to the cloud.',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.orange.withValues(alpha: 0.8),
-                                  fontSize: 12,
-                                  fontWeight: count > 10 ? FontWeight.bold : FontWeight.normal,
+                              TextButton(
+                                onPressed: () =>
+                                    ref.read(syncWorkerProvider).performSync(),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.orange,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  backgroundColor:
+                                      AppColors.orange.withValues(alpha: 0.1),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
                                 ),
+                                child: const Text('SYNC NOW'),
                               ),
                             ],
                           ),
-                        ),
-                        TextButton(
-                          onPressed: () => ref.read(syncWorkerProvider).performSync(),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.orange,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            backgroundColor: AppColors.orange.withValues(alpha: 0.1),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: const Text('SYNC NOW'),
-                        ),
-                      ],
-                    ),
-                  )
-                : const SizedBox.shrink(),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
+                        )
+                      : const SizedBox.shrink(),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -107,13 +132,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Text('Recent Members', style: AppTextStyles.cardTitle),
                   const SizedBox(height: 16),
                   if (members.isEmpty)
-                    Center(child: Padding(
+                    Center(
+                        child: Padding(
                       padding: const EdgeInsets.all(40.0),
-                      child: Text('No members yet.', style: AppTextStyles.bodySmall),
+                      child: Text('No members yet.',
+                          style: AppTextStyles.bodySmall),
                     ))
                   else
-                    ...members.take(10).map((m) => _buildMemberCard(context, m)),
-                  const SizedBox(height: 80), 
+                    ...members
+                        .take(10)
+                        .map((m) => _buildMemberCard(context, m)),
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
@@ -124,7 +153,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         onPressed: () => context.push('/add'),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: Text('Quick Add', style: AppTextStyles.label.copyWith(color: Colors.white)),
+        label: Text('Quick Add',
+            style: AppTextStyles.label.copyWith(color: Colors.white)),
       ),
     );
   }
@@ -136,7 +166,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-        title: Text('IRONBOOK GM', style: AppTextStyles.cardTitle.copyWith(fontSize: 18, letterSpacing: 1.2)),
+        title: Text('IRONBOOK GM',
+            style: AppTextStyles.cardTitle
+                .copyWith(fontSize: 18, letterSpacing: 1.2)),
         background: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -149,38 +181,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       actions: [
         ref.watch(unsyncedCountProvider).when(
-          data: (count) => count > 0 
-            ? Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Center(
-                  child: Tooltip(
-                    message: '$count changes unsynced',
-                    child: InkWell(
-                      onTap: () => ref.read(syncWorkerProvider).performSync(),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.orange.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.cloud_upload_outlined, size: 14, color: AppColors.orange),
-                            const SizedBox(width: 4),
-                            Text('$count', style: AppTextStyles.label.copyWith(color: AppColors.orange, fontWeight: FontWeight.bold)),
-                          ],
+              data: (count) => count > 0
+                  ? Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Center(
+                        child: Tooltip(
+                          message: '$count changes unsynced',
+                          child: InkWell(
+                            onTap: () =>
+                                ref.read(syncWorkerProvider).performSync(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: AppColors.orange.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.cloud_upload_outlined,
+                                      size: 14, color: AppColors.orange),
+                                  const SizedBox(width: 4),
+                                  Text('$count',
+                                      style: AppTextStyles.label.copyWith(
+                                          color: AppColors.orange,
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-              )
-            : const SizedBox.shrink(),
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
+                    )
+                  : const SizedBox.shrink(),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
         IconButton(
           onPressed: () => context.push('/settings'),
           icon: const Icon(Icons.settings_outlined, color: AppColors.textMuted),
@@ -214,9 +253,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: AppTextStyles.heroNumber.copyWith(color: color, fontSize: 28)),
+            Text(value,
+                style: AppTextStyles.heroNumber
+                    .copyWith(color: color, fontSize: 28)),
             const SizedBox(height: 4),
-            Text(label, style: AppTextStyles.label.copyWith(fontSize: 10, color: AppColors.textMuted)),
+            Text(label,
+                style: AppTextStyles.label
+                    .copyWith(fontSize: 10, color: AppColors.textMuted)),
           ],
         ),
       ),
@@ -224,14 +267,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildMemberCard(BuildContext context, MemberSnapshot member) {
-    final statusColor = member.status == MemberStatus.active 
-        ? AppColors.active 
-        : (member.status == MemberStatus.expiring ? AppColors.expiring : AppColors.expired);
-    
+    final statusColor = member.status == MemberStatus.active
+        ? AppColors.active
+        : (member.status == MemberStatus.expiring
+            ? AppColors.expiring
+            : AppColors.expired);
+
     final statusText = member.status == MemberStatus.active
         ? 'Active'
-        : (member.status == MemberStatus.expiring 
-            ? 'Expiring in ${member.daysRemaining} days' 
+        : (member.status == MemberStatus.expiring
+            ? 'Expiring in ${member.daysRemaining} days'
             : 'Expired ${member.daysRemaining.abs()} days ago');
 
     return InkWell(
@@ -254,16 +299,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 color: AppColors.bg3,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.person_outline, color: AppColors.textMuted),
+              child:
+                  const Icon(Icons.person_outline, color: AppColors.textMuted),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(member.name, style: AppTextStyles.cardTitle.copyWith(fontSize: 16)),
+                  Text(member.name,
+                      style: AppTextStyles.cardTitle.copyWith(fontSize: 16)),
                   const SizedBox(height: 4),
-                  Text(statusText, style: AppTextStyles.bodySmall.copyWith(color: statusColor, fontWeight: FontWeight.w600)),
+                  Text(statusText,
+                      style: AppTextStyles.bodySmall.copyWith(
+                          color: statusColor, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
