@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../providers/auth_provider.dart';
+import '../../../../security/entitlement_guard.dart';
 
 class LicenseSyncScreen extends ConsumerStatefulWidget {
   const LicenseSyncScreen({super.key});

@@ -92,8 +92,17 @@ class MembersListScreen extends ConsumerWidget {
     final all = ref.watch(membersProvider);
     final now = ref.watch(clockProvider).now;
     
-    final active = all.where((m) => m.getStatus(now) == MemberStatus.active).length;
-    final expiring = all.where((m) => m.getStatus(now) == MemberStatus.expiring).length;
+    // ⚡ Bolt: Consolidated multiple list traversals to compute stats in one pass
+    int active = 0;
+    int expiring = 0;
+    for (final m in all) {
+      final status = m.getStatus(now);
+      if (status == MemberStatus.active) {
+        active++;
+      } else if (status == MemberStatus.expiring) {
+        expiring++;
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -189,9 +198,21 @@ class MembersListScreen extends ConsumerWidget {
     final selectedTab = ref.watch(memberTabProvider);
     final now = ref.watch(clockProvider).now;
     
-    final activeCount = all.where((m) => m.getStatus(now) == MemberStatus.active).length;
-    final expiringCount = all.where((m) => m.getStatus(now) == MemberStatus.expiring).length;
-    final expiredCount = all.where((m) => m.getStatus(now) == MemberStatus.expired).length;
+    // ⚡ Bolt: Consolidated multiple list traversals to compute stats in one pass
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+
+    for (final m in all) {
+      final status = m.getStatus(now);
+      if (status == MemberStatus.active) {
+        activeCount++;
+      } else if (status == MemberStatus.expiring) {
+        expiringCount++;
+      } else if (status == MemberStatus.expired) {
+        expiredCount++;
+      }
+    }
 
     final tabs = [
       {'label': 'All', 'count': all.length},

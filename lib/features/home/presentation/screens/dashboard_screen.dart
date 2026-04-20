@@ -6,7 +6,6 @@ import '../../../../core/widgets/status_bar_wrapper.dart';
 import '../../../../providers/member_provider.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../data/local/models/member_snapshot_model.dart';
-import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/greeting_formatter.dart';
 import 'package:go_router/go_router.dart';
@@ -15,7 +14,7 @@ import '../widgets/member_health_donut.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/member_row.dart';
 import '../../../../data/sync_worker.dart';
-import '../../../../core/bootstrap.dart';
+import '../../../../providers/bootstrap_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -28,12 +27,35 @@ class DashboardScreen extends ConsumerWidget {
     final unsyncedCount = ref.watch(unsyncedCountProvider).valueOrNull ?? 0;
     final tier2Status = ref.watch(tier2StatusProvider);
     
-    final activeCount = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.getStatus(now) == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.getStatus(now) == MemberStatus.expired).length;
+    // ⚡ Bolt: Consolidated 5 list traversals into a single O(N) loop to compute member stats.
+    // This significantly reduces redundant calculations of `getStatus(now)`.
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+    final expiredMemberNames = <String>[];
+    final expiringMemberNames = <String>[];
+
+    for (final m in members) {
+      final status = m.getStatus(now);
+      switch (status) {
+        case MemberStatus.active:
+          activeCount++;
+          break;
+        case MemberStatus.expiring:
+          expiringCount++;
+          if (expiringMemberNames.length < 3) expiringMemberNames.add(m.name);
+          break;
+        case MemberStatus.expired:
+          expiredCount++;
+          if (expiredMemberNames.length < 3) expiredMemberNames.add(m.name);
+          break;
+        case MemberStatus.pending:
+          break; // Optional: handle pending members if needed
+      }
+    }
     
-    final expiredMembers = members.where((m) => m.getStatus(now) == MemberStatus.expired).take(3).map((m) => m.name).join(', ');
-    final expiringMembers = members.where((m) => m.getStatus(now) == MemberStatus.expiring).take(3).map((m) => m.name).join(', ');
+    final expiredMembers = expiredMemberNames.join(', ');
+    final expiringMembers = expiringMemberNames.join(', ');
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -153,7 +175,6 @@ class DashboardScreen extends ConsumerWidget {
     if (count == 0 && status != Tier2Status.degraded) return const SizedBox.shrink();
 
     final isSyncing = count > 0;
-    final isDegraded = status == Tier2Status.degraded;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
