@@ -10,7 +10,7 @@ import 'package:ironbook_gm/data/local/models/payment_model.dart';
 import 'package:ironbook_gm/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/data/local/models/owner_profile_model.dart';
 import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
-import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/data/local/models/invoice_sequence.dart' hide InvoiceSequenceAdapter;
 import 'package:ironbook_gm/data/local/models/product_model.dart';
 import 'package:ironbook_gm/data/local/models/sale_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
