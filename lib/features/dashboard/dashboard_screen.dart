@@ -26,9 +26,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
-    final activeCount = members.where((m) => m.status == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.status == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.status == MemberStatus.expired).length;
+    // ⚡ Bolt: Single pass calculation instead of multiple .where().length calls
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+
+    for (final m in members) {
+      switch (m.status) {
+        case MemberStatus.active:
+          activeCount++;
+        case MemberStatus.expiring:
+          expiringCount++;
+        case MemberStatus.expired:
+          expiredCount++;
+        case MemberStatus.pending:
+          break;
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bg,
