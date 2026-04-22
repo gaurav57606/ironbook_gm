@@ -26,6 +26,20 @@ class Plan extends HiveObject {
     this.hmacSignature,
   });
 
+  factory Plan.fromFirestore(Map<String, dynamic> data) {
+    return Plan(
+      id: data['id'],
+      name: data['name'],
+      durationMonths: data['durationMonths'],
+      active: data['active'] ?? true,
+      components: (data['components'] as List).map((c) => PlanComponent(
+        id: c['id'],
+        name: c['name'],
+        price: (c['price'] as num).toDouble(),
+      )).toList(),
+    );
+  }
+
   double get totalPrice => components.fold(0, (sum, c) => sum + c.price);
 
   Map<String, dynamic> toFirestore() {

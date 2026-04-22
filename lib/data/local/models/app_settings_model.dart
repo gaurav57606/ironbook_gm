@@ -17,6 +17,9 @@ class AppSettings extends HiveObject {
   @HiveField(4)
   final String businessType; // 'gym' | 'library' | 'salon' | 'custom'
 
+  @HiveField(6)
+  final DateTime? lastBackupAt;
+
 
   AppSettings({
     this.gstRate = 18.0,
@@ -25,7 +28,32 @@ class AppSettings extends HiveObject {
     this.biometricEnabled = false,
     this.useBiometrics = false,
     this.businessType = 'Gym',
+    this.lastBackupAt,
   });
+
+  factory AppSettings.fromFirestore(Map<String, dynamic> data) {
+    return AppSettings(
+      gstRate: (data['gstRate'] as num?)?.toDouble() ?? 18.0,
+      expiryReminderDays: data['expiryReminderDays'] ?? 3,
+      whatsappReminders: data['whatsappReminders'] ?? true,
+      biometricEnabled: data['biometricEnabled'] ?? false,
+      useBiometrics: data['useBiometrics'] ?? false,
+      businessType: data['businessType'] ?? 'Gym',
+      lastBackupAt: data['lastBackupAt'] != null ? DateTime.parse(data['lastBackupAt']) : null,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'gstRate': gstRate,
+      'expiryReminderDays': expiryReminderDays,
+      'whatsappReminders': whatsappReminders,
+      'biometricEnabled': biometricEnabled,
+      'useBiometrics': useBiometrics,
+      'businessType': businessType,
+      'lastBackupAt': lastBackupAt?.toIso8601String(),
+    };
+  }
 
   AppSettings copyWith({
     double? gstRate,
@@ -34,6 +62,7 @@ class AppSettings extends HiveObject {
     bool? biometricEnabled,
     bool? useBiometrics,
     String? businessType,
+    DateTime? lastBackupAt,
   }) {
     return AppSettings(
       gstRate: gstRate ?? this.gstRate,
@@ -42,6 +71,7 @@ class AppSettings extends HiveObject {
       biometricEnabled: biometricEnabled ?? this.biometricEnabled,
       useBiometrics: useBiometrics ?? this.useBiometrics,
       businessType: businessType ?? this.businessType,
+      lastBackupAt: lastBackupAt ?? this.lastBackupAt,
     );
   }
 }

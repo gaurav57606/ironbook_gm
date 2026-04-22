@@ -305,25 +305,6 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
   }
 }
 
-class InvoiceSequenceAdapter extends TypeAdapter<InvoiceSequence> {
-  @override
-  final int typeId = 12;
-
-  @override
-  InvoiceSequence read(BinaryReader reader) {
-    return InvoiceSequence(
-      prefix: reader.read() as String,
-      nextNumber: (reader.read() as num).toInt(),
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, InvoiceSequence obj) {
-    writer.write(obj.prefix);
-    writer.write(obj.nextNumber);
-  }
-}
-
 class ProductAdapter extends TypeAdapter<Product> {
   @override
   final int typeId = 14;

@@ -84,6 +84,25 @@ class Payment extends HiveObject {
     );
   }
 
+  factory Payment.fromFirestore(Map<String, dynamic> data) {
+    return Payment(
+      id: data['id'],
+      memberId: data['memberId'],
+      date: DateTime.parse(data['date']).toLocal(),
+      amount: (data['amount'] as num).toDouble(),
+      method: data['method'],
+      reference: data['reference'],
+      planId: data['planId'],
+      planName: data['planName'],
+      invoiceNumber: data['invoiceNumber'],
+      durationMonths: data['durationMonths'],
+      subtotal: (data['subtotal'] as num).toDouble(),
+      gstAmount: (data['gstAmount'] as num).toDouble(),
+      gstRate: (data['gstRate'] as num).toDouble(),
+      components: [], 
+    );
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'id': id,

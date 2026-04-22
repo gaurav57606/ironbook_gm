@@ -69,7 +69,7 @@ void main() {
         planProvider.overrideWith((ref) {
           final box = MockBox<Plan>();
           when(() => box.values).thenReturn([]);
-          final notifier = PlanNotifier(box, mockRepo, mockSyncWorker, 'dev');
+          final notifier = PlanNotifier(box, mockRepo, mockSyncWorker, mockHmac, 'dev');
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = testPlans;
           return notifier;

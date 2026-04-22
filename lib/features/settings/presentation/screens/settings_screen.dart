@@ -140,6 +140,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         }
                       },
                     ),
+                    _buildSettingsRow(
+                      Icons.enhanced_encryption_outlined,
+                      'Offline Backup (Encrypted)',
+                      'Local .igmb file',
+                      onTap: () => context.push('/settings/backup'),
+                    ),
                   ]),
                   _buildSettingsGroup('Support', [
                     _buildSettingsRow(Icons.help_outline_rounded, 'Help Center', null, onTap: () => context.push('/settings/help')),

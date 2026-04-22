@@ -32,6 +32,7 @@ import '../features/settings/presentation/screens/profile_edit_screen.dart';
 import '../features/auth/recovery/recovery_screen.dart';
 import '../features/settings/presentation/screens/ownership_transfer_screen.dart';
 import '../features/home/presentation/widgets/main_shell.dart';
+import '../features/backup/presentation/backup_restore_screen.dart';
 
 // Newly Added Screens
 import '../features/analytics/presentation/screens/analytics_screen.dart';
@@ -292,6 +293,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
                   GoRoute(
                     path: 'transfer',
                     builder: (context, state) => const OwnershipTransferScreen(),
+                  ),
+                  GoRoute(
+                    path: 'backup',
+                    builder: (context, state) => const BackupRestoreScreen(),
                   ),
                 ],
               ),

@@ -1,17 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
+import '../test_helper.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/data/local/models/plan_component_model.dart';
 import 'package:ironbook_gm/data/local/models/payment_model.dart';
-import 'package:ironbook_gm/providers/member_provider.dart';
-import 'package:ironbook_gm/providers/payment_provider.dart';
-import 'package:ironbook_gm/providers/plan_provider.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../test_helper.dart';
 
 // Mocks for Notifiers
 class MockMemberNotifier extends Mock implements MemberNotifier {}

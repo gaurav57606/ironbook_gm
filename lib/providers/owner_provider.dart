@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../data/local/models/owner_profile_model.dart';
 import '../data/repositories/event_repository.dart';
-import '../data/local/drift_database.dart';
-import '../core/security/hmac_service.dart';
+import '../data/local/models/domain_event_model.dart';
+import '../core/services/hmac_service.dart';
+import 'base_providers.dart';
 
 final ownerBoxProvider = Provider<Box<OwnerProfile>>((ref) => Hive.box<OwnerProfile>('owner'));
 
@@ -35,7 +36,7 @@ class OwnerNotifier extends StateNotifier<OwnerProfile?> {
     final profile = _box.get('owner');
     if (profile == null) return;
 
-    final isValid = await _hmac.verifySnapshot('owner', profile.toFirestore(), profile.hmacSignature);
+    final isValid = await _hmac.verifySnapshot('owner', profile.toFirestore(), profile.hmacSignature ?? '');
     if (!isValid) {
       debugPrint('OwnerNotifier: Signature mismatch for business profile. Integrity compromised.');
       return;
@@ -45,7 +46,7 @@ class OwnerNotifier extends StateNotifier<OwnerProfile?> {
 
   Future<void> _reconcileProfile() async {
     final allEvents = await _eventRepo.getAll();
-    final profileEvents = allEvents.where((e) => e.eventType == EventType.profileUpdated).toList();
+    final profileEvents = allEvents.where((e) => e.eventType == EventType.ownerProfileUpdated).toList();
     if (profileEvents.isEmpty) return;
 
     final latest = profileEvents.reduce((a, b) => a.deviceTimestamp.isAfter(b.deviceTimestamp) ? a : b);
@@ -81,7 +82,7 @@ class OwnerNotifier extends StateNotifier<OwnerProfile?> {
     // 1. Emit Domain Event (ACID Anchor)
     final event = DomainEvent(
       entityId: 'owner',
-      eventType: EventType.profileUpdated,
+      eventType: EventType.ownerProfileUpdated,
       deviceId: _deviceId,
       deviceTimestamp: now,
       payload: profile.toFirestore(),

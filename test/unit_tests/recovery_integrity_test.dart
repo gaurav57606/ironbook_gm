@@ -41,6 +41,8 @@ void main() {
     mockHmac = MockHmacService();
 
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
+    when(() => mockHmac.signSnapshot(any(), any())).thenAnswer((_) async => 'mock-sig');
+    when(() => mockHmac.verifySnapshot(any(), any(), any())).thenAnswer((_) async => true);
     when(() => mockClock.now).thenReturn(DateTime(2026, 1, 1));
     when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
   });

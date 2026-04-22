@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
 import '../../../../providers/owner_provider.dart';
+import '../../../../data/local/models/owner_profile_model.dart';
 import '../../../../providers/member_provider.dart';
 import '../../../../providers/payment_provider.dart';
 import '../../../../providers/sync_status_provider.dart';
@@ -14,8 +15,8 @@ class CharacterCreationScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final owner = ref.watch(ownerProvider);
-    final members = ref.watch(memberProvider);
-    final payments = ref.watch(paymentProvider);
+    final members = ref.watch(membersProvider);
+    final payments = ref.watch(paymentsProvider);
     final syncStatus = ref.watch(syncStatusProvider);
 
     // Dynamic Metric Calculation

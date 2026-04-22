@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -86,7 +87,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     final verified = <Sale>[];
     
     for (final s in sales) {
-      final isValid = await _hmac.verifySnapshot(s.id, s.toFirestore(), s.hmacSignature);
+      final isValid = await _hmac.verifySnapshot(s.id, s.toFirestore(), s.hmacSignature ?? '');
       if (!isValid) {
         debugPrint('SaleNotifier: Signature mismatch for sale ${s.id}. Integrity compromised.');
         // Sales are usually high-volume and non-repairable if event loop isn't fully implemented for retail.

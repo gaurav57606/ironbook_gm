@@ -64,6 +64,26 @@ class OwnerProfile extends HiveObject {
     this.selectedCharacterId = 'warrior',
   });
 
+  factory OwnerProfile.fromFirestore(Map<String, dynamic> data) {
+    return OwnerProfile(
+      gymName: data['gymName'],
+      ownerName: data['ownerName'],
+      phone: data['phone'],
+      address: data['address'],
+      gstin: data['gstin'],
+      bankName: data['bankName'],
+      accountNumber: data['accountNumber'],
+      ifsc: data['ifsc'],
+      upiId: data['upiId'],
+      level: data['level'] ?? 1,
+      exp: data['exp'] ?? 0,
+      strength: (data['strength'] as num?)?.toDouble() ?? 0.5,
+      endurance: (data['endurance'] as num?)?.toDouble() ?? 0.5,
+      dexterity: (data['dexterity'] as num?)?.toDouble() ?? 0.5,
+      selectedCharacterId: data['selectedCharacterId'] ?? 'warrior',
+    );
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'gymName': gymName,

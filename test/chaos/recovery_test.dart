@@ -1,4 +1,5 @@
 import '../test_helper.dart';
+import 'package:hive/hive.dart';
 
 class MockRepo implements IEventRepository {
   final List<DomainEvent> events = [];

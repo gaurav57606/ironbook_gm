@@ -29,6 +29,10 @@ class MockEventRepository extends Mock implements IEventRepository {
 class MockHmacService extends Mock implements HmacService {
   @override
   Future<String> getInstallationId() async => 'test-device';
+  @override
+  Future<String> signSnapshot(String id, Map<String, dynamic> data) async => 'mock-sig';
+  @override
+  Future<bool> verifySnapshot(String id, Map<String, dynamic> data, String signature) async => true;
 }
 
 void main() {

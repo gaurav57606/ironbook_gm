@@ -86,7 +86,7 @@ class DomainEvent extends HiveObject {
       eventType: EventType.values.byName(data['eventType']),
       payload: Map<String, dynamic>.from(data['payload']),
       deviceTimestamp: DateTime.parse(data['deviceTimestamp']).toLocal(),
-      synced: true,
+      synced: data['synced'] ?? true,
       hmacSignature: data['hmacSignature'],
       deviceId: data['deviceId'],
     );

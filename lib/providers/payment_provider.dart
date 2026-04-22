@@ -79,7 +79,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
 
     final verified = <Payment>[];
     for (final p in payments) {
-      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature);
+      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature ?? '');
       if (!isValid) {
         debugPrint('PaymentNotifier: Signature mismatch for payment ${p.id}. Flagging for repair.');
         needsRepair = true;

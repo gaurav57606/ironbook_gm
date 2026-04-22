@@ -18,19 +18,7 @@ import 'package:ironbook_gm/providers/bootstrap_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 void registerAllAdapters() {
-  if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(DomainEventAdapter());
-  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(MemberSnapshotAdapter());
-  if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(PaymentAdapter());
-  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(PlanAdapter());
-  if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(PlanComponentAdapter());
-  if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(OwnerProfileAdapter());
-  if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(AppSettingsAdapter());
-  if (!Hive.isAdapterRegistered(7)) Hive.registerAdapter(JoinDateChangeAdapter());
-  if (!Hive.isAdapterRegistered(8)) Hive.registerAdapter(PlanComponentSnapshotAdapter());
-  if (!Hive.isAdapterRegistered(9)) Hive.registerAdapter(InvoiceSequenceAdapter());
-  if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(ProductAdapter());
-  if (!Hive.isAdapterRegistered(11)) Hive.registerAdapter(SaleAdapter());
-  if (!Hive.isAdapterRegistered(12)) Hive.registerAdapter(SaleItemAdapter());
+  HiveInit.registerAdapters();
 }
 
 void main() {

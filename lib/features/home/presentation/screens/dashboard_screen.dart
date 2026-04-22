@@ -26,7 +26,7 @@ class DashboardScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final unsyncedCount = ref.watch(unsyncedCountProvider).valueOrNull ?? 0;
     final tier2Status = ref.watch(tier2StatusProvider);
-    final syncStatus = ref.watch(syncStatusProvider);
+    final syncState = ref.watch(syncStatusProvider);
     
     // ⚡ Bolt: Consolidated 5 list traversals into a single O(N) loop to compute member stats.
     // This significantly reduces redundant calculations of `getStatus(now)`.
@@ -71,7 +71,7 @@ class DashboardScreen extends ConsumerWidget {
             },
             child: CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _buildHeader(auth, unsyncedCount, tier2Status)),
+                SliverToBoxAdapter(child: _buildHeader(auth, unsyncedCount, tier2Status, syncState)),
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   sliver: SliverToBoxAdapter(
@@ -86,7 +86,7 @@ class DashboardScreen extends ConsumerWidget {
                           expired: expiredCount,
                         ),
                         const SizedBox(height: 24),
-                        _buildSyncDebtBanner(unsyncedCount, syncStatus),
+                        _buildSyncDebtBanner(unsyncedCount, syncState),
                         if (expiredCount > 0)
                           AlertBanner(
                             title: '$expiredCount memberships expired',
@@ -120,7 +120,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(AuthState auth, int unsyncedCount, Tier2Status tier2Status) {
+  Widget _buildHeader(AuthState auth, int unsyncedCount, Tier2Status tier2Status, SyncState syncState) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
       child: Row(
@@ -144,7 +144,7 @@ class DashboardScreen extends ConsumerWidget {
                 style: AppTextStyles.bodySmall.copyWith(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.textMuted, letterSpacing: 1.0),
               ),
               const SizedBox(height: 8),
-              _buildSyncBadge(unsyncedCount, tier2Status, syncStatus),
+              _buildSyncBadge(unsyncedCount, tier2Status, syncState),
             ],
           ),
           Container(

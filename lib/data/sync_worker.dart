@@ -131,6 +131,15 @@ class SyncWorker {
       _scheduleNextSync(baseInterval);
     });
   }
+
+  void _setSyncState(SyncStatus status, {String? error}) {
+    _ref.read(_statusProvider.notifier).state = SyncState(
+      status: status,
+      lastErrorAt: _lastErrorAt,
+      lastSuccessAt: _lastSuccessAt,
+      errorMessage: error,
+    );
+  }
 }
 
 final syncStatusProvider = StateProvider<SyncState>((ref) => SyncState(status: SyncStatus.idle));

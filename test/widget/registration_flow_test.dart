@@ -1,23 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/data/local/models/plan_model.dart';
-import 'package:ironbook_gm/data/local/models/plan_component_model.dart';
-import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
-import 'package:ironbook_gm/data/local/models/payment_model.dart';
-import 'package:ironbook_gm/providers/member_provider.dart';
-import 'package:ironbook_gm/providers/payment_provider.dart';
-import 'package:ironbook_gm/providers/plan_provider.dart';
-import 'package:ironbook_gm/providers/base_providers.dart';
-import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
-import 'package:hive/hive.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ironbook_gm/data/sync_worker.dart';
 import '../test_helper.dart';
+import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
+import 'package:ironbook_gm/data/local/models/plan_model.dart';
+import 'package:ironbook_gm/data/local/models/payment_model.dart';
+import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/data/sync_worker.dart';
 
 class MockSyncWorker extends Mock implements SyncWorker {}
 class MockAuth extends Mock implements AuthNotifier {}
@@ -74,6 +60,7 @@ void main() {
             TestHelper.getBox<Plan>(), 
             fakeRepo, 
             mockSync, 
+            fakeHmac,
             'test-device-reg'
           )),
           paymentsProvider.overrideWith((ref) => PaymentNotifier(

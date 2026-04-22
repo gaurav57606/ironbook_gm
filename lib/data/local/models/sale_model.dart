@@ -33,6 +33,22 @@ class Sale extends HiveObject {
     this.hmacSignature,
   });
 
+  factory Sale.fromFirestore(Map<String, dynamic> data) {
+    return Sale(
+      id: data['id'],
+      date: DateTime.parse(data['date']).toLocal(),
+      totalAmount: (data['totalAmount'] as num).toDouble(),
+      paymentMethod: data['paymentMethod'],
+      invoiceNumber: data['invoiceNumber'],
+      items: (data['items'] as List).map((i) => SaleItem(
+        productId: i['productId'],
+        productName: i['productName'],
+        price: (i['price'] as num).toDouble(),
+        quantity: i['quantity'],
+      )).toList(),
+    );
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'id': id,

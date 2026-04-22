@@ -6,6 +6,8 @@ import '../data/local/models/domain_event_model.dart';
 import '../data/local/models/plan_component_model.dart';
 import '../data/repositories/event_repository.dart';
 import '../data/sync_worker.dart';
+import '../core/services/hmac_service.dart';
+import 'base_providers.dart';
 
 class PlanNotifier extends StateNotifier<List<Plan>> {
   final Box<Plan> _box;
@@ -66,7 +68,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
 
     final verified = <Plan>[];
     for (final p in plans) {
-      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature);
+      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature ?? '');
       if (!isValid) {
         debugPrint('PlanNotifier: Signature mismatch for plan ${p.id}. Flagging for repair.');
         needsRepair = true;

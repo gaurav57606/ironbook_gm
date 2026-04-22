@@ -55,7 +55,7 @@ class LeaseExpiredScreen extends ConsumerWidget {
               Text(
                 'Your 7-day offline lease has expired. To continue using IronBook GM, you must synchronize your local data with the secure cloud.',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.text3),
+                style: AppTextStyles.body.copyWith(color: AppColors.text3),
               ),
               const SizedBox(height: 48),
               Container(
@@ -98,7 +98,7 @@ class LeaseExpiredScreen extends ConsumerWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.expired,
                     foregroundColor: Colors.white,
-                    shape: BorderRadius.circular(16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
                   child: const Text('SYNC NOW TO RENEW LEASE', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
