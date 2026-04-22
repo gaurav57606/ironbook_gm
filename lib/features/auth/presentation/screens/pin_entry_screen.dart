@@ -48,7 +48,8 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
 
   Future<void> _handleVerify() async {
     setState(() => _isLoading = true);
-    final success = await ref.read(authProvider.notifier).verifyPin(_pin);
+    // Use Unified Gateway
+    final success = await ref.read(authProvider.notifier).authenticate(pin: _pin);
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -60,16 +61,13 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
           _attempts++;
           _pin = '';
         });
-        if (_attempts >= 3) {
-          // Implement lockout logic if needed
-        }
       }
     }
   }
 
   Future<void> _handleBiometric() async {
-    final success =
-        await ref.read(authProvider.notifier).unlockWithBiometrics();
+    // Use Unified Gateway (No PIN means try biometrics)
+    final success = await ref.read(authProvider.notifier).authenticate();
     if (success && mounted) {
       context.go('/dashboard');
     }

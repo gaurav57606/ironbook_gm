@@ -78,7 +78,10 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
       final updated = SnapshotBuilder.apply(current, event);
       if (updated != null) {
-        await snapshotBox.put(event.entityId, updated);
+        // Sign before saving
+        final signature = await _hmac.signSnapshot(event.entityId, updated.toFirestore());
+        final signed = updated.copyWith(hmacSignature: signature);
+        await snapshotBox.put(event.entityId, signed);
         state = await _loadAllSnapshots(snapshotBox);
       } else if (event.eventType == EventType.memberArchived) {
         await snapshotBox.delete(event.entityId);
@@ -89,8 +92,32 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
   Future<List<MemberSnapshot>> _loadAllSnapshots(LazyBox<MemberSnapshot> box) async {
     final keys = box.keys.toList();
-    final items = await Future.wait(keys.map((k) => box.get(k)));
-    return items.whereType<MemberSnapshot>().toList();
+    final List<MemberSnapshot> validSnapshots = [];
+    
+    for (final key in keys) {
+      final snap = await box.get(key);
+      if (snap == null) continue;
+
+      // Integrity Check
+      final isValid = snap.hmacSignature != null && 
+          await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
+      
+      if (isValid) {
+        validSnapshots.add(snap);
+      } else {
+        debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Triggering automatic repair...');
+        // Repair from Event Log (Write-Ahead Log)
+        final history = await _repo.getByEntityId(snap.memberId);
+        final repaired = SnapshotBuilder.rebuild(history);
+        if (repaired != null) {
+          final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
+          final signed = repaired.copyWith(hmacSignature: signature);
+          await box.put(snap.memberId, signed);
+          validSnapshots.add(signed);
+        }
+      }
+    }
+    return validSnapshots;
   }
 
   Future<void> _reconcileSnapshots() async {
@@ -124,6 +151,13 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     if (updatedAny) {
       state = await _loadAllSnapshots(box);
     }
+  }
+
+  Future<void> rebuildCache() async {
+    debugPrint('MemberNotifier: Manual cache rebuild triggered.');
+    final box = Hive.lazyBox<MemberSnapshot>('snapshots');
+    await box.clear();
+    await _reconcileSnapshots();
   }
 
 
@@ -165,8 +199,13 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     // Audit 1.4: Near-atomic snapshot update
     final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
     final snapshot = MemberSnapshot.fromPayload(memberId, memberEvent.payload);
-    await snapshotBox.put(memberId, snapshot);
-    state = [...state, snapshot];
+    
+    // Sign before saving
+    final signature = await _hmac.signSnapshot(memberId, snapshot.toFirestore());
+    final signed = snapshot.copyWith(hmacSignature: signature);
+    
+    await snapshotBox.put(memberId, signed);
+    state = [...state, signed];
 
     return memberId;
   }
@@ -212,7 +251,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     final current = await snapshotBox.get(memberId);
     final updated = SnapshotBuilder.apply(current, updateEvent);
     if (updated != null) {
-      await snapshotBox.put(memberId, updated);
+      final signature = await _hmac.signSnapshot(memberId, updated.toFirestore());
+      final signed = updated.copyWith(hmacSignature: signature);
+      await snapshotBox.put(memberId, signed);
       state = await _loadAllSnapshots(snapshotBox);
     }
   }
@@ -237,7 +278,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     final current = await snapshotBox.get(memberId);
     final updated = SnapshotBuilder.apply(current, checkInEvent);
     if (updated != null) {
-      await snapshotBox.put(memberId, updated);
+      final signature = await _hmac.signSnapshot(memberId, updated.toFirestore());
+      final signed = updated.copyWith(hmacSignature: signature);
+      await snapshotBox.put(memberId, signed);
       state = await _loadAllSnapshots(snapshotBox);
     }
   }

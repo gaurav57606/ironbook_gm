@@ -8,6 +8,17 @@ import 'repositories/event_repository.dart';
 import '../core/services/sync_coordinator.dart';
 import '../providers/base_providers.dart';
 
+enum SyncStatus { idle, syncing, failed }
+
+class SyncState {
+  final SyncStatus status;
+  final DateTime? lastErrorAt;
+  final DateTime? lastSuccessAt;
+  final String? errorMessage;
+
+  SyncState({required this.status, this.lastErrorAt, this.lastSuccessAt, this.errorMessage});
+}
+
 /// Worker responsible for pushing local events to Firestore.
 /// Ensures idempotency using eventId as Firestore Document ID.
 class SyncWorker {
@@ -18,9 +29,14 @@ class SyncWorker {
   final String? Function() _currentUserId;
   bool _isSyncing = false;
   int _consecutiveFailures = 0;
+  DateTime? _lastErrorAt;
+  DateTime? _lastSuccessAt;
+  String? _lastErrorMessage;
   StreamSubscription? _syncSubscription;
+  final StateProvider<SyncState> _statusProvider;
+  final Ref _ref;
 
-  SyncWorker(this._repo, this._outboxRepo, this._coordinator, this._recordPusher, this._currentUserId) {
+  SyncWorker(this._repo, this._outboxRepo, this._coordinator, this._recordPusher, this._currentUserId, this._statusProvider, this._ref) {
     // Subscribe to manual sync requests from the UI or Repositories
     _syncSubscription = _coordinator.onSyncRequested.listen((_) => performSync());
   }
@@ -48,6 +64,8 @@ class SyncWorker {
     }
 
     _isSyncing = true;
+    _ref.read(_statusProvider.notifier).state = SyncState(status: SyncStatus.syncing);
+
     try {
       final unsynced = await _outboxRepo.getUnsyncedEvents();
       debugPrint('SyncWorker: Found ${unsynced.length} unsynced events in Drift Outbox for user $uid');
@@ -69,10 +87,19 @@ class SyncWorker {
       debugPrint('SyncWorker: Sync completed successfully');
     } catch (e) {
       _consecutiveFailures++;
+      _lastErrorAt = DateTime.now();
+      _lastErrorMessage = e.toString();
       debugPrint('SyncWorker Error: $e (Failure count: $_consecutiveFailures)');
       rethrow; // Rethrow to allow scheduler to handle backoff
     } finally {
       _isSyncing = false;
+      
+      if (_consecutiveFailures == 0) {
+        _setSyncState(SyncStatus.idle);
+      } else {
+        _setSyncState(SyncStatus.failed, error: _lastErrorMessage);
+      }
+      
       await _coordinator.releaseLock(holderId);
     }
   }
@@ -106,6 +133,8 @@ class SyncWorker {
   }
 }
 
+final syncStatusProvider = StateProvider<SyncState>((ref) => SyncState(status: SyncStatus.idle));
+
 final syncWorkerProvider = Provider<SyncWorker>((ref) {
   final repo = ref.watch(eventRepositoryProvider);
   final outboxRepo = ref.watch(outboxRepositoryProvider);
@@ -117,6 +146,8 @@ final syncWorkerProvider = Provider<SyncWorker>((ref) {
     coordinator,
     (coll, id, data) => FirebaseFirestore.instance.collection(coll).doc(id).set(data, SetOptions(merge: true)),
     () => FirebaseAuth.instance.currentUser?.uid,
+    syncStatusProvider,
+    ref,
   );
 
   ref.onDispose(() => worker.dispose());

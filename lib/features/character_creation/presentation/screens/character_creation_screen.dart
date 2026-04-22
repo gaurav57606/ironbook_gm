@@ -1,12 +1,34 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
+import '../../../../providers/owner_provider.dart';
+import '../../../../providers/member_provider.dart';
+import '../../../../providers/payment_provider.dart';
+import '../../../../providers/sync_status_provider.dart';
 
-class CharacterCreationScreen extends StatelessWidget {
+class CharacterCreationScreen extends ConsumerWidget {
   const CharacterCreationScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final owner = ref.watch(ownerProvider);
+    final members = ref.watch(memberProvider);
+    final payments = ref.watch(paymentProvider);
+    final syncStatus = ref.watch(syncStatusProvider);
+
+    // Dynamic Metric Calculation
+    final totalMembers = members.length;
+    final activeMembers = members.where((m) => m.status == 'Active').length;
+    final endurance = totalMembers > 0 ? (activeMembers / totalMembers) : 0.5;
+
+    final totalRevenue = payments.fold(0.0, (sum, p) => sum + p.amount);
+    final strength = (totalRevenue / 50000).clamp(0.1, 1.0); // 50k as baseline for 100% strength
+
+    final unsynced = syncStatus.unsyncedCount;
+    final dexterity = (1.0 - (unsynced / 50)).clamp(0.1, 1.0); // 50 items as baseline for 0% dexterity
+
     return StatusBarWrapper(
       child: Scaffold(
         backgroundColor: AppColors.bg,
@@ -16,7 +38,7 @@ class CharacterCreationScreen extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.orange.withValues(alpha: 0.15),
+                AppColors.primary.withValues(alpha: 0.15),
                 AppColors.bg,
                 AppColors.bg,
               ],
@@ -31,13 +53,9 @@ class CharacterCreationScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Character Creation',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Text(
+                        'Gym Leader Profile',
+                        style: AppTextStyles.h1.copyWith(fontSize: 24),
                       ),
                       Container(
                         padding: const EdgeInsets.all(8),
@@ -46,7 +64,7 @@ class CharacterCreationScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: const Icon(Icons.person_add_rounded, color: AppColors.orange, size: 20),
+                        child: const Icon(Icons.shield_rounded, color: AppColors.primary, size: 20),
                       ),
                     ],
                   ),
@@ -58,31 +76,57 @@ class CharacterCreationScreen extends StatelessWidget {
                       _buildCharacterSlot(
                         context,
                         'Iron Warrior',
-                        'Level 42 Powerlifter',
+                        'Level ${owner?.level ?? 1} Gym Leader',
                         Icons.shield_rounded,
-                        true,
+                        owner?.selectedCharacterId == 'warrior',
+                        onTap: () => _updateCharacter(ref, 'warrior'),
                       ),
                       const SizedBox(height: 16),
                       _buildCharacterSlot(
                         context,
                         'Agility Master',
-                        'Empty Slot',
+                        owner?.level != null && owner!.level >= 5 ? 'Unlocked' : 'Unlocks at Level 5',
                         Icons.bolt_rounded,
-                        false,
+                        owner?.selectedCharacterId == 'agility',
+                        locked: (owner?.level ?? 1) < 5,
+                        onTap: () => _updateCharacter(ref, 'agility'),
                       ),
                       const SizedBox(height: 32),
-                      const Text(
-                        'Development Metrics',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                      Row(
+                        children: [
+                          const Icon(Icons.analytics_rounded, color: AppColors.textMuted, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'ENTERPRISE VITALITY',
+                            style: AppTextStyles.sectionTitle.copyWith(letterSpacing: 2.0),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _buildMetricRow('STRENGTH (REVENUE)', strength, AppColors.primary),
+                      _buildMetricRow('ENDURANCE (RETENTION)', endurance, Colors.blue),
+                      _buildMetricRow('DEXTERITY (INTEGRITY)', dexterity, Colors.green),
+                      
+                      const SizedBox(height: 40),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 24),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Stats are calculated from real business metrics. Improve your sync health and revenue to increase your levels.',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      _buildMetricRow('Strength', 0.85, AppColors.orange),
-                      _buildMetricRow('Endurance', 0.65, Colors.blue),
-                      _buildMetricRow('Dexterity', 0.45, Colors.green),
                     ],
                   ),
                 ),
@@ -94,78 +138,133 @@ class CharacterCreationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCharacterSlot(BuildContext context, String title, String subtitle, IconData icon, bool active) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.bg2,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: active ? AppColors.orange.withValues(alpha: 0.5) : AppColors.border),
+  void _updateCharacter(WidgetRef ref, String id) {
+    final current = ref.read(ownerProvider);
+    if (current == null) return;
+    
+    // In a real app, we'd check level requirements here too
+    if (id == 'agility' && current.level < 5) return;
+
+    ref.read(ownerProvider.notifier).updateOwner(
+      OwnerProfile(
+        gymName: current.gymName,
+        ownerName: current.ownerName,
+        phone: current.phone,
+        address: current.address,
+        gstin: current.gstin,
+        bankName: current.bankName,
+        accountNumber: current.accountNumber,
+        ifsc: current.ifsc,
+        upiId: current.upiId,
+        level: current.level,
+        exp: current.exp,
+        strength: current.strength,
+        endurance: current.endurance,
+        dexterity: current.dexterity,
+        selectedCharacterId: id,
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: active ? AppColors.orange.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
+    );
+  }
+
+  Widget _buildCharacterSlot(BuildContext context, String title, String subtitle, IconData icon, bool active, {bool locked = false, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.bg2,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: active ? AppColors.primary.withValues(alpha: 0.5) : AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: active ? AppColors.primary.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.05),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: active ? AppColors.primary : AppColors.textMuted, size: 24),
             ),
-            child: Icon(icon, color: active ? AppColors.orange : AppColors.text3, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: active ? Colors.white : AppColors.text3,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.h3.copyWith(
+                      color: active ? Colors.white : AppColors.textMuted,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: AppColors.text3,
-                    fontSize: 12,
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textMuted,
+                      fontSize: 10,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          if (active)
-            const Icon(Icons.check_circle_rounded, color: AppColors.orange, size: 20)
-          else
-            const Icon(Icons.lock_outline_rounded, color: AppColors.text3, size: 20),
-        ],
+            if (locked)
+              const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted, size: 20)
+            else if (active)
+              const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildMetricRow(String label, double value, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
-              Text('${(value * 100).toInt()}%', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+              Text(
+                label, 
+                style: AppTextStyles.sectionTitle.copyWith(fontSize: 10, color: Colors.white)
+              ),
+              Text(
+                '${(value * 100).toInt()}%', 
+                style: AppTextStyles.sectionTitle.copyWith(fontSize: 10, color: color, fontWeight: FontWeight.bold)
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: value,
-              backgroundColor: Colors.white.withValues(alpha: 0.05),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              minHeight: 6,
-            ),
+          const SizedBox(height: 12),
+          Stack(
+            children: [
+              Container(
+                height: 4,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              FractionallySizedBox(
+                widthFactor: value,
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 0),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

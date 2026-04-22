@@ -141,6 +141,22 @@ class HmacService {
     return signStatic(event, keyStr);
   }
 
+  Future<String> signSnapshot(String entityId, Map<String, dynamic> data) async {
+    final keyStr = _testKey ?? await _getOrCreateKey();
+    final keyBytes = base64Decode(keyStr);
+    final payloadJson = CanonicalJson.encode(data);
+    final canonical = '$entityId|$payloadJson';
+    
+    final hmacSha256 = crypto.Hmac(crypto.sha256, keyBytes);
+    final digest = hmacSha256.convert(utf8.encode(canonical));
+    return base64Encode(digest.bytes);
+  }
+
+  Future<bool> verifySnapshot(String entityId, Map<String, dynamic> data, String signature) async {
+    final expected = await signSnapshot(entityId, data);
+    return expected == signature;
+  }
+
   static Future<String> sign(DomainEvent event) async {
     if (_testKey == null) throw Exception("Test key not set. Use HmacService.setKeyForTest()");
     return signStatic(event, _testKey!);

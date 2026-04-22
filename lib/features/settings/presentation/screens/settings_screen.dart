@@ -145,6 +145,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _buildSettingsRow(Icons.help_outline_rounded, 'Help Center', null, onTap: () => context.push('/settings/help')),
                     _buildSettingsRow(Icons.info_outline_rounded, 'About IronBook GM', 'v2.4.0', onTap: () => context.push('/settings/about')),
                   ]),
+                  _buildSettingsGroup('Troubleshooting', [
+                    _buildSettingsRow(
+                      Icons.rebase_edit,
+                      'Rebuild Local Database',
+                      'Fix data discrepancies',
+                      onTap: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        messenger.showSnackBar(const SnackBar(content: Text('Rebuilding cache from event log...')));
+                        await ref.read(membersProvider.notifier).rebuildCache();
+                        if (context.mounted) {
+                          messenger.showSnackBar(const SnackBar(content: Text('Database rebuilt and verified.')));
+                        }
+                      },
+                    ),
+                  ]),
                   const SizedBox(height: 32),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),

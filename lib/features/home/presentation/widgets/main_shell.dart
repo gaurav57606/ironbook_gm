@@ -33,8 +33,8 @@ class MainShell extends ConsumerWidget {
               MaterialBanner(
                 backgroundColor: Colors.orange.shade900,
                 content: const Text(
-                  'Running in Degraded Mode (Offline). Cloud sync is unavailable.',
-                  style: TextStyle(color: Colors.white),
+                  'Running in Local Mode. Cloud sync delayed.',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 leading: const Icon(Icons.cloud_off, color: Colors.white),
                 actions: [

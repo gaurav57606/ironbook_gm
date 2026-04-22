@@ -44,6 +44,9 @@ class Payment extends HiveObject {
   @HiveField(13)
   late int durationMonths;
 
+  @HiveField(14)
+  String? hmacSignature;
+
   Payment({
     required this.id,
     required this.memberId,
@@ -59,6 +62,7 @@ class Payment extends HiveObject {
     required this.gstAmount,
     required this.gstRate,
     required this.durationMonths,
+    this.hmacSignature,
   });
 
   factory Payment.fromPayload(String id, Map<String, dynamic> payload, DateTime timestamp) {
@@ -78,6 +82,24 @@ class Payment extends HiveObject {
       gstRate: 0.18,
       components: [], // Simplified for reconciliation as components are snapshots
     );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'memberId': memberId,
+      'date': date.toUtc().toIso8601String(),
+      'amount': amount,
+      'method': method,
+      'reference': reference,
+      'planId': planId,
+      'planName': planName,
+      'invoiceNumber': invoiceNumber,
+      'durationMonths': durationMonths,
+      'subtotal': subtotal,
+      'gstAmount': gstAmount,
+      'gstRate': gstRate,
+    };
   }
 }
 

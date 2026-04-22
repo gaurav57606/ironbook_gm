@@ -23,6 +23,27 @@ class OwnerProfile extends HiveObject {
   @HiveField(9)
   String? logoPath; // local file path
 
+  @HiveField(10)
+  String? hmacSignature;
+
+  @HiveField(11)
+  int level;
+
+  @HiveField(12)
+  int exp;
+
+  @HiveField(13)
+  double strength;
+
+  @HiveField(14)
+  double endurance;
+
+  @HiveField(15)
+  double dexterity;
+
+  @HiveField(16)
+  String selectedCharacterId;
+
   OwnerProfile({
     required this.gymName,
     required this.ownerName,
@@ -34,5 +55,32 @@ class OwnerProfile extends HiveObject {
     this.ifsc,
     this.upiId,
     this.logoPath,
+    this.hmacSignature,
+    this.level = 1,
+    this.exp = 0,
+    this.strength = 0.5,
+    this.endurance = 0.5,
+    this.dexterity = 0.5,
+    this.selectedCharacterId = 'warrior',
   });
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'gymName': gymName,
+      'ownerName': ownerName,
+      'phone': phone,
+      'address': address,
+      'gstin': gstin,
+      'bankName': bankName,
+      'accountNumber': accountNumber,
+      'ifsc': ifsc,
+      'upiId': upiId,
+      'level': level,
+      'exp': exp,
+      'strength': strength,
+      'endurance': endurance,
+      'dexterity': dexterity,
+      'selectedCharacterId': selectedCharacterId,
+    };
+  }
 }

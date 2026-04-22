@@ -12,7 +12,7 @@ import '../features/auth/presentation/screens/signup_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/auth/presentation/screens/pin_setup_screen.dart';
 import '../features/auth/presentation/screens/pin_entry_screen.dart';
-import '../features/auth/presentation/screens/license_sync_screen.dart';
+import '../features/auth/presentation/screens/lease_expired_screen.dart';
 import '../features/home/presentation/screens/dashboard_screen.dart';
 import '../features/members/presentation/screens/members_list_screen.dart';
 import '../features/members/presentation/screens/member_detail_screen.dart';
@@ -121,7 +121,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       if (isAuth && !isSettings && state.matchedLocation != '/paywall') {
         final status = entitlementStatus.valueOrNull ?? EntitlementStatus.valid;
         if (status == EntitlementStatus.expired) {
-          return '/license-sync';
+          return '/lease-expired';
         }
       }
 
@@ -165,8 +165,8 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
         builder: (context, state) => const CharacterCreationScreen(),
       ),
       GoRoute(
-        path: '/license-sync',
-        builder: (context, state) => const LicenseSyncScreen(),
+        path: '/lease-expired',
+        builder: (context, state) => const LeaseExpiredScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

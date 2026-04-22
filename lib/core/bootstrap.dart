@@ -28,32 +28,29 @@ typedef BootstrapResult = ({bool hiveHealthy});
 
 class AppBootstrap {
   static Future<BootstrapResult> initialize(ProviderContainer container) async {
-    // --- TIER 1 (Blocking) ---
-    WidgetsFlutterBinding.ensureInitialized();
+    // --- TIER 1 (Blocking: Native/Local) ---
+    // Note: WidgetsFlutterBinding.ensureInitialized() called in main()
     
-    // 1. System UI
+    // 1. System UI Setup
     _setupSystemUI();
     
-    // 2. Hive Initialization
-    debugPrint('Bootstrap Tier 1: Hive...');
-    await HiveInit.openWithCorruptionGuard(); // This registers adapters too
-    final hiveHealthy = Hive.isBoxOpen('events'); // Basic health check
+    // 2. Open Local Authorities (Hive)
+    debugPrint('Bootstrap Tier 1: Hive Initialization...');
+    await HiveInit.openWithCorruptionGuard();
+    final hiveHealthy = Hive.isBoxOpen('events');
     
     if (hiveHealthy) {
       await SeedData.seedIfEmpty();
     }
     
-    // 3. Drift Initialization
-    debugPrint('Bootstrap Tier 1: Drift...');
+    // 3. Open Secondary Authorities (Drift/SQLite)
+    debugPrint('Bootstrap Tier 1: Drift Initialization...');
     container.read(outboxDatabaseProvider);
     
-    // 4. Branding Delay
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // Update State to Tier 1 Ready
+    // 4. Set Initial State
     container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Ready;
     
-    // Schedule TIER 2
+    // Schedule TIER 2 (Post-Frame: Cloud/Background)
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _runTier2(container);
     });

@@ -137,26 +137,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isFirstLaunch: false);
   }
 
-  Future<bool> unlockWithPin(String pin) async {
-    final success = await _pinService.verifyPin(pin);
-    if (success) {
-      state = state.copyWith(unlocked: true);
-    }
-    return success;
-  }
-
-  Future<bool> verifyPin(String pin) => unlockWithPin(pin);
-
-  Future<bool> unlockWithBiometrics() async {
-    final result = await _pinService.authenticateWithBiometric();
+  Future<bool> authenticate({String? pin}) async {
+    final result = await _pinService.authenticate(pinFallback: pin);
     if (result == AuthResult.success) {
-      state = state.copyWith(unlocked: true);
+      if (mounted) {
+        state = state.copyWith(unlocked: true);
+      }
       return true;
     }
     return false;
   }
 
-  Future<bool> loginWithBiometrics() => unlockWithBiometrics();
+  // Aliases for backward compatibility where needed, though we should migrate all to authenticate()
+  Future<bool> verifyPin(String pin) => authenticate(pin: pin);
+  Future<bool> unlockWithBiometrics() => authenticate();
+  Future<bool> loginWithBiometrics() => authenticate();
 
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true);

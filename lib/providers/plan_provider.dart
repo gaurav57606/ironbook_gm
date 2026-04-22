@@ -11,9 +11,10 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   final Box<Plan> _box;
   final IEventRepository _eventRepo;
   final SyncWorker _syncWorker;
+  final HmacService _hmac;
   final String _deviceId;
 
-  PlanNotifier(this._box, this._eventRepo, this._syncWorker, this._deviceId) : super([]) {
+  PlanNotifier(this._box, this._eventRepo, this._syncWorker, this._hmac, this._deviceId) : super([]) {
     _init();
   }
 
@@ -59,8 +60,27 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   @visibleForTesting
   set debugState(List<Plan> plans) => state = plans;
 
-  void _loadPlans() {
-    state = _box.values.toList();
+  Future<void> _loadPlans() async {
+    final plans = _box.values.toList();
+    bool needsRepair = false;
+
+    final verified = <Plan>[];
+    for (final p in plans) {
+      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature);
+      if (!isValid) {
+        debugPrint('PlanNotifier: Signature mismatch for plan ${p.id}. Flagging for repair.');
+        needsRepair = true;
+        continue;
+      }
+      verified.add(p);
+    }
+
+    state = verified;
+
+    if (needsRepair) {
+      debugPrint('PlanNotifier: Triggering auto-repair from event log.');
+      await _reconcilePlans();
+    }
   }
 
   Future<void> addPlan(Plan plan) async {
@@ -85,8 +105,10 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     await _eventRepo.persist(event);
 
     // Persist Cache Locally
-    await _box.add(plan);
-    state = [...state, plan];
+    final signature = await _hmac.signSnapshot(plan.id, plan.toFirestore());
+    final signed = plan..hmacSignature = signature;
+    await _box.add(signed);
+    state = [...state, signed];
     
     await _syncWorker.performSync();
   }
@@ -115,8 +137,10 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     await _eventRepo.persist(event);
 
     // Persist Cache Locally
-    await plan.save();
-    _loadPlans();
+    final signature = await _hmac.signSnapshot(plan.id, plan.toFirestore());
+    final signed = plan..hmacSignature = signature;
+    await signed.save();
+    await _loadPlans();
     
     await _syncWorker.performSync();
   }
@@ -128,10 +152,9 @@ final planProvider = StateNotifierProvider<PlanNotifier, List<Plan>>((ref) {
   final box = ref.watch(planBoxProvider);
   final eventRepo = ref.watch(eventRepositoryProvider);
   final syncWorker = ref.watch(syncWorkerProvider);
+  final hmac = ref.watch(hmacServiceProvider);
   
-  // Get device ID from auth provider if available or use a static one for now
-  // We'll just generate one for now as we did in AuthNotifier
   const deviceId = 'device-plan-sync'; 
 
-  return PlanNotifier(box, eventRepo, syncWorker, deviceId);
+  return PlanNotifier(box, eventRepo, syncWorker, hmac, deviceId);
 });

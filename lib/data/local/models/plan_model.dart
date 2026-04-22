@@ -14,13 +14,31 @@ class Plan extends HiveObject {
   @HiveField(4)
   late bool active;
 
+  @HiveField(5)
+  String? hmacSignature;
+
   Plan({
     required this.id,
     required this.name,
     required this.durationMonths,
     required this.components,
     this.active = true,
+    this.hmacSignature,
   });
 
   double get totalPrice => components.fold(0, (sum, c) => sum + c.price);
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'name': name,
+      'durationMonths': durationMonths,
+      'active': active,
+      'components': components.map((c) => {
+        'id': c.id,
+        'name': c.name,
+        'price': c.price,
+      }).toList(),
+    };
+  }
 }

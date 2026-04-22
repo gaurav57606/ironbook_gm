@@ -55,6 +55,9 @@ class MemberSnapshot extends HiveObject {
   @HiveField(16)
   String? lastCheckInDevice;
 
+  @HiveField(17)
+  String? hmacSignature; // Cryptographic integrity seal
+
   MemberSnapshot({
     required this.memberId,
     required this.name,
@@ -73,6 +76,7 @@ class MemberSnapshot extends HiveObject {
     this.checkInPin,
     this.lastCheckIn,
     this.lastCheckInDevice,
+    this.hmacSignature,
   }) {
     this.paymentIds = paymentIds ?? [];
     this.joinDateHistory = joinDateHistory ?? [];
@@ -115,6 +119,7 @@ class MemberSnapshot extends HiveObject {
     String? checkInPin,
     DateTime? lastCheckIn,
     String? lastCheckInDevice,
+    String? hmacSignature,
   }) {
     return MemberSnapshot(
       memberId: memberId,
@@ -134,6 +139,7 @@ class MemberSnapshot extends HiveObject {
       checkInPin: checkInPin ?? this.checkInPin,
       lastCheckIn: lastCheckIn ?? this.lastCheckIn,
       lastCheckInDevice: lastCheckInDevice ?? this.lastCheckInDevice,
+      hmacSignature: hmacSignature ?? this.hmacSignature,
     );
   }
 
@@ -152,6 +158,7 @@ class MemberSnapshot extends HiveObject {
       checkInPin: payload['checkInPin'],
       lastCheckIn: payload['lastCheckIn'] != null ? DateTime.parse(payload['lastCheckIn']) : null,
       lastCheckInDevice: payload['lastCheckInDevice'],
+      hmacSignature: payload['hmacSignature'],
     );
   }
 

@@ -34,11 +34,69 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
 
   Future<void> _init() async {
     _deviceId = await _hmac.getInstallationId();
-    _loadSales();
+    await _loadSales();
+    await _reconcileSales();
   }
 
-  void _loadSales() {
-    state = _saleBox.values.toList().reversed.toList();
+  Future<void> _reconcileSales() async {
+    final allEvents = await _eventRepo.getAll();
+    final saleEvents = allEvents.where((e) => e.eventType == EventType.paymentRecorded && e.payload.containsKey('saleId')).toList();
+    
+    bool updatedAny = false;
+    for (final event in saleEvents) {
+      final saleId = event.payload['saleId'] as String?;
+      if (saleId == null) continue;
+
+      if (!_saleBox.containsKey(saleId)) {
+        // Build Sale from payload
+        final items = (event.payload['items'] as List? ?? []).map((i) {
+          final iMap = Map<String, dynamic>.from(i);
+          return SaleItem(
+            productId: iMap['productId'] ?? '',
+            productName: 'Unknown Product', // Product names aren't in payload currently
+            price: (iMap['price'] as num?)?.toDouble() ?? 0.0,
+            quantity: iMap['qty'] ?? 1,
+          );
+        }).toList();
+
+        final sale = Sale(
+          id: saleId,
+          date: event.deviceTimestamp,
+          totalAmount: (event.payload['total'] as num?)?.toDouble() ?? 0.0,
+          paymentMethod: event.payload['method'] ?? 'Cash',
+          items: items,
+          invoiceNumber: event.payload['invoiceNumber'] ?? 'SAL-0000',
+        );
+        
+        // Sign and save
+        final signature = await _hmac.signSnapshot(sale.id, sale.toFirestore());
+        sale.hmacSignature = signature;
+        await _saleBox.put(saleId, sale);
+        updatedAny = true;
+      }
+    }
+
+    if (updatedAny) {
+      await _loadSales();
+    }
+  }
+
+  Future<void> _loadSales() async {
+    final sales = _saleBox.values.toList();
+    final verified = <Sale>[];
+    
+    for (final s in sales) {
+      final isValid = await _hmac.verifySnapshot(s.id, s.toFirestore(), s.hmacSignature);
+      if (!isValid) {
+        debugPrint('SaleNotifier: Signature mismatch for sale ${s.id}. Integrity compromised.');
+        // Sales are usually high-volume and non-repairable if event loop isn't fully implemented for retail.
+        // For now, we flag it in debug.
+        continue;
+      }
+      verified.add(s);
+    }
+    
+    state = verified.reversed.toList();
   }
 
   void _seedProductsIfEmpty() async {
@@ -108,8 +166,11 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     await _eventRepo.persist(event);
 
     // Persist Cache Locally
-    await _saleBox.put(sale.id, sale);
-    state = [sale, ...state];
+    final signature = await _hmac.signSnapshot(sale.id, sale.toFirestore());
+    final signed = sale..hmacSignature = signature;
+    
+    await _saleBox.put(signed.id, signed);
+    state = [signed, ...state];
   }
 }
 

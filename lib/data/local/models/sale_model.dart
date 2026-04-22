@@ -20,6 +20,9 @@ class Sale extends HiveObject {
   @HiveField(5)
   late String invoiceNumber;
 
+  @HiveField(6)
+  String? hmacSignature;
+
   Sale({
     required this.id,
     required this.date,
@@ -27,7 +30,24 @@ class Sale extends HiveObject {
     required this.paymentMethod,
     required this.items,
     required this.invoiceNumber,
+    this.hmacSignature,
   });
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'date': date.toUtc().toIso8601String(),
+      'totalAmount': totalAmount,
+      'paymentMethod': paymentMethod,
+      'invoiceNumber': invoiceNumber,
+      'items': items.map((i) => {
+        'productId': i.productId,
+        'productName': i.productName,
+        'price': i.price,
+        'quantity': i.quantity,
+      }).toList(),
+    };
+  }
 }
 
 @HiveType(typeId: 16)

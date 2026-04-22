@@ -15,6 +15,14 @@ class PinEntryScreen extends ConsumerStatefulWidget {
 class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   String _pin = '';
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleBiometric();
+    });
+  }
+
   void _onDigitPress(String digit) {
     if (_pin.length < 6) {
       setState(() {

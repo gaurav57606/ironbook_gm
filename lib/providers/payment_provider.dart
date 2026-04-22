@@ -59,15 +59,41 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     }
 
     if (updatedAny) {
-      _loadPayments();
+      await _loadPayments();
     }
+  }
+
+  // Helper to reconcile a single payment after signing it
+  Future<void> _upsertSignedPayment(Payment payment) async {
+    final signature = await _hmac.signSnapshot(payment.id, payment.toFirestore());
+    final signed = payment..hmacSignature = signature;
+    await _paymentBox.put(payment.id, signed);
   }
 
   @visibleForTesting
   set debugState(List<Payment> payments) => state = payments;
 
-  void _loadPayments() {
-    state = _paymentBox.values.toList().reversed.toList();
+  Future<void> _loadPayments() async {
+    final payments = _paymentBox.values.toList();
+    bool needsRepair = false;
+
+    final verified = <Payment>[];
+    for (final p in payments) {
+      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature);
+      if (!isValid) {
+        debugPrint('PaymentNotifier: Signature mismatch for payment ${p.id}. Flagging for repair.');
+        needsRepair = true;
+        continue;
+      }
+      verified.add(p);
+    }
+
+    state = verified.reversed.toList();
+
+    if (needsRepair) {
+      debugPrint('PaymentNotifier: Triggering auto-repair from event log.');
+      await _reconcilePayments();
+    }
   }
 
   Future<Payment> recordMemberPayment({
@@ -156,10 +182,13 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       await _eventRepo.persist(event);
 
       // 6. Persist Cache Locally
-      await _paymentBox.put(payment.id, payment);
-      state = [payment, ...state];
+      final signature = await _hmac.signSnapshot(payment.id, payment.toFirestore());
+      final signed = payment..hmacSignature = signature;
+      
+      await _paymentBox.put(payment.id, signed);
+      state = [signed, ...state];
 
-      return payment;
+      return signed;
     } finally {
       final lock = _syncLock;
       _syncLock = null;
