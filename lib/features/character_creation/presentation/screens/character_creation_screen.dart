@@ -5,6 +5,7 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/status_bar_wrapper.dart';
 import '../../../../providers/owner_provider.dart';
 import '../../../../data/local/models/owner_profile_model.dart';
+import '../../../../data/local/models/member_snapshot_model.dart';
 import '../../../../providers/member_provider.dart';
 import '../../../../providers/payment_provider.dart';
 import '../../../../providers/sync_status_provider.dart';
@@ -21,7 +22,11 @@ class CharacterCreationScreen extends ConsumerWidget {
 
     // Dynamic Metric Calculation
     final totalMembers = members.length;
-    final activeMembers = members.where((m) => m.status == 'Active').length;
+
+    // Bolt Optimization: Cache expensive DateTime.now() argument
+    // Also fixes bug where enum was compared to String 'Active'
+    final now = DateTime.now();
+    final activeMembers = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
     final endurance = totalMembers > 0 ? (activeMembers / totalMembers) : 0.5;
 
     final totalRevenue = payments.fold(0.0, (sum, p) => sum + p.amount);
