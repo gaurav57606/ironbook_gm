@@ -9,7 +9,7 @@ import 'app.dart';
 
 void main() async {
   // 1. Core Binding
-  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();
   
   // 2. Provider Container
   final container = ProviderContainer();
@@ -31,3 +31,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   FcmService.processKillSignal(message);
 }
+
+
+
+
+
+
+

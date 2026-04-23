@@ -12,6 +12,7 @@ dependencies:
   google_fonts: ^6.1.0 # Outfit font only
   flutter_animate: ^4.5.0
   flutter_svg: ^2.0.10
+  flutter_dotenv: ^5.1.0
   lucide_icons: ^0.257.0
   collection: ^1.18.0
 
@@ -19,6 +20,7 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   drift: ^2.18.0
+  sqlite3: ^2.4.0
   sqlite3_flutter_libs: ^0.5.0
 
   # State management
@@ -87,6 +89,7 @@ dependency_overrides:
 flutter:
   uses-material-design: true
   assets:
+    - .env
     - assets/images/logo.png
     - assets/images/onb_1.png
     - assets/images/onb_2.png

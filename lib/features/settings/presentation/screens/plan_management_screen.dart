@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../data/local/models/plan_model.dart';
-import '../../../../data/local/models/plan_component_model.dart';
-import '../../../../providers/plan_provider.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
+import '../../../../core/data/local/models/plan_model.dart';
+import '../../../../core/data/local/models/plan_component_model.dart';
+import '../../../../core/providers/plan_provider.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
 
 class PlanManagementScreen extends ConsumerWidget {
   const PlanManagementScreen({super.key});
@@ -23,7 +23,7 @@ class PlanManagementScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded,
+            icon: const Icon(Icons.arrow_back_rounded,
                 color: AppColors.textPrimary, size: 24),
             onPressed: () => Navigator.pop(context),
           ),
@@ -36,7 +36,7 @@ class PlanManagementScreen extends ConsumerWidget {
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: AppColors.backgroundGradient,
           ),
           child: ListView.builder(
@@ -102,9 +102,9 @@ class PlanManagementScreen extends ConsumerWidget {
   Widget _buildPlanCardHeader(Plan plan) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.elevation2,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,7 +146,7 @@ class PlanManagementScreen extends ConsumerWidget {
   Widget _buildPlanDuration(int months) {
     return Row(
       children: [
-        Icon(Icons.schedule_rounded, size: 14, color: AppColors.textMuted),
+        const Icon(Icons.schedule_rounded, size: 14, color: AppColors.textMuted),
         const SizedBox(width: 6),
         Text(
           "$months Month${months > 1 ? "s" : ""}",
@@ -211,7 +211,7 @@ class PlanManagementScreen extends ConsumerWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_rounded, size: 14, color: AppColors.success),
+          const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.success),
           const SizedBox(width: 8),
           Text(
             "${component.name} (₹${component.price.toInt()})",
@@ -246,7 +246,7 @@ class PlanManagementScreen extends ConsumerWidget {
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),
-            side: BorderSide(color: AppColors.border),
+            side: const BorderSide(color: AppColors.border),
           ),
           title: Text(
             plan == null ? "Create New Plan" : "Edit Membership Plan",
@@ -284,7 +284,7 @@ class PlanManagementScreen extends ConsumerWidget {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child:
-                  Text("Cancel", style: TextStyle(color: AppColors.textMuted)),
+                  const Text("Cancel", style: TextStyle(color: AppColors.textMuted)),
             ),
             _buildSavePlanButton(context, ref, plan, nameController,
                 durationController, components),
@@ -392,15 +392,15 @@ class PlanManagementScreen extends ConsumerWidget {
             fillColor: AppColors.elevation2,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: AppColors.border),
+              borderSide: const BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: AppColors.border),
+              borderSide: const BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -410,3 +410,12 @@ class PlanManagementScreen extends ConsumerWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:math';
@@ -8,8 +7,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
-import '../../data/local/models/domain_event_model.dart';
-import '../utils/canonical_json.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/shared/utils/canonical_json.dart';
 
 class HmacService {
   final FlutterSecureStorage _storage;
@@ -24,7 +23,7 @@ class HmacService {
   static void setKeyForTest(String key) => _testKey = key;
 
   static Future<void> init() async {
-    final storage = const FlutterSecureStorage();
+    const storage = FlutterSecureStorage();
     // Use try-catch or safe access for web compatibility
     FirebaseAuth? auth;
     FirebaseFirestore? firestore;
@@ -213,3 +212,14 @@ class HmacService {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+

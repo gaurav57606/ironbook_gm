@@ -5,17 +5,15 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:ironbook_gm/app.dart';
-import 'package:ironbook_gm/providers/base_providers.dart';
+import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/security/pin_service.dart';
-import 'package:ironbook_gm/data/sync_worker.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/security/pin_service.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import '../mocks/mock_firebase.dart';
 import '../mocks/mock_services.dart';
-import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
-import 'package:ironbook_gm/data/local/hive_init.dart';
-import 'package:ironbook_gm/providers/bootstrap_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ironbook_gm/core/data/local/hive_init.dart';
+import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 
 void registerAllAdapters() {
   HiveInit.registerAdapters();
@@ -90,3 +88,5 @@ void main() {
     verify(() => mockSync.performSync()).called(1);
   });
 }
+
+

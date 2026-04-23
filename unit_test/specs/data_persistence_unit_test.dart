@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'dart:io';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
 
 void main() {
   test('Hive Data Persistence Logic Verification', () async {
@@ -46,3 +46,6 @@ void main() {
     tempDir.deleteSync(recursive: true);
   });
 }
+
+
+

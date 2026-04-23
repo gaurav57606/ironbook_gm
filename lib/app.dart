@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
-import 'router/app_router.dart';
-import 'providers/bootstrap_provider.dart';
+import 'core/router/app_router.dart';
 
 class IronBookApp extends ConsumerWidget {
   final bool hiveHealthy;
@@ -24,3 +23,10 @@ class IronBookApp extends ConsumerWidget {
     );
   }
 }
+
+
+
+
+
+
+

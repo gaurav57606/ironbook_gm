@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/owner_provider.dart';
-import '../../../../data/local/models/owner_profile_model.dart';
-import '../../../../providers/member_provider.dart';
-import '../../../../providers/payment_provider.dart';
-import '../../../../providers/sync_status_provider.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/owner_provider.dart';
+import '../../../../core/data/local/models/owner_profile_model.dart';
+import '../../../../core/providers/member_provider.dart';
+import '../../../../core/providers/payment_provider.dart';
+import '../../../../core/providers/sync_status_provider.dart';
+import '../../../../core/data/local/models/member_snapshot_model.dart';
 
 class CharacterCreationScreen extends ConsumerWidget {
   const CharacterCreationScreen({super.key});
@@ -21,7 +22,7 @@ class CharacterCreationScreen extends ConsumerWidget {
 
     // Dynamic Metric Calculation
     final totalMembers = members.length;
-    final activeMembers = members.where((m) => m.status == 'Active').length;
+    final activeMembers = members.where((m) => m.status == MemberStatus.active).length;
     final endurance = totalMembers > 0 ? (activeMembers / totalMembers) : 0.5;
 
     final totalRevenue = payments.fold(0.0, (sum, p) => sum + p.amount);
@@ -272,3 +273,12 @@ class CharacterCreationScreen extends ConsumerWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

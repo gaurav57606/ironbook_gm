@@ -1,9 +1,9 @@
 import '../test_helper.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
-import 'package:ironbook_gm/data/local/models/plan_model.dart';
-import 'package:ironbook_gm/data/local/models/payment_model.dart';
-import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
-import 'package:ironbook_gm/data/sync_worker.dart';
+import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
+import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
+import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
 
 class MockSyncWorker extends Mock implements SyncWorker {}
 class MockAuth extends Mock implements AuthNotifier {}
@@ -93,3 +93,5 @@ void main() {
     });
   });
 }
+
+

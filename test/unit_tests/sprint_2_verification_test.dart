@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:ironbook_gm/security/play_integrity_service.dart';
-import 'package:ironbook_gm/data/local/snapshot_builder.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/security/play_integrity_service.dart';
+import 'package:ironbook_gm/core/data/local/snapshot_builder.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
-import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
-import 'package:ironbook_gm/constants/event_payload_keys.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'dart:io';
 
 void main() {
@@ -121,3 +121,5 @@ void main() {
     });
   });
 }
+
+

@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/member_provider.dart';
-import '../../../../providers/auth_provider.dart';
-import '../../../../data/local/models/member_snapshot_model.dart';
-import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/utils/greeting_formatter.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/member_provider.dart';
+import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/data/local/models/member_snapshot_model.dart';
+import '../../../../shared/utils/date_formatter.dart';
+import '../../../../shared/utils/greeting_formatter.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/member_health_donut.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/member_row.dart';
-import '../../../../data/sync_worker.dart';
-import '../../../../providers/bootstrap_provider.dart';
+import '../../../../core/data/sync_worker.dart';
+import '../../../../core/providers/bootstrap_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -26,7 +26,7 @@ class DashboardScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final unsyncedCount = ref.watch(unsyncedCountProvider).valueOrNull ?? 0;
     final tier2Status = ref.watch(tier2StatusProvider);
-    final syncState = ref.watch(syncStatusProvider);
+    final syncState = ref.watch(syncWorkerStatusProvider);
     
     // ⚡ Bolt: Consolidated 5 list traversals into a single O(N) loop to compute member stats.
     // This significantly reduces redundant calculations of `getStatus(now)`.
@@ -120,7 +120,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(AuthState auth, int unsyncedCount, Tier2Status tier2Status, SyncState syncState) {
+  Widget _buildHeader(AuthState auth, int unsyncedCount, Tier2Status tier2Status, SyncWorkerState syncState) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
       child: Row(
@@ -173,8 +173,8 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSyncBadge(int count, Tier2Status status, SyncState syncState) {
-    if (count == 0 && status != Tier2Status.degraded && syncState.status == SyncStatus.idle) {
+  Widget _buildSyncBadge(int count, Tier2Status status, SyncWorkerState syncState) {
+    if (count == 0 && status != Tier2Status.degraded && syncState.status == SyncWorkerStatus.idle) {
       if (syncState.lastSuccessAt == null) return const SizedBox.shrink();
       
       return Padding(
@@ -186,9 +186,9 @@ class DashboardScreen extends ConsumerWidget {
       );
     }
 
-    final isSyncing = syncState.status == SyncStatus.syncing || count > 0;
-    final isFailed = syncState.status == SyncStatus.failed;
-    final isDegraded = status == Tier2Status.degraded;
+    final isSyncing = syncState.status == SyncWorkerStatus.syncing || count > 0;
+    final isFailed = syncState.status == SyncWorkerStatus.failed;
+
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -414,11 +414,11 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSyncDebtBanner(int count, SyncState state) {
-    if (count < 10 && state.status != SyncStatus.failed) return const SizedBox.shrink();
+  Widget _buildSyncDebtBanner(int count, SyncWorkerState state) {
+    if (count < 10 && state.status != SyncWorkerStatus.failed) return const SizedBox.shrink();
 
     final isHighDebt = count > 20;
-    final isError = state.status == SyncStatus.failed;
+    final isError = state.status == SyncWorkerStatus.failed;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -432,3 +432,12 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

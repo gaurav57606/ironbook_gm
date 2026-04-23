@@ -94,3 +94,12 @@ class _DecryptionParams {
   final Uint8List data;
   _DecryptionParams({required this.password, required this.data});
 }
+
+
+
+
+
+
+
+
+

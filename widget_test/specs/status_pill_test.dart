@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/core/widgets/status_pill.dart';
+import 'package:ironbook_gm/shared/widgets/status_pill.dart';
 import 'package:ironbook_gm/core/constants/colors.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/theme/app_theme.dart';
 
 void main() {
@@ -53,3 +53,5 @@ void main() {
     });
   });
 }
+
+

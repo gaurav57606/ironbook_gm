@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/sync_status_provider.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/sync_status_provider.dart';
 
 class LeaseExpiredScreen extends ConsumerWidget {
   const LeaseExpiredScreen({super.key});
@@ -121,3 +121,12 @@ class LeaseExpiredScreen extends ConsumerWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

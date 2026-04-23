@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/features/auth/presentation/screens/pin_entry_screen.dart';
-import 'package:ironbook_gm/providers/auth_provider.dart';
-import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
+import 'package:ironbook_gm/core/providers/auth_provider.dart';
+import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -115,3 +115,5 @@ void main() {
     });
   });
 }
+
+

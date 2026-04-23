@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../providers/bootstrap_provider.dart';
-import '../../../../core/widgets/app_bottom_nav.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../core/widgets/sync_status_indicator.dart';
+import '../../../../core/providers/bootstrap_provider.dart';
+import '../../../../../shared/widgets/app_bottom_nav.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../../shared/widgets/sync_status_indicator.dart';
 
 class MainShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -45,11 +45,11 @@ class MainShell extends ConsumerWidget {
                 ],
               ),
             // Header with Sync Status
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
-                children: const [
+                children: [
                   SyncStatusIndicator(),
                 ],
               ),
@@ -65,3 +65,12 @@ class MainShell extends ConsumerWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

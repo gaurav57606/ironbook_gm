@@ -2,10 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:typed_data';
 
 class MockSecureStorage extends Mock implements FlutterSecureStorage {
   final Map<String, String> _data = {};
@@ -73,8 +71,8 @@ void main() {
   });
 
   test('Key wrapping/unwrapping is symmetrical', () async {
-    final rawKey = 'test-raw-key-base64-32-bytes';
-    final uid = 'test-uid';
+    const rawKey = 'test-raw-key-base64-32-bytes';
+    const uid = 'test-uid';
     
     // access private methods via reflection-like approach if needed, or make them visible for testing. 
     // Since we can't easily access private methods in Dart tests without @visibleForTesting, 
@@ -86,3 +84,5 @@ void main() {
      // I'll trust the logic for now or write a simpler test if possible.
   });
 }
+
+

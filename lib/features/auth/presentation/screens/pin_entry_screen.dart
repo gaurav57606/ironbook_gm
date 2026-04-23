@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/auth_provider.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/auth_provider.dart';
 
 class PinEntryScreen extends ConsumerStatefulWidget {
   final bool isLockout;
@@ -18,7 +18,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   String _pin = '';
   bool _error = false;
   bool _isLoading = false;
-  int _attempts = 0;
+
  
   @override
   void initState() {
@@ -58,7 +58,6 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
       } else {
         setState(() {
           _error = true;
-          _attempts++;
           _pin = '';
         });
       }
@@ -296,3 +295,12 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+

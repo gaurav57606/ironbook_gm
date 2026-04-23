@@ -1,6 +1,5 @@
 import '../test_helper.dart';
 import 'package:ironbook_gm/features/home/presentation/screens/dashboard_screen.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
 
 class MockMemberNotifier extends Mock implements MemberNotifier {}
 
@@ -40,3 +39,5 @@ void main() {
     });
   });
 }
+
+

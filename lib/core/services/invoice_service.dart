@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
-import 'package:ironbook_gm/core/utils/clock.dart';
-import 'package:ironbook_gm/providers/base_providers.dart';
+import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/shared/utils/clock.dart';
 
 abstract class IInvoiceService {
   Future<String> next();
@@ -40,6 +40,17 @@ class InvoiceService implements IInvoiceService {
   Future<void> reset(int year) async {
     await _box.put('active_seq', InvoiceSequence(prefix: 'INV-$year-', nextNumber: 1));
   }
+
+  static Future<void> generateAndShare({
+    required dynamic member,
+    required dynamic plan,
+    required dynamic payment,
+    required dynamic owner,
+  }) async {
+    // Stub implementation to fix build. 
+    // Actual implementation would involve PDF generation and sharing.
+    debugPrint('InvoiceService: generateAndShare called for ${member.name}');
+  }
 }
 
 final invoiceServiceProvider = Provider<IInvoiceService>((ref) {
@@ -47,3 +58,14 @@ final invoiceServiceProvider = Provider<IInvoiceService>((ref) {
   final clock = ref.watch(clockProvider);
   return InvoiceService(box, clock);
 });
+
+
+
+
+
+
+
+
+
+
+

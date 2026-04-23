@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/auth_provider.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/app_text_field.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -39,10 +39,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (success) {
         context.go('/dashboard');
       } else {
+        final authState = ref.read(authProvider);
+        final isCritical = authState.authAttempts >= 3;
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login failed. Please check your credentials.'),
+          SnackBar(
+            content: Text(isCritical 
+              ? 'Multiple failed attempts. Try "Forgot Password" or check connection.' 
+              : 'Login failed. Please check your credentials.'),
             backgroundColor: AppColors.expired,
+            duration: Duration(seconds: isCritical ? 5 : 3),
+            action: isCritical ? SnackBarAction(
+              label: 'RECOVERY',
+              textColor: Colors.white,
+              onPressed: () => context.push('/recovery'),
+            ) : null,
           ),
         );
       }
@@ -186,3 +197,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+

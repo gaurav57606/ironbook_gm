@@ -1,18 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/core/utils/date_utils.dart';
-import 'package:ironbook_gm/providers/payment_provider.dart';
-import 'package:ironbook_gm/data/local/models/payment_model.dart';
-import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
-import 'package:ironbook_gm/data/local/models/plan_model.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
-import 'package:ironbook_gm/core/utils/clock.dart';
-import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart' hide InvoiceSequenceAdapter;
+import 'package:ironbook_gm/shared/utils/date_utils.dart';
+import 'package:ironbook_gm/core/providers/payment_provider.dart';
+import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
+import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/shared/utils/clock.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'dart:io';
 
 class MockEventRepository extends Mock implements IEventRepository {
@@ -124,3 +123,5 @@ void main() {
     });
   });
 }
+
+

@@ -5,9 +5,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
-import 'package:ironbook_gm/security/pin_service.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/constants/event_payload_keys.dart';
+import 'package:ironbook_gm/core/security/pin_service.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 
 class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
@@ -84,7 +84,7 @@ void main() {
 
   group('PinService Verification', () {
     test('savePin and verifyPin should work with salt', () async {
-      final pin = '1234';
+      const pin = '1234';
       Map<String, String> storageMap = {};
       
       when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value')))
@@ -113,3 +113,5 @@ void main() {
     });
   });
 }
+
+

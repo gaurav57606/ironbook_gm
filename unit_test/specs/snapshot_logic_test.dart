@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/data/local/snapshot_builder.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/snapshot_builder.dart';
 
 void main() {
   group('SnapshotBuilder & Business Logic', () {
@@ -107,3 +107,6 @@ void main() {
     });
   });
 }
+
+
+

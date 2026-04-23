@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
 
 class NutritionScreen extends StatelessWidget {
   const NutritionScreen({super.key});
@@ -181,3 +181,12 @@ class NutritionScreen extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

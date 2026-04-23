@@ -66,3 +66,12 @@ class AppTextStyles {
 
   static TextStyle get buttonSmall => _font(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
 }
+
+
+
+
+
+
+
+
+

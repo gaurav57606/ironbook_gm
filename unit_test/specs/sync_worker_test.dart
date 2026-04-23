@@ -1,17 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/data/local/drift/outbox_repository.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
-import 'package:ironbook_gm/data/sync_worker.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
 import '../../test/fakes/fake_event_repository.dart';
 import '../../test/fakes/fake_firestore.dart';
 
 class MockOutboxRepository extends Mock implements OutboxRepository {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockRef extends Mock implements Ref {}
-class MockStatusNotifier extends Mock implements StateController<SyncState> {}
+class MockStatusNotifier extends Mock implements StateController<SyncWorkerState> {}
 
 void main() {
   late FakeEventRepository mockRepo;
@@ -20,10 +20,10 @@ void main() {
   late MockSyncCoordinator mockCoordinator;
   late MockRef mockRef;
   late SyncWorker syncWorker;
-  final statusProvider = StateProvider<SyncState>((ref) => SyncState(status: SyncStatus.idle));
+  final statusProvider = StateProvider<SyncWorkerState>((ref) => SyncWorkerState(status: SyncWorkerStatus.idle));
 
   setUpAll(() {
-    registerFallbackValue(SyncState(status: SyncStatus.idle));
+    registerFallbackValue(SyncWorkerState(status: SyncWorkerStatus.idle));
   });
 
   setUp(() {
@@ -43,7 +43,7 @@ void main() {
     // Mock status provider interaction
     final mockStatusNotifier = MockStatusNotifier();
     when(() => mockRef.read(statusProvider.notifier)).thenReturn(mockStatusNotifier);
-    when(() => mockStatusNotifier.state = any()).thenReturn(SyncState(status: SyncStatus.idle));
+    when(() => mockStatusNotifier.state = any()).thenReturn(SyncWorkerState(status: SyncWorkerStatus.idle));
 
     syncWorker = SyncWorker(
       mockRepo, 
@@ -115,3 +115,6 @@ void main() {
     expect(mockFirestore.exists('users/user-1/events', 'e2'), isTrue);
   });
 }
+
+
+

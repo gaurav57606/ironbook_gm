@@ -25,3 +25,12 @@ class AppColors {
   // Border
   static const Color border = Color(0xFF2A2A30);
 }
+
+
+
+
+
+
+
+
+

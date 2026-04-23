@@ -3,63 +3,58 @@ import 'package:flutter/material.dart';
 import 'package:ironbook_gm/app.dart';
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/data/local/models/payment_model.dart';
-import 'package:ironbook_gm/data/local/models/plan_model.dart';
-import 'package:ironbook_gm/data/local/models/owner_profile_model.dart';
-import 'package:ironbook_gm/data/local/models/app_settings_model.dart';
-import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
-import 'package:ironbook_gm/data/local/models/product_model.dart';
-import 'package:ironbook_gm/data/local/models/sale_model.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
+import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
+import 'package:ironbook_gm/core/data/local/models/owner_profile_model.dart';
+import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
+import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/core/data/local/models/product_model.dart';
+import 'package:ironbook_gm/core/data/local/models/sale_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ironbook_gm/providers/base_providers.dart';
-import 'package:ironbook_gm/providers/auth_provider.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/providers/base_providers.dart';
+import 'package:ironbook_gm/core/providers/auth_provider.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/theme/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:ironbook_gm/providers/bootstrap_provider.dart';
-import 'package:ironbook_gm/security/pin_service.dart';
-import 'package:ironbook_gm/security/entitlement_guard.dart';
-import 'package:ironbook_gm/data/sync_worker.dart';
+import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
+import 'package:ironbook_gm/core/security/pin_service.dart';
+import 'package:ironbook_gm/core/security/entitlement_guard.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:go_router/go_router.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
-import 'package:ironbook_gm/core/utils/clock.dart';
+import 'package:ironbook_gm/shared/utils/clock.dart';
 
 // Re-exports for convenience in tests
 export 'package:flutter/material.dart';
 export 'package:flutter_test/flutter_test.dart';
 export 'package:mocktail/mocktail.dart';
 export 'package:flutter_riverpod/flutter_riverpod.dart';
-export 'package:ironbook_gm/providers/base_providers.dart';
-export 'package:ironbook_gm/providers/auth_provider.dart';
-export 'package:ironbook_gm/providers/bootstrap_provider.dart';
-export 'package:ironbook_gm/security/entitlement_guard.dart';
+export 'package:ironbook_gm/core/providers/base_providers.dart';
+export 'package:ironbook_gm/core/providers/auth_provider.dart';
+export 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
+export 'package:ironbook_gm/core/security/entitlement_guard.dart';
 export 'package:go_router/go_router.dart';
 export 'package:ironbook_gm/app.dart';
 export 'package:ironbook_gm/features/auth/presentation/screens/pin_entry_screen.dart';
 export 'package:ironbook_gm/core/services/hmac_service.dart';
-export 'package:ironbook_gm/core/utils/clock.dart';
-export 'package:ironbook_gm/providers/member_provider.dart';
-export 'package:ironbook_gm/providers/payment_provider.dart';
-export 'package:ironbook_gm/providers/plan_provider.dart';
+export 'package:ironbook_gm/shared/utils/clock.dart';
+export 'package:ironbook_gm/core/providers/member_provider.dart';
+export 'package:ironbook_gm/core/providers/payment_provider.dart';
+export 'package:ironbook_gm/core/providers/plan_provider.dart';
 export 'package:ironbook_gm/features/members/presentation/screens/members_list_screen.dart';
 export 'package:ironbook_gm/features/home/presentation/widgets/member_row.dart';
-export 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-export 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-export 'package:ironbook_gm/data/repositories/event_repository.dart';
+export 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+export 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+export 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 
 // Import and re-export mocks from integration_test/mocks
 import '../integration_test/mocks/mock_firebase.dart';
 import '../integration_test/mocks/mock_services.dart';
-import '../integration_test/mocks/mock_firestore.dart';
 import '../integration_test/mocks/mock_secure_storage.dart';
-import '../integration_test/mocks/mock_entitlement.dart';
 
 export '../integration_test/mocks/mock_firebase.dart';
 export '../integration_test/mocks/mock_services.dart';
@@ -117,15 +112,15 @@ class TestHelper {
 
   static String _getBoxNameForType<T>() {
     switch (T) {
-      case DomainEvent: return 'events';
-      case MemberSnapshot: return 'snapshots';
-      case Payment: return 'payments';
-      case Plan: return 'plans';
-      case OwnerProfile: return 'owner';
-      case AppSettings: return 'settings';
-      case InvoiceSequence: return 'invoice_sequences';
-      case Product: return 'products';
-      case Sale: return 'sales';
+      case const (DomainEvent): return 'events';
+      case const (MemberSnapshot): return 'snapshots';
+      case const (Payment): return 'payments';
+      case const (Plan): return 'plans';
+      case const (OwnerProfile): return 'owner';
+      case const (AppSettings): return 'settings';
+      case const (InvoiceSequence): return 'invoice_sequences';
+      case const (Product): return 'products';
+      case const (Sale): return 'sales';
       default: throw Exception('Unknown Box Type: $T');
     }
   }
@@ -164,7 +159,7 @@ class TestHelper {
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
     when(() => mockSync.startPeriodicSync(any())).thenReturn(null);
     when(() => mockStorage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
-    when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value'))).thenAnswer((_) async => null);
+    when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value'))).thenAnswer((_) async {});
 
     GoogleFonts.config.allowRuntimeFetching = false;
     tester.view.physicalSize = const Size(1200, 1200);
@@ -226,6 +221,8 @@ class FakeRepo implements IEventRepository {
   @override
   Future<void> markAsSynced(String eventId) async {}
   @override
+  Future<void> persistSynced(DomainEvent event) async {}
+  @override
   Stream<DomainEvent> watch() => const Stream.empty();
 }
 
@@ -241,7 +238,8 @@ class FakeAuth extends AuthNotifier {
     MockFirebaseAuth(),
     FakeRepo(),
     MockSyncWorker(),
-    ProviderContainer() as dynamic, // Ref mock is tricky, use container as proxy or just cast
+    FakeHmacService(),
+    ProviderContainer() as dynamic,
   ) {
     state = AuthState(
       isAuthenticated: isAuthenticated,
@@ -254,7 +252,6 @@ class FakeAuth extends AuthNotifier {
     );
   }
   
-  @override
   Future<void> _init() async {} // Prevent actual init
   
   @override
@@ -291,3 +288,5 @@ class FakeClock extends IClock {
     _now = dateTime;
   }
 }
+
+

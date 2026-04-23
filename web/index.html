@@ -31,6 +31,24 @@
 
   <title>ironbook_gm</title>
   <link rel="manifest" href="manifest.json">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <script>
+    // Configure sql.js to find its wasm file
+    var sqlJsConfig = {
+      locateFile: function(filename) {
+        return `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${filename}`;
+      }
+    };
+    // Ensure that if something calls initSqlJs() without arguments, it uses our config
+    (function() {
+      var oldInit = window.initSqlJs;
+      if (typeof oldInit === 'function') {
+        window.initSqlJs = function(conf) {
+          return oldInit(conf || sqlJsConfig);
+        };
+      }
+    })();
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

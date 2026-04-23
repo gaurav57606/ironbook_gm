@@ -7,9 +7,28 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1090040053163:android:1e1b0d62aac554b97966ee",
+        "mobilesdk_app_id": "1:1090040053163:android:9a68e7f451eef6f77966ee",
         "android_client_info": {
           "package_name": "com.ironbook.gym"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjK-WgcK87jL87o-0qiPi6vVA7_Xv5Ykk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1090040053163:android:1e1b0d62aac554b97966ee",
+        "android_client_info": {
+          "package_name": "com.ironbook.ironbook_gm"
         }
       },
       "oauth_client": [],

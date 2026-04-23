@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
 class SubscriptionScreen extends StatelessWidget {
@@ -188,3 +188,12 @@ class SubscriptionScreen extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

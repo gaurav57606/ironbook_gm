@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import '../../../../core/utils/date_utils.dart';
+import '../../../../shared/utils/date_utils.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/app_text_field.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../providers/member_provider.dart';
-import '../../../../providers/plan_provider.dart';
-import '../../../../providers/payment_provider.dart';
-import '../../../../data/local/models/plan_model.dart';
+import '../../../../core/providers/member_provider.dart';
+import '../../../../core/providers/plan_provider.dart';
+import '../../../../core/providers/payment_provider.dart';
+import '../../../../core/data/local/models/plan_model.dart';
 
 class QuickAddMemberScreen extends ConsumerStatefulWidget {
   const QuickAddMemberScreen({super.key});
@@ -278,7 +278,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                 ),
                 child: Text(
                   plan.name.toUpperCase(),
-                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: AppColors.primary),
+                  style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: AppColors.primary),
                 ),
               ),
             ],
@@ -308,7 +308,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textMuted),
+              const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.textMuted),
               const SizedBox(width: 6),
               Text('Valid until $expiryStr', style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.textMuted)),
             ],
@@ -322,17 +322,8 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return names[month - 1];
   }
-
-  Widget _buildSummaryRow(String label, String value, {bool isTotal = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: isTotal ? 11 : 9, color: isTotal ? AppColors.text : AppColors.textSecondary, fontWeight: isTotal ? FontWeight.w700 : null)),
-          Text(value, style: TextStyle(fontSize: isTotal ? 11 : 9, fontWeight: isTotal ? FontWeight.w700 : null, color: isTotal ? AppColors.primary : AppColors.textPrimary)),
-        ],
-      ),
-    );
-  }
 }
+
+
+
+

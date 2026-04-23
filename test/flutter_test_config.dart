@@ -10,3 +10,5 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // We can also add global setup here if needed
   await testMain();
 }
+
+

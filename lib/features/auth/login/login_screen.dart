@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../providers/auth_provider.dart';
+import 'package:ironbook_gm/core/providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -38,7 +38,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.fitness_center, size: 64, color: AppColors.primary),
+                Image.asset('assets/images/logo.png', width: 52, height: 52),
                 const SizedBox(height: 32),
                 Text('Welcome Back', style: AppTextStyles.heroNumber.copyWith(fontSize: 32)),
                 const SizedBox(height: 8),
@@ -90,8 +90,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           _emailController.text, 
                           _passwordController.text
                         );
-                        if (success && mounted) {
-                          context.go('/pin-entry');
+                        if (!mounted) return;
+                        if (success) {
+                          context.go('/unlock');
                         }
                       }
                     },
@@ -112,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       text: TextSpan(
                         text: 'Don\'t have an account? ',
                         style: AppTextStyles.bodySmall,
-                        children: [
+                        children: const [
                           TextSpan(
                             text: 'Sign Up',
                             style: TextStyle(
@@ -131,3 +132,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+

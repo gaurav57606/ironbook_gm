@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:io';
 
@@ -44,3 +44,5 @@ void main() {
     });
   });
 }
+
+

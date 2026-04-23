@@ -31,6 +31,11 @@ class MockRepo implements IEventRepository {
   Future<void> markAsSynced(String eventId) async {}
   
   @override
+  Future<void> persistSynced(DomainEvent event) async {
+    events.add(event);
+  }
+  
+  @override
   Stream<DomainEvent> watch() => const Stream.empty();
 }
 
@@ -73,3 +78,5 @@ void main() {
     });
   });
 }
+
+

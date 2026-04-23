@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/auth_provider.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/app_text_field.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/auth_provider.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -82,12 +82,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (success) {
-        context.go('/pin-setup');
+        context.go('/setup-pin');
       } else {
+        final authState = ref.read(authProvider);
+        final isCritical = authState.authAttempts >= 3;
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Signup failed. Email might already be in use.'),
+          SnackBar(
+            content: Text(isCritical 
+              ? 'Multiple failed attempts. Is the email correct? Try Recovery if you already have an account.' 
+              : 'Signup failed. Email might already be in use.'),
             backgroundColor: AppColors.expired,
+            duration: Duration(seconds: isCritical ? 5 : 3),
+            action: isCritical ? SnackBarAction(
+              label: 'RECOVERY',
+              textColor: Colors.white,
+              onPressed: () => context.push('/recovery'),
+            ) : null,
           ),
         );
       }
@@ -235,3 +246,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+

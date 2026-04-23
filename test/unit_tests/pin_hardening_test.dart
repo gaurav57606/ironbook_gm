@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ironbook_gm/security/pin_service.dart';
+import 'package:ironbook_gm/core/security/pin_service.dart';
 
 class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
@@ -22,7 +22,7 @@ void main() {
 
   group('PinService Hardening', () {
     test('savePin should use v2 prefix and high iterations', () async {
-      final pin = '1234';
+      const pin = '1234';
       Map<String, String> storageMap = {};
 
       when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value')))
@@ -47,8 +47,8 @@ void main() {
     });
 
     test('should support migration from v1 (legacy) to v2', () async {
-      final pin = 'legacy_pin';
-      final salt = 'legacy_salt';
+      const pin = 'legacy_pin';
+      const salt = 'legacy_salt';
 
       // Manually create a v1 hash (1000 iterations)
       var hash = sha256.convert(utf8.encode(pin + salt)).toString();
@@ -87,3 +87,5 @@ void main() {
     });
   });
 }
+
+

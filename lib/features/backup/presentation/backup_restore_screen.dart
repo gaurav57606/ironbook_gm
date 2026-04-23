@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../services/backup_coordinator.dart';
-import '../services/backup_encryption_service.dart';
-import '../../../providers/settings_provider.dart';
-import '../../../providers/sync_status_provider.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import 'package:ironbook_gm/features/backup/services/backup_coordinator.dart';
+import 'package:ironbook_gm/features/backup/services/backup_encryption_service.dart';
+import 'package:ironbook_gm/core/providers/settings_provider.dart';
+import 'package:ironbook_gm/core/providers/sync_status_provider.dart';
 import 'package:intl/intl.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
@@ -199,7 +199,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       child: Stack(
         children: [
           Container(
-            decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
+            decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
             child: Scaffold(
               backgroundColor: Colors.transparent,
               appBar: AppBar(
@@ -240,7 +240,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
           ),
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               child: const Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
               ),
@@ -254,9 +254,9 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.expiring.withOpacity(0.1),
+        color: AppColors.expiring.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.expiring.withOpacity(0.3)),
+        border: Border.all(color: AppColors.expiring.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +307,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: (isWarning ? AppColors.expired : AppColors.primary).withOpacity(0.1),
+                color: (isWarning ? AppColors.expired : AppColors.primary).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(icon, color: isWarning ? AppColors.expired : AppColors.primary, size: 28),
@@ -382,7 +382,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   Widget _buildSecurityNote() {
     return Column(
       children: [
-        Icon(Icons.shield_rounded, color: AppColors.textMuted.withOpacity(0.5), size: 48),
+        Icon(Icons.shield_rounded, color: AppColors.textMuted.withValues(alpha: 0.5), size: 48),
         const SizedBox(height: 16),
         Text(
           'AES-256-GCM Encryption',
@@ -398,3 +398,13 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+

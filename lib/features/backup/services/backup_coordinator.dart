@@ -9,24 +9,27 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
 import 'backup_encryption_service.dart';
-import '../../../data/local/drift/outbox_repository.dart';
-import '../../../providers/base_providers.dart';
-import '../../../providers/member_provider.dart';
-import '../../../providers/payment_provider.dart';
-import '../../../data/repositories/event_repository.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../data/sync_worker.dart';
+import 'package:ironbook_gm/core/providers/base_providers.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/core/providers/payment_provider.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/providers/auth_provider.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
+import 'package:ironbook_gm/core/providers/owner_provider.dart';
+import 'package:ironbook_gm/core/providers/plan_provider.dart';
+import 'package:ironbook_gm/core/providers/sale_provider.dart';
+import 'package:ironbook_gm/core/providers/settings_provider.dart';
 
 // Models
-import '../../../data/local/models/domain_event_model.dart';
-import '../../../data/local/models/member_snapshot_model.dart';
-import '../../../data/local/models/payment_model.dart';
-import '../../../data/local/models/plan_model.dart';
-import '../../../data/local/models/owner_profile_model.dart';
-import '../../../data/local/models/app_settings_model.dart';
-import '../../../data/local/models/invoice_sequence.dart';
-import '../../../data/local/models/product_model.dart';
-import '../../../data/local/models/sale_model.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
+import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
+import 'package:ironbook_gm/core/data/local/models/owner_profile_model.dart';
+import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
+import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/core/data/local/models/product_model.dart';
+import 'package:ironbook_gm/core/data/local/models/sale_model.dart';
 
 final backupCoordinatorProvider = Provider((ref) => BackupCoordinator(ref));
 
@@ -53,7 +56,7 @@ class BackupCoordinator {
     
     await file.writeAsBytes(encryptedBytes);
 
-    final success = await Share.shareXFiles(
+    await Share.shareXFiles(
       [XFile(file.path)], 
       subject: 'IronBook GM Encrypted Backup',
       text: 'IronBook GM backup file generated on ${DateFormat('MMM dd, yyyy').format(DateTime.now())}.',
@@ -85,18 +88,142 @@ class BackupCoordinator {
       throw Exception('Incompatible backup version: $version. Expected 1.1');
     }
 
-    // CRITICAL: Hard wipe
+    // 1. Shadow Import: Parse first to ensure 100% success
+    final data = backupData['data'] as Map<String, dynamic>;
+    final parsed = _parseBackupData(data);
+
+    // 2. ONLY IF SUCCESSFUL, proceed to wipe
     await _hardWipe();
 
-    // Seed
-    await _seedData(backupData['data'] as Map<String, dynamic>);
+    // 3. Insert pre-parsed data
+    await _applyParsedData(parsed);
 
-    // Global refresh
+    // 4. Comprehensive invalidation to prevent "Ghost State"
     _ref.invalidate(membersProvider);
     _ref.invalidate(eventRepositoryProvider);
     _ref.invalidate(authProvider);
     _ref.invalidate(paymentsProvider);
     _ref.invalidate(unsyncedCountProvider);
+    _ref.invalidate(ownerProvider);
+    _ref.invalidate(planProvider);
+    _ref.invalidate(productsProvider);
+    _ref.invalidate(saleProvider);
+    _ref.invalidate(settingsProvider);
+    // Note: Add any other core providers here if needed
+  }
+
+  _ParsedBackupData _parseBackupData(Map<String, dynamic> data) {
+    final parsed = _ParsedBackupData();
+
+    if (data.containsKey('settings')) {
+      final list = data['settings'] as List;
+      if (list.isNotEmpty) {
+        parsed.settings = AppSettings.fromFirestore(list.first as Map<String, dynamic>);
+      }
+    }
+
+    if (data.containsKey('owner')) {
+      final list = data['owner'] as List;
+      if (list.isNotEmpty) {
+        parsed.owner = OwnerProfile.fromFirestore(list.first as Map<String, dynamic>);
+      }
+    }
+
+    if (data.containsKey('plans')) {
+      for (final item in data['plans'] as List) {
+        parsed.plans.add(Plan.fromFirestore(item as Map<String, dynamic>));
+      }
+    }
+
+    if (data.containsKey('events')) {
+      for (final item in data['events'] as List) {
+        parsed.events.add(DomainEvent.fromFirestore(item as Map<String, dynamic>));
+      }
+    }
+
+    if (data.containsKey('snapshots')) {
+      for (final item in data['snapshots'] as List) {
+        parsed.snapshots.add(MemberSnapshot.fromPayload(item['memberId'], item as Map<String, dynamic>));
+      }
+    }
+
+    if (data.containsKey('payments')) {
+      for (final item in data['payments'] as List) {
+        parsed.payments.add(Payment.fromFirestore(item as Map<String, dynamic>));
+      }
+    }
+
+    if (data.containsKey('invoice_sequences')) {
+      for (final item in data['invoice_sequences'] as List) {
+        parsed.sequences.add(InvoiceSequence.fromFirestore(item as Map<String, dynamic>));
+      }
+    }
+
+    if (data.containsKey('products')) {
+      for (final item in data['products'] as List) {
+        parsed.products.add(Product.fromFirestore(item as Map<String, dynamic>));
+      }
+    }
+
+    if (data.containsKey('sales')) {
+      for (final item in data['sales'] as List) {
+        parsed.sales.add(Sale.fromFirestore(item as Map<String, dynamic>));
+      }
+    }
+
+    return parsed;
+  }
+
+  Future<void> _applyParsedData(_ParsedBackupData parsed) async {
+    if (parsed.settings != null) {
+      await Hive.box<AppSettings>('settings').put('settings', parsed.settings!);
+    }
+
+    if (parsed.owner != null) {
+      await Hive.box<OwnerProfile>('owner').put('owner', parsed.owner!);
+    }
+
+    final plansBox = Hive.box<Plan>('plans');
+    for (final plan in parsed.plans) {
+      await plansBox.put(plan.id, plan);
+    }
+
+    if (parsed.events.isNotEmpty) {
+      final eventsBox = await Hive.openLazyBox<DomainEvent>('events');
+      for (final event in parsed.events) {
+        await eventsBox.put(event.id, event);
+      }
+      
+      final outboxRepo = _ref.read(outboxRepositoryProvider);
+      await outboxRepo.seedFromHive(parsed.events);
+    }
+
+    if (parsed.snapshots.isNotEmpty) {
+      final snapshotBox = await Hive.openLazyBox<MemberSnapshot>('snapshots');
+      for (final snap in parsed.snapshots) {
+        await snapshotBox.put(snap.memberId, snap);
+      }
+    }
+
+    final paymentsBox = Hive.box<Payment>('payments');
+    for (final payment in parsed.payments) {
+      await paymentsBox.put(payment.id, payment);
+    }
+
+    final sequenceBox = Hive.box<InvoiceSequence>('invoice_sequences');
+    for (final seq in parsed.sequences) {
+      await sequenceBox.add(seq);
+    }
+
+    final productBox = Hive.box<Product>('products');
+    for (final prod in parsed.products) {
+      await productBox.put(prod.id, prod);
+    }
+
+    final saleBox = Hive.box<Sale>('sales');
+    for (final sale in parsed.sales) {
+      await saleBox.put(sale.id, sale);
+    }
   }
 
   Future<Map<String, dynamic>> _gatherAllData() async {
@@ -168,90 +295,27 @@ class BackupCoordinator {
     final outboxRepo = _ref.read(outboxRepositoryProvider);
     await outboxRepo.clearAll();
   }
-
-  Future<void> _seedData(Map<String, dynamic> data) async {
-    if (data.containsKey('settings')) {
-      final box = Hive.box<AppSettings>('settings');
-      final list = data['settings'] as List;
-      if (list.isNotEmpty) {
-        await box.put('settings', AppSettings.fromFirestore(list.first as Map<String, dynamic>));
-      }
-    }
-
-    if (data.containsKey('owner')) {
-      final box = Hive.box<OwnerProfile>('owner');
-      final list = data['owner'] as List;
-      if (list.isNotEmpty) {
-        await box.put('owner', OwnerProfile.fromFirestore(list.first as Map<String, dynamic>));
-      }
-    }
-
-    if (data.containsKey('plans')) {
-      final box = Hive.box<Plan>('plans');
-      final list = data['plans'] as List;
-      for (final item in list) {
-        final plan = Plan.fromFirestore(item as Map<String, dynamic>);
-        await box.put(plan.id, plan);
-      }
-    }
-
-    if (data.containsKey('events')) {
-      final box = await Hive.openLazyBox<DomainEvent>('events');
-      final list = data['events'] as List;
-      final List<DomainEvent> eventList = [];
-      for (final item in list) {
-        final event = DomainEvent.fromFirestore(item as Map<String, dynamic>);
-        await box.put(event.id, event);
-        eventList.add(event);
-      }
-      
-      final outboxRepo = _ref.read(outboxRepositoryProvider);
-      await outboxRepo.seedFromHive(eventList);
-    }
-
-    if (data.containsKey('snapshots')) {
-      final box = await Hive.openLazyBox<MemberSnapshot>('snapshots');
-      final list = data['snapshots'] as List;
-      for (final item in list) {
-        final snap = MemberSnapshot.fromPayload(item['memberId'], item as Map<String, dynamic>);
-        await box.put(snap.memberId, snap);
-      }
-    }
-
-    if (data.containsKey('payments')) {
-      final box = Hive.box<Payment>('payments');
-      final list = data['payments'] as List;
-      for (final item in list) {
-        final payment = Payment.fromFirestore(item as Map<String, dynamic>);
-        await box.put(payment.id, payment);
-      }
-    }
-
-    if (data.containsKey('invoice_sequences')) {
-      final box = Hive.box<InvoiceSequence>('invoice_sequences');
-      final list = data['invoice_sequences'] as List;
-      for (final item in list) {
-        final seq = InvoiceSequence.fromFirestore(item as Map<String, dynamic>);
-        await box.add(seq);
-      }
-    }
-
-    if (data.containsKey('products')) {
-      final box = Hive.box<Product>('products');
-      final list = data['products'] as List;
-      for (final item in list) {
-        final prod = Product.fromFirestore(item as Map<String, dynamic>);
-        await box.put(prod.id, prod);
-      }
-    }
-
-    if (data.containsKey('sales')) {
-      final box = Hive.box<Sale>('sales');
-      final list = data['sales'] as List;
-      for (final item in list) {
-        final sale = Sale.fromFirestore(item as Map<String, dynamic>);
-        await box.put(sale.id, sale);
-      }
-    }
-  }
 }
+
+class _ParsedBackupData {
+  AppSettings? settings;
+  OwnerProfile? owner;
+  final List<Plan> plans = [];
+  final List<DomainEvent> events = [];
+  final List<MemberSnapshot> snapshots = [];
+  final List<Payment> payments = [];
+  final List<InvoiceSequence> sequences = [];
+  final List<Product> products = [];
+  final List<Sale> sales = [];
+}
+
+
+
+
+
+
+
+
+
+
+
