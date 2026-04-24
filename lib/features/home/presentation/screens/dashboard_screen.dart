@@ -35,8 +35,15 @@ class DashboardScreen extends ConsumerWidget {
     int expiredCount = 0;
     final expiredMemberNames = <String>[];
     final expiringMemberNames = <String>[];
+    final dueMembers = <MemberSnapshot>[];
+    int totalRevenue = 0;
 
     for (final m in members) {
+      totalRevenue += m.totalPaid;
+
+      final days = m.getDaysRemaining(now);
+      if (days >= 0 && days <= 3) dueMembers.add(m);
+
       final status = m.getStatus(now);
       switch (status) {
         case MemberStatus.active:
@@ -103,10 +110,10 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                           ),
                         _buildSectionHeader(context, 'DUE TODAY', 'Show all'),
-                        _buildDueList(members, now),
+                        _buildDueList(dueMembers, now),
                         const SizedBox(height: 32),
                         _buildSectionHeader(context, 'REVENUE THIS MONTH', null),
-                        _buildRevenueCard(members),
+                        _buildRevenueCard(totalRevenue),
                         const SizedBox(height: 100), // Space for bottom nav or FAB
                       ],
                     ),
@@ -295,12 +302,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDueList(List<MemberSnapshot> members, DateTime now) {
-    final due = members.where((m) {
-      final days = m.getDaysRemaining(now);
-      return days >= 0 && days <= 3;
-    }).toList();
-
+  Widget _buildDueList(List<MemberSnapshot> due, DateTime now) {
     if (due.isEmpty) {
       return Container(
         height: 80,
@@ -340,9 +342,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRevenueCard(List<MemberSnapshot> members) {
-    final totalRevenue = members.fold<int>(0, (sum, m) => sum + m.totalPaid);
-    
+  Widget _buildRevenueCard(int totalRevenue) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

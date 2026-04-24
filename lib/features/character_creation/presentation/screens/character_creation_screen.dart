@@ -22,7 +22,13 @@ class CharacterCreationScreen extends ConsumerWidget {
 
     // Dynamic Metric Calculation
     final totalMembers = members.length;
-    final activeMembers = members.where((m) => m.status == MemberStatus.active).length;
+    final now = DateTime.now();
+    int activeMembers = 0;
+    for (final m in members) {
+      if (m.getStatus(now) == MemberStatus.active) {
+        activeMembers++;
+      }
+    }
     final endurance = totalMembers > 0 ? (activeMembers / totalMembers) : 0.5;
 
     final totalRevenue = payments.fold(0.0, (sum, p) => sum + p.amount);
