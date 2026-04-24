@@ -4,3 +4,6 @@
 ## 2024-05-23 - [Single Pass List Iteration for Multi-Stats]
 **Learning:** Chaining multiple `.where().length` or `.take()` calls on a list inside build methods (like computing active, expiring, expired member counts) repeats list iteration and re-evaluates expensive item methods like `DateTime.now().difference()`.
 **Action:** When computing multiple derivations from a single list in Flutter UI classes, always use a single manual `for` loop with a `switch` or `if/else` block. Cache expensive arguments like `DateTime.now()` outside the loop. This reduces computation from O(k*N) to O(N) and limits expensive method evaluations.
+## 2026-04-24 - [Hidden Costs of Dart Getters in Iteration]
+**Learning:** The `status` property on `MemberSnapshot` is a dynamic getter that evaluates `DateTime.now()` and recalculates date differences each time it is accessed. Using this getter inside list operations like `.where((m) => m.status == ...)` causes hidden redundant evaluations, severely degrading performance for large lists.
+**Action:** When filtering or folding lists based on time-dependent properties in Dart, always examine if the property is a dynamic getter. If so, cache `DateTime.now()` outside the loop and call the underlying calculation method explicitly (e.g., `m.getStatus(now)`) inside the loop.
