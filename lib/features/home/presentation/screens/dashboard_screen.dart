@@ -33,11 +33,30 @@ class DashboardScreen extends ConsumerWidget {
     int activeCount = 0;
     int expiringCount = 0;
     int expiredCount = 0;
+    int totalRevenue = 0;
     final expiredMemberNames = <String>[];
     final expiringMemberNames = <String>[];
+    final dueMembers = <MemberSnapshot>[];
 
     for (final m in members) {
-      final status = m.getStatus(now);
+      totalRevenue += m.totalPaid;
+
+      final days = m.getDaysRemaining(now);
+      if (days >= 0 && days <= 3) {
+        dueMembers.add(m);
+      }
+
+      MemberStatus status;
+      if (m.expiryDate == null) {
+        status = MemberStatus.pending;
+      } else if (days < 0) {
+        status = MemberStatus.expired;
+      } else if (days <= 7) {
+        status = MemberStatus.expiring;
+      } else {
+        status = MemberStatus.active;
+      }
+
       switch (status) {
         case MemberStatus.active:
           activeCount++;
@@ -103,10 +122,10 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                           ),
                         _buildSectionHeader(context, 'DUE TODAY', 'Show all'),
-                        _buildDueList(members, now),
+                        _buildDueList(dueMembers, now),
                         const SizedBox(height: 32),
                         _buildSectionHeader(context, 'REVENUE THIS MONTH', null),
-                        _buildRevenueCard(members),
+                        _buildRevenueCard(totalRevenue),
                         const SizedBox(height: 100), // Space for bottom nav or FAB
                       ],
                     ),
@@ -295,12 +314,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDueList(List<MemberSnapshot> members, DateTime now) {
-    final due = members.where((m) {
-      final days = m.getDaysRemaining(now);
-      return days >= 0 && days <= 3;
-    }).toList();
-
+  Widget _buildDueList(List<MemberSnapshot> due, DateTime now) {
     if (due.isEmpty) {
       return Container(
         height: 80,
@@ -340,9 +354,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRevenueCard(List<MemberSnapshot> members) {
-    final totalRevenue = members.fold<int>(0, (sum, m) => sum + m.totalPaid);
-    
+  Widget _buildRevenueCard(int totalRevenue) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

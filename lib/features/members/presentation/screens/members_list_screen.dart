@@ -289,10 +289,11 @@ class MembersListScreen extends ConsumerWidget {
       );
     }
 
+    final now = ref.watch(clockProvider).now;
+
     return Column(
       children: List.generate(members.length, (index) {
         final m = members[index];
-        final now = ref.watch(clockProvider).now;
         final statusMsg = _getStatusMessage(m, now);
         final statusColor = _getStatusColor(m, now);
         
