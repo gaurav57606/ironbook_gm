@@ -4,3 +4,10 @@
 ## 2024-05-23 - [Single Pass List Iteration for Multi-Stats]
 **Learning:** Chaining multiple `.where().length` or `.take()` calls on a list inside build methods (like computing active, expiring, expired member counts) repeats list iteration and re-evaluates expensive item methods like `DateTime.now().difference()`.
 **Action:** When computing multiple derivations from a single list in Flutter UI classes, always use a single manual `for` loop with a `switch` or `if/else` block. Cache expensive arguments like `DateTime.now()` outside the loop. This reduces computation from O(k*N) to O(N) and limits expensive method evaluations.
+## 2024-05-24 - File Read Truncation in Environment
+**Learning:** Tools like `cat` or `read_file` may silently truncate large files in this environment, leading to partial context and hallucinated refactoring plans.
+**Action:** When working with large files, always verify the end of the file output. If truncated, use `sed -n 'X,Yp' <filepath>` to read the code in chunks before planning modifications.
+
+## 2024-05-24 - Strict Enforcement of Dependency File Boundaries
+**Learning:** Running commands like `flutter pub get` or test execution in this environment can unexpectedly update `pubspec.lock` (e.g., bumping SDK versions), which triggers a blocking review failure. The instruction "Never modify package.json" strictly applies to its Dart equivalent, `pubspec.lock`.
+**Action:** Always run `git status` after local commands and use `git restore pubspec.lock` (or `--staged`) to explicitly discard any unintended dependency or SDK version bumps before submitting a PR.
