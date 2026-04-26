@@ -52,8 +52,13 @@ class HiveEventRepository implements IEventRepository {
   Future<void> _loadIndex() async {
     _unsyncedIds.clear();
     _entityIndex.clear();
-    for (final key in _box.keys) {
-      final event = await _box.get(key);
+    // ⚡ Bolt Performance Optimization:
+    // Replaced sequential await inside for-loop with Future.wait.
+    // Parallelizing Hive lookups significantly speeds up index loading.
+    final events = await Future.wait(
+      _box.keys.map((key) => _box.get(key))
+    );
+    for (final event in events) {
       if (event != null) {
         if (!event.synced) {
           _unsyncedIds.add(event.id);
@@ -107,33 +112,36 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getAll() async {
-    final List<DomainEvent> events = [];
-    for (final key in _box.keys) {
+    // ⚡ Bolt Performance Optimization:
+    // Replaced sequential await with Future.wait. Parallelizing
+    // database I/O and HMAC verification CPU work.
+    final results = await Future.wait(_box.keys.map((key) async {
       final e = await _box.get(key);
       if (e != null) {
         if (await _hmacService.verifyInstance(e)) {
-          events.add(e);
+          return e;
         } else {
           debugPrint('HiveEventRepository: TAMPER DETECTED for event ${e.id}. Skipping.');
         }
       }
-    }
-    return events;
+      return null;
+    }));
+    return results.whereType<DomainEvent>().toList();
   }
 
   @override
   Future<List<DomainEvent>> getAllUnsynced() async {
     await ensureIndexLoaded();
-    final List<DomainEvent> unsynced = [];
-    for (final id in _unsyncedIds) {
+    // ⚡ Bolt Performance Optimization:
+    // Use Future.wait to execute I/O and crypto verifications concurrently.
+    final results = await Future.wait(_unsyncedIds.map((id) async {
       final event = await _box.get(id);
-      if (event != null) {
-        if (await _hmacService.verifyInstance(event)) {
-          unsynced.add(event);
-        }
+      if (event != null && await _hmacService.verifyInstance(event)) {
+        return event;
       }
-    }
-    return unsynced;
+      return null;
+    }));
+    return results.whereType<DomainEvent>().toList();
   }
 
   @override
@@ -149,16 +157,17 @@ class HiveEventRepository implements IEventRepository {
   Future<List<DomainEvent>> getByEntityId(String entityId) async {
     await ensureIndexLoaded();
     final eventIds = _entityIndex[entityId] ?? [];
-    final List<DomainEvent> results = [];
-    for (final id in eventIds) {
+    // ⚡ Bolt Performance Optimization:
+    // Parallelize event retrieval and signature validation with Future.wait
+    // to prevent N+1 query patterns.
+    final results = await Future.wait(eventIds.map((id) async {
       final e = await _box.get(id);
-      if (e != null) {
-        if (await _hmacService.verifyInstance(e)) {
-          results.add(e);
-        }
+      if (e != null && await _hmacService.verifyInstance(e)) {
+        return e;
       }
-    }
-    return results;
+      return null;
+    }));
+    return results.whereType<DomainEvent>().toList();
   }
 
   @override
