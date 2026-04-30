@@ -4,6 +4,3 @@
 ## 2024-05-23 - [Single Pass List Iteration for Multi-Stats]
 **Learning:** Chaining multiple `.where().length` or `.take()` calls on a list inside build methods (like computing active, expiring, expired member counts) repeats list iteration and re-evaluates expensive item methods like `DateTime.now().difference()`.
 **Action:** When computing multiple derivations from a single list in Flutter UI classes, always use a single manual `for` loop with a `switch` or `if/else` block. Cache expensive arguments like `DateTime.now()` outside the loop. This reduces computation from O(k*N) to O(N) and limits expensive method evaluations.
-## 2024-05-24 - [Parallelizing Hive LazyBox Reads]
-**Learning:** Naively parallelizing `LazyBox.get(key)` over *all* keys simultaneously (e.g., `Future.wait(box.keys.map((k) => box.get(k)))`) defeats the purpose of `LazyBox`. It forces every single object in the database into memory concurrently, resulting in massive memory bloat and OOM crashes for large datasets.
-**Action:** Always process parallel reads from a `LazyBox` in small, controlled batches (e.g., using `keys.skip(i).take(batchSize)`) combined with `Future.wait()`. This balances the speed benefit of parallelizing the async operations (I/O & CPU cryptography) while capping peak memory consumption.
