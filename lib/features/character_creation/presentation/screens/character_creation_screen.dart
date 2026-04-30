@@ -20,16 +20,31 @@ class CharacterCreationScreen extends ConsumerWidget {
     final payments = ref.watch(paymentsProvider);
     final syncStatus = ref.watch(syncStatusProvider);
 
+    // ⚡ Bolt: Cache DateTime.now() outside the loop and use getStatus()
+    // to avoid O(N) DateTime object allocations during screen builds.
+    final now = DateTime.now();
+    int activeMembers = 0;
+    for (final m in members) {
+      if (m.getStatus(now) == MemberStatus.active) {
+        activeMembers++;
+      }
+    }
+
     // Dynamic Metric Calculation
     final totalMembers = members.length;
-    final activeMembers = members.where((m) => m.status == MemberStatus.active).length;
     final endurance = totalMembers > 0 ? (activeMembers / totalMembers) : 0.5;
 
     final totalRevenue = payments.fold(0.0, (sum, p) => sum + p.amount);
-    final strength = (totalRevenue / 50000).clamp(0.1, 1.0); // 50k as baseline for 100% strength
+    final strength = (totalRevenue / 50000).clamp(
+      0.1,
+      1.0,
+    ); // 50k as baseline for 100% strength
 
     final unsynced = syncStatus.unsyncedCount;
-    final dexterity = (1.0 - (unsynced / 50)).clamp(0.1, 1.0); // 50 items as baseline for 0% dexterity
+    final dexterity = (1.0 - (unsynced / 50)).clamp(
+      0.1,
+      1.0,
+    ); // 50 items as baseline for 0% dexterity
 
     return StatusBarWrapper(
       child: Scaffold(
@@ -51,7 +66,10 @@ class CharacterCreationScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -66,7 +84,11 @@ class CharacterCreationScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: const Icon(Icons.shield_rounded, color: AppColors.primary, size: 20),
+                        child: const Icon(
+                          Icons.shield_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
                       ),
                     ],
                   ),
@@ -87,7 +109,9 @@ class CharacterCreationScreen extends ConsumerWidget {
                       _buildCharacterSlot(
                         context,
                         'Agility Master',
-                        owner?.level != null && owner!.level >= 5 ? 'Unlocked' : 'Unlocks at Level 5',
+                        owner?.level != null && owner!.level >= 5
+                            ? 'Unlocked'
+                            : 'Unlocks at Level 5',
                         Icons.bolt_rounded,
                         owner?.selectedCharacterId == 'agility',
                         locked: (owner?.level ?? 1) < 5,
@@ -96,35 +120,61 @@ class CharacterCreationScreen extends ConsumerWidget {
                       const SizedBox(height: 32),
                       Row(
                         children: [
-                          const Icon(Icons.analytics_rounded, color: AppColors.textMuted, size: 16),
+                          const Icon(
+                            Icons.analytics_rounded,
+                            color: AppColors.textMuted,
+                            size: 16,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'ENTERPRISE VITALITY',
-                            style: AppTextStyles.sectionTitle.copyWith(letterSpacing: 2.0),
+                            style: AppTextStyles.sectionTitle.copyWith(
+                              letterSpacing: 2.0,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 24),
-                      _buildMetricRow('STRENGTH (REVENUE)', strength, AppColors.primary),
-                      _buildMetricRow('ENDURANCE (RETENTION)', endurance, Colors.blue),
-                      _buildMetricRow('DEXTERITY (INTEGRITY)', dexterity, Colors.green),
-                      
+                      _buildMetricRow(
+                        'STRENGTH (REVENUE)',
+                        strength,
+                        AppColors.primary,
+                      ),
+                      _buildMetricRow(
+                        'ENDURANCE (RETENTION)',
+                        endurance,
+                        Colors.blue,
+                      ),
+                      _buildMetricRow(
+                        'DEXTERITY (INTEGRITY)',
+                        dexterity,
+                        Colors.green,
+                      ),
+
                       const SizedBox(height: 40),
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                          ),
                         ),
                         child: Column(
                           children: [
-                            const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 24),
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              color: AppColors.primary,
+                              size: 24,
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               'Stats are calculated from real business metrics. Improve your sync health and revenue to increase your levels.',
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textMuted,
+                              ),
                             ),
                           ],
                         ),
@@ -143,32 +193,42 @@ class CharacterCreationScreen extends ConsumerWidget {
   void _updateCharacter(WidgetRef ref, String id) {
     final current = ref.read(ownerProvider);
     if (current == null) return;
-    
+
     // In a real app, we'd check level requirements here too
     if (id == 'agility' && current.level < 5) return;
 
-    ref.read(ownerProvider.notifier).updateOwner(
-      OwnerProfile(
-        gymName: current.gymName,
-        ownerName: current.ownerName,
-        phone: current.phone,
-        address: current.address,
-        gstin: current.gstin,
-        bankName: current.bankName,
-        accountNumber: current.accountNumber,
-        ifsc: current.ifsc,
-        upiId: current.upiId,
-        level: current.level,
-        exp: current.exp,
-        strength: current.strength,
-        endurance: current.endurance,
-        dexterity: current.dexterity,
-        selectedCharacterId: id,
-      ),
-    );
+    ref
+        .read(ownerProvider.notifier)
+        .updateOwner(
+          OwnerProfile(
+            gymName: current.gymName,
+            ownerName: current.ownerName,
+            phone: current.phone,
+            address: current.address,
+            gstin: current.gstin,
+            bankName: current.bankName,
+            accountNumber: current.accountNumber,
+            ifsc: current.ifsc,
+            upiId: current.upiId,
+            level: current.level,
+            exp: current.exp,
+            strength: current.strength,
+            endurance: current.endurance,
+            dexterity: current.dexterity,
+            selectedCharacterId: id,
+          ),
+        );
   }
 
-  Widget _buildCharacterSlot(BuildContext context, String title, String subtitle, IconData icon, bool active, {bool locked = false, VoidCallback? onTap}) {
+  Widget _buildCharacterSlot(
+    BuildContext context,
+    String title,
+    String subtitle,
+    IconData icon,
+    bool active, {
+    bool locked = false,
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -176,17 +236,27 @@ class CharacterCreationScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           color: AppColors.bg2,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: active ? AppColors.primary.withValues(alpha: 0.5) : AppColors.border),
+          border: Border.all(
+            color: active
+                ? AppColors.primary.withValues(alpha: 0.5)
+                : AppColors.border,
+          ),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: active ? AppColors.primary.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.05),
+                color: active
+                    ? AppColors.primary.withValues(alpha: 0.1)
+                    : Colors.white.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: active ? AppColors.primary : AppColors.textMuted, size: 24),
+              child: Icon(
+                icon,
+                color: active ? AppColors.primary : AppColors.textMuted,
+                size: 24,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -210,9 +280,17 @@ class CharacterCreationScreen extends ConsumerWidget {
               ),
             ),
             if (locked)
-              const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted, size: 20)
+              const Icon(
+                Icons.lock_outline_rounded,
+                color: AppColors.textMuted,
+                size: 20,
+              )
             else if (active)
-              const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
           ],
         ),
       ),
@@ -229,12 +307,19 @@ class CharacterCreationScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                label, 
-                style: AppTextStyles.sectionTitle.copyWith(fontSize: 10, color: Colors.white)
+                label,
+                style: AppTextStyles.sectionTitle.copyWith(
+                  fontSize: 10,
+                  color: Colors.white,
+                ),
               ),
               Text(
-                '${(value * 100).toInt()}%', 
-                style: AppTextStyles.sectionTitle.copyWith(fontSize: 10, color: color, fontWeight: FontWeight.bold)
+                '${(value * 100).toInt()}%',
+                style: AppTextStyles.sectionTitle.copyWith(
+                  fontSize: 10,
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -273,12 +358,3 @@ class CharacterCreationScreen extends ConsumerWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
