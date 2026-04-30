@@ -52,15 +52,24 @@ class HiveEventRepository implements IEventRepository {
   Future<void> _loadIndex() async {
     _unsyncedIds.clear();
     _entityIndex.clear();
-    for (final key in _box.keys) {
-      final event = await _box.get(key);
-      if (event != null) {
-        if (!event.synced) {
-          _unsyncedIds.add(event.id);
+
+    // Bolt Optimization: Batch async fetching to parallelize I/O without OOM risk
+    final keys = _box.keys.toList();
+    const batchSize = 50;
+
+    for (var i = 0; i < keys.length; i += batchSize) {
+      final batchKeys = keys.skip(i).take(batchSize);
+      final events = await Future.wait(batchKeys.map((k) => _box.get(k)));
+      for (final event in events) {
+        if (event != null) {
+          if (!event.synced) {
+            _unsyncedIds.add(event.id);
+          }
+          _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
         }
-        _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
       }
     }
+
     _isIndexLoaded = true;
     _loadingIndex = null;
   }
@@ -108,15 +117,25 @@ class HiveEventRepository implements IEventRepository {
   @override
   Future<List<DomainEvent>> getAll() async {
     final List<DomainEvent> events = [];
-    for (final key in _box.keys) {
-      final e = await _box.get(key);
-      if (e != null) {
-        if (await _hmacService.verifyInstance(e)) {
-          events.add(e);
-        } else {
-          debugPrint('HiveEventRepository: TAMPER DETECTED for event ${e.id}. Skipping.');
+    final keys = _box.keys.toList();
+    const batchSize = 50;
+
+    // Bolt Optimization: Batch I/O and CPU verification to prevent OOM while maintaining speed
+    for (var i = 0; i < keys.length; i += batchSize) {
+      final batchKeys = keys.skip(i).take(batchSize);
+      final futures = batchKeys.map((key) async {
+        final e = await _box.get(key);
+        if (e != null) {
+          if (await _hmacService.verifyInstance(e)) {
+            return e;
+          } else {
+            debugPrint('HiveEventRepository: TAMPER DETECTED for event ${e.id}. Skipping.');
+          }
         }
-      }
+        return null;
+      });
+      final results = await Future.wait(futures);
+      events.addAll(results.whereType<DomainEvent>());
     }
     return events;
   }
@@ -125,13 +144,21 @@ class HiveEventRepository implements IEventRepository {
   Future<List<DomainEvent>> getAllUnsynced() async {
     await ensureIndexLoaded();
     final List<DomainEvent> unsynced = [];
-    for (final id in _unsyncedIds) {
-      final event = await _box.get(id);
-      if (event != null) {
-        if (await _hmacService.verifyInstance(event)) {
-          unsynced.add(event);
+    final ids = _unsyncedIds.toList();
+    const batchSize = 50;
+
+    // Bolt Optimization: Batch I/O and CPU verification
+    for (var i = 0; i < ids.length; i += batchSize) {
+      final batchIds = ids.skip(i).take(batchSize);
+      final futures = batchIds.map((id) async {
+        final event = await _box.get(id);
+        if (event != null && await _hmacService.verifyInstance(event)) {
+          return event;
         }
-      }
+        return null;
+      });
+      final results = await Future.wait(futures);
+      unsynced.addAll(results.whereType<DomainEvent>());
     }
     return unsynced;
   }
@@ -150,13 +177,20 @@ class HiveEventRepository implements IEventRepository {
     await ensureIndexLoaded();
     final eventIds = _entityIndex[entityId] ?? [];
     final List<DomainEvent> results = [];
-    for (final id in eventIds) {
-      final e = await _box.get(id);
-      if (e != null) {
-        if (await _hmacService.verifyInstance(e)) {
-          results.add(e);
+    const batchSize = 50;
+
+    // Bolt Optimization: Batch I/O and CPU verification
+    for (var i = 0; i < eventIds.length; i += batchSize) {
+      final batchIds = eventIds.skip(i).take(batchSize);
+      final futures = batchIds.map((id) async {
+        final e = await _box.get(id);
+        if (e != null && await _hmacService.verifyInstance(e)) {
+          return e;
         }
-      }
+        return null;
+      });
+      final batchResults = await Future.wait(futures);
+      results.addAll(batchResults.whereType<DomainEvent>());
     }
     return results;
   }
