@@ -9,7 +9,7 @@ import '../../../../core/providers/member_provider.dart';
 import '../../../../core/providers/payment_provider.dart';
 import '../../../../core/providers/sync_status_provider.dart';
 import '../../../../core/data/local/models/member_snapshot_model.dart';
-import '../../../../../shared/utils/clock.dart';
+import '../../../../shared/utils/clock.dart';
 
 class CharacterCreationScreen extends ConsumerWidget {
   const CharacterCreationScreen({super.key});
