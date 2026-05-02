@@ -60,13 +60,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   Future<void> init() async {
     _deviceId = await _hmac.getInstallationId();
     if (!Hive.isBoxOpen('snapshots')) return;
-    final box = Hive.lazyBox<MemberSnapshot>('snapshots');
-    state = await _loadAllSnapshots(box);
 
-    // 1. Recovery & Integrity: Reconcile lagging snapshots with event log
-    await _reconcileSnapshots();
-    
-    // 2. Real-time updates via Event Bus
+    // 1. Real-time updates via Event Bus (Register before loading to avoid app-kill gaps)
     _repo.watch().listen((event) async {
       final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
       final current = await snapshotBox.get(event.entityId);
@@ -88,34 +83,48 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         state = await _loadAllSnapshots(snapshotBox);
       }
     });
+
+    final box = Hive.lazyBox<MemberSnapshot>('snapshots');
+    state = await _loadAllSnapshots(box);
+
+    // 2. Recovery & Integrity: Reconcile lagging snapshots with event log
+    await _reconcileSnapshots();
   }
 
   Future<List<MemberSnapshot>> _loadAllSnapshots(LazyBox<MemberSnapshot> box) async {
     final keys = box.keys.toList();
     final List<MemberSnapshot> validSnapshots = [];
+    const batchSize = 50;
     
-    for (final key in keys) {
-      final snap = await box.get(key);
-      if (snap == null) continue;
-
-      // Integrity Check
-      final isValid = snap.hmacSignature != null && 
-          await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final batch = keys.skip(i).take(batchSize).toList();
       
-      if (isValid) {
-        validSnapshots.add(snap);
-      } else {
-        debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Triggering automatic repair...');
-        // Repair from Event Log (Write-Ahead Log)
-        final history = await _repo.getByEntityId(snap.memberId);
-        final repaired = SnapshotBuilder.rebuild(history);
-        if (repaired != null) {
-          final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
-          final signed = repaired.copyWith(hmacSignature: signature);
-          await box.put(snap.memberId, signed);
-          validSnapshots.add(signed);
+      final results = await Future.wait(batch.map((key) async {
+        final snap = await box.get(key);
+        if (snap == null) return null;
+
+        // Integrity Check
+        final isValid = snap.hmacSignature != null &&
+            await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
+
+        if (isValid) {
+          return snap;
+        } else {
+          debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Triggering automatic repair...');
+          // Repair from Event Log (Write-Ahead Log)
+          final history = await _repo.getByEntityId(snap.memberId);
+          final repaired = SnapshotBuilder.rebuild(history);
+          if (repaired != null) {
+            final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
+            final signed = repaired.copyWith(hmacSignature: signature);
+            await box.put(snap.memberId, signed);
+            return signed;
+          }
         }
-      }
+        return null;
+      }));
+
+      validSnapshots.addAll(results.whereType<MemberSnapshot>());
     }
     return validSnapshots;
   }
@@ -128,24 +137,37 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     // Audit 1.5 Fix: Reconcile from ALL local events to catch app-kill gaps
     final latestByEntity = <String, DateTime>{};
+    final eventsByEntity = <String, List<DomainEvent>>{};
+
     for (final e in allEvents) {
       if (latestByEntity[e.entityId] == null || e.deviceTimestamp.isAfter(latestByEntity[e.entityId]!)) {
         latestByEntity[e.entityId] = e.deviceTimestamp;
       }
+      eventsByEntity.putIfAbsent(e.entityId, () => []).add(e);
     }
 
     bool updatedAny = false;
-    for (final entityId in latestByEntity.keys) {
-      final snap = await box.get(entityId);
-      if (snap == null || snap.lastUpdated.isBefore(latestByEntity[entityId]!)) {
-        debugPrint('MemberNotifier: Lagging snapshot detected for $entityId. Rebuilding...');
-        final history = await _repo.getByEntityId(entityId);
-        final rebuilt = SnapshotBuilder.rebuild(history);
-        if (rebuilt != null) {
-          await box.put(entityId, rebuilt);
-          updatedAny = true;
+    final keys = latestByEntity.keys.toList();
+    const batchSize = 50;
+
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final batch = keys.skip(i).take(batchSize).toList();
+
+      await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
+        if (snap == null || snap.lastUpdated.isBefore(latestByEntity[entityId]!)) {
+          debugPrint('MemberNotifier: Lagging snapshot detected for $entityId. Rebuilding...');
+          final history = eventsByEntity[entityId] ?? [];
+          final rebuilt = SnapshotBuilder.rebuild(history);
+          if (rebuilt != null) {
+            // Sign the rebuilt snapshot before putting
+            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
+            final signed = rebuilt.copyWith(hmacSignature: signature);
+            await box.put(entityId, signed);
+            updatedAny = true;
+          }
         }
-      }
+      }));
     }
 
     if (updatedAny) {
