@@ -29,6 +29,22 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
+      - name: Create dummy firebase_options.dart
+        run: |
+          cat << 'EOF' > lib/firebase_options.dart
+          import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+          class DefaultFirebaseOptions {
+            static FirebaseOptions get currentPlatform {
+              return const FirebaseOptions(
+                apiKey: 'dummy_api_key_for_ci_builds_only',
+                appId: '1:123456789012:android:dummy1234567890',
+                messagingSenderId: '123456789012',
+                projectId: 'dummy-project-id',
+              );
+            }
+          }
+          EOF
+
       - name: Build APK
         run: flutter build apk --release
         
