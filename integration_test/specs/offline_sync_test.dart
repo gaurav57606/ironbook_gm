@@ -5,29 +5,18 @@ import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:ironbook_gm/app.dart';
-import 'package:ironbook_gm/providers/base_providers.dart';
+import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/security/pin_service.dart';
-import 'package:ironbook_gm/data/sync_worker.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/security/pin_service.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import '../mocks/mock_firebase.dart';
 import '../mocks/mock_services.dart';
-import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/data/local/hive_init.dart';
+import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 
 void registerAllAdapters() {
-  if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(DomainEventAdapter());
-  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(MemberSnapshotAdapter());
-  if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(PaymentAdapter());
-  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(PlanAdapter());
-  if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(PlanComponentAdapter());
-  if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(OwnerProfileAdapter());
-  if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(AppSettingsAdapter());
-  if (!Hive.isAdapterRegistered(7)) Hive.registerAdapter(JoinDateChangeAdapter());
-  if (!Hive.isAdapterRegistered(8)) Hive.registerAdapter(PlanComponentSnapshotAdapter());
-  if (!Hive.isAdapterRegistered(9)) Hive.registerAdapter(InvoiceSequenceAdapter());
-  if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(ProductAdapter());
-  if (!Hive.isAdapterRegistered(11)) Hive.registerAdapter(SaleAdapter());
-  if (!Hive.isAdapterRegistered(12)) Hive.registerAdapter(SaleItemAdapter());
+  HiveInit.registerAdapters();
 }
 
 void main() {
@@ -45,7 +34,7 @@ void main() {
     
     tempDir = await Directory.systemTemp.createTemp('ironbook_offline_');
     await Hive.initFlutter(tempDir.path);
-    registerAllAdapters();
+    await HiveInit.openWithCorruptionGuard();
 
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
     when(() => mockAuth.currentUser).thenReturn(MockUser());
@@ -64,8 +53,10 @@ void main() {
       ProviderScope(
         overrides: [
           firebaseAuthProvider.overrideWithValue(mockAuth),
+          firestoreProvider.overrideWithValue(null),
           pinServiceProvider.overrideWithValue(mockPin),
           syncWorkerProvider.overrideWithValue(mockSync),
+          bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
         ],
         child: const IronBookApp(hiveHealthy: true),
       ),
@@ -97,3 +88,5 @@ void main() {
     verify(() => mockSync.performSync()).called(1);
   });
 }
+
+

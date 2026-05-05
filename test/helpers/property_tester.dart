@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/data/local/snapshot_builder.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/snapshot_builder.dart';
 
 /// Property-based testing for Event Sourcing.
 /// Ensures that for any sequence of events, rebuilding from scratch 
@@ -20,3 +20,5 @@ class SnapshotPropertyTester {
     expect(fullRebuild, equals(incremental), reason: 'Rebuild must match Incremental Apply');
   }
 }
+
+

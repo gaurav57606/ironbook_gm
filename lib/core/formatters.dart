@@ -21,3 +21,12 @@ class Fmt {
   static String invoiceNumber(int sequence) =>
     'INV-${DateTime.now().year}-${sequence.toString().padLeft(4, '0')}';
 }
+
+
+
+
+
+
+
+
+

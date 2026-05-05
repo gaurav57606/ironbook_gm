@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 
 /// In-memory fake repository for event sourcing.
 /// Extremely fast, zero disk I/O, 100% deterministic.
@@ -49,7 +49,15 @@ class FakeEventRepository implements IEventRepository {
     }
   }
 
+  @override
+  Future<void> persistSynced(DomainEvent event) async {
+    _events.add(event);
+    _bus.add(event);
+  }
+
   // Additional helper for tests
   void clear() => _events.clear();
   List<DomainEvent> debugEvents() => List.unmodifiable(_events);
 }
+
+

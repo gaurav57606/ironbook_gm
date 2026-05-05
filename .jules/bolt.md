@@ -1,0 +1,13 @@
+## 2024-05-22 - [Secondary Indexing for LazyBox]
+**Learning:** Iterating over all keys in a Hive LazyBox to filter by a property (like entityId) results in an N+1 query pattern, which is extremely slow as the box grows. Maintaining an in-memory index of property value to keys allows for O(1) key lookup and only fetching the necessary records.
+**Action:** Always implement secondary indexes for frequent non-primary-key queries when using Hive LazyBox. Use a Future-based concurrency lock (like _loadingIndex) to ensure the index is only built once during the first access.
+## 2024-05-23 - [Single Pass List Iteration for Multi-Stats]
+**Learning:** Chaining multiple `.where().length` or `.take()` calls on a list inside build methods (like computing active, expiring, expired member counts) repeats list iteration and re-evaluates expensive item methods like `DateTime.now().difference()`.
+**Action:** When computing multiple derivations from a single list in Flutter UI classes, always use a single manual `for` loop with a `switch` or `if/else` block. Cache expensive arguments like `DateTime.now()` outside the loop. This reduces computation from O(k*N) to O(N) and limits expensive method evaluations.
+## 2024-05-24 - [Avoid Event Log Fetch Optimization Pitfall]
+**Learning:** When reconstructing historical snapshots, do not attempt to "optimize" database fetches by using a previously cached/partial list of events (like `_repo.getAll()` which might only return local/unsynced events). Rebuilding snapshots from an incomplete event list leads to missing data and corruption.
+**Action:** Always fetch the complete event history for an entity (e.g. `await _repo.getByEntityId(entityId)`) when reconstructing snapshots to ensure accuracy and prevent data corruption, even if it requires an extra DB query.
+
+## 2024-05-24 - [Avoid Race Conditions During App Initialization]
+**Learning:** Registering asynchronous listeners (like a real-time event bus listener) before fully populating an initial state can lead to race conditions. If an event fires while the initial state is still loading, the listener's update may be overwritten by the completion of the initial state load.
+**Action:** Always ensure the initial state is fully loaded and reconciled before registering real-time listeners.

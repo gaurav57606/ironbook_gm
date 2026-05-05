@@ -1,18 +1,59 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/data/sync_worker.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
 import '../../test/fakes/fake_event_repository.dart';
 import '../../test/fakes/fake_firestore.dart';
+
+class MockOutboxRepository extends Mock implements OutboxRepository {}
+class MockSyncCoordinator extends Mock implements SyncCoordinator {}
+class MockRef extends Mock implements Ref {}
+class MockStatusNotifier extends Mock implements StateController<SyncWorkerState> {}
 
 void main() {
   late FakeEventRepository mockRepo;
   late FakeFirestore mockFirestore;
+  late MockOutboxRepository mockOutbox;
+  late MockSyncCoordinator mockCoordinator;
+  late MockRef mockRef;
   late SyncWorker syncWorker;
+  final statusProvider = StateProvider<SyncWorkerState>((ref) => SyncWorkerState(status: SyncWorkerStatus.idle));
+
+  setUpAll(() {
+    registerFallbackValue(SyncWorkerState(status: SyncWorkerStatus.idle));
+  });
 
   setUp(() {
     mockRepo = FakeEventRepository();
     mockFirestore = FakeFirestore();
-    syncWorker = SyncWorker(mockRepo, mockFirestore.set, () => 'user-1');
+    mockOutbox = MockOutboxRepository();
+    mockCoordinator = MockSyncCoordinator();
+    mockRef = MockRef();
+
+    // Default stubs
+    when(() => mockCoordinator.onSyncRequested).thenAnswer((_) => const Stream.empty());
+    when(() => mockCoordinator.acquireLock(any())).thenAnswer((_) async => true);
+    when(() => mockCoordinator.releaseLock(any())).thenAnswer((_) async {});
+    when(() => mockOutbox.markSynced(any())).thenAnswer((_) async {});
+    when(() => mockOutbox.getUnsyncedEvents()).thenAnswer((_) async => []);
+
+    // Mock status provider interaction
+    final mockStatusNotifier = MockStatusNotifier();
+    when(() => mockRef.read(statusProvider.notifier)).thenReturn(mockStatusNotifier);
+    when(() => mockStatusNotifier.state = any()).thenReturn(SyncWorkerState(status: SyncWorkerStatus.idle));
+
+    syncWorker = SyncWorker(
+      mockRepo, 
+      mockOutbox, 
+      mockCoordinator, 
+      mockFirestore.set, 
+      () => 'user-1',
+      statusProvider,
+      mockRef
+    );
   });
 
   test('SyncWorker should push unsynced events to Firestore idempotently', () async {
@@ -26,6 +67,7 @@ void main() {
     );
     
     await mockRepo.persist(event);
+    when(() => mockOutbox.getUnsyncedEvents()).thenAnswer((_) async => [event]);
     
     // First run
     await syncWorker.performSync();
@@ -51,14 +93,20 @@ void main() {
     final e2 = DomainEvent(id: 'e2', entityId: 'm1', eventType: EventType.memberCreated, payload: {}, deviceTimestamp: DateTime(2024), deviceId: 'd1');
     await mockRepo.persist(e1);
     await mockRepo.persist(e2);
+    when(() => mockOutbox.getUnsyncedEvents()).thenAnswer((_) async => await mockRepo.getAllUnsynced());
 
     mockFirestore.failNextWrite = true; // First one fails immediately
-    await syncWorker.performSync();
+    try {
+      await syncWorker.performSync();
+    } catch (_) {
+      // Expected
+    }
     
     expect((await mockRepo.getAllUnsynced()).length, 2, reason: 'Failures should prevent local sync mark');
     expect(mockFirestore.writeCount, 0);
 
     mockFirestore.failNextWrite = false; 
+    when(() => mockOutbox.getUnsyncedEvents()).thenAnswer((_) async => await mockRepo.getAllUnsynced());
     await syncWorker.performSync();
     
     expect((await mockRepo.getAllUnsynced()).isEmpty, isTrue, reason: 'Resume should clear all pending');
@@ -67,3 +115,6 @@ void main() {
     expect(mockFirestore.exists('users/user-1/events', 'e2'), isTrue);
   });
 }
+
+
+

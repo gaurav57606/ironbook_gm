@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/colors.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/sale_provider.dart';
-import '../../../../data/local/models/product_model.dart';
-import '../../../../data/local/models/sale_model.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/sale_provider.dart';
+import '../../../../core/data/local/models/product_model.dart';
+import '../../../../core/data/local/models/sale_model.dart';
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -277,3 +277,12 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     }
   }
 }
+
+
+
+
+
+
+
+
+

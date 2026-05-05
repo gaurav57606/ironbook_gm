@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/auth_provider.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/app_text_field.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class GymProfileScreen extends ConsumerStatefulWidget {
@@ -61,7 +61,7 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => context.pop(),
           ),
           title: Text(
@@ -73,7 +73,7 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: AppColors.backgroundGradient,
           ),
           child: SingleChildScrollView(
@@ -118,7 +118,7 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
                             shape: BoxShape.circle,
                             border: Border.all(color: AppColors.border, width: 2),
                           ),
-                          child: Icon(Icons.camera_alt_rounded, size: 18, color: AppColors.primary),
+                          child: const Icon(Icons.camera_alt_rounded, size: 18, color: AppColors.primary),
                         ),
                       ),
                     ],
@@ -168,3 +168,12 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+

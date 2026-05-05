@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/member_provider.dart';
-import '../../../../providers/auth_provider.dart';
-import '../../../../data/local/models/member_snapshot_model.dart';
-import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/utils/greeting_formatter.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/member_provider.dart';
+import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/data/local/models/member_snapshot_model.dart';
+import '../../../../shared/utils/date_formatter.dart';
+import '../../../../shared/utils/greeting_formatter.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/member_health_donut.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/member_row.dart';
+import '../../../../core/data/sync_worker.dart';
+import '../../../../core/providers/bootstrap_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -23,13 +24,39 @@ class DashboardScreen extends ConsumerWidget {
     final members = ref.watch(membersProvider);
     final now = DateTime.now();
     final auth = ref.watch(authProvider);
+    final unsyncedCount = ref.watch(unsyncedCountProvider).valueOrNull ?? 0;
+    final tier2Status = ref.watch(tier2StatusProvider);
+    final syncState = ref.watch(syncWorkerStatusProvider);
     
-    final activeCount = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
-    final expiringCount = members.where((m) => m.getStatus(now) == MemberStatus.expiring).length;
-    final expiredCount = members.where((m) => m.getStatus(now) == MemberStatus.expired).length;
+    // ⚡ Bolt: Consolidated 5 list traversals into a single O(N) loop to compute member stats.
+    // This significantly reduces redundant calculations of `getStatus(now)`.
+    int activeCount = 0;
+    int expiringCount = 0;
+    int expiredCount = 0;
+    final expiredMemberNames = <String>[];
+    final expiringMemberNames = <String>[];
+
+    for (final m in members) {
+      final status = m.getStatus(now);
+      switch (status) {
+        case MemberStatus.active:
+          activeCount++;
+          break;
+        case MemberStatus.expiring:
+          expiringCount++;
+          if (expiringMemberNames.length < 3) expiringMemberNames.add(m.name);
+          break;
+        case MemberStatus.expired:
+          expiredCount++;
+          if (expiredMemberNames.length < 3) expiredMemberNames.add(m.name);
+          break;
+        case MemberStatus.pending:
+          break; // Optional: handle pending members if needed
+      }
+    }
     
-    final expiredMembers = members.where((m) => m.getStatus(now) == MemberStatus.expired).take(3).map((m) => m.name).join(', ');
-    final expiringMembers = members.where((m) => m.getStatus(now) == MemberStatus.expiring).take(3).map((m) => m.name).join(', ');
+    final expiredMembers = expiredMemberNames.join(', ');
+    final expiringMembers = expiringMemberNames.join(', ');
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -44,7 +71,7 @@ class DashboardScreen extends ConsumerWidget {
             },
             child: CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _buildHeader(auth)),
+                SliverToBoxAdapter(child: _buildHeader(auth, unsyncedCount, tier2Status, syncState)),
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   sliver: SliverToBoxAdapter(
@@ -59,6 +86,7 @@ class DashboardScreen extends ConsumerWidget {
                           expired: expiredCount,
                         ),
                         const SizedBox(height: 24),
+                        _buildSyncDebtBanner(unsyncedCount, syncState),
                         if (expiredCount > 0)
                           AlertBanner(
                             title: '$expiredCount memberships expired',
@@ -92,7 +120,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(AuthState auth) {
+  Widget _buildHeader(AuthState auth, int unsyncedCount, Tier2Status tier2Status, SyncWorkerState syncState) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
       child: Row(
@@ -115,6 +143,8 @@ class DashboardScreen extends ConsumerWidget {
                 DateFormatter.format(DateTime.now()).toUpperCase(),
                 style: AppTextStyles.bodySmall.copyWith(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.textMuted, letterSpacing: 1.0),
               ),
+              const SizedBox(height: 8),
+              _buildSyncBadge(unsyncedCount, tier2Status, syncState),
             ],
           ),
           Container(
@@ -140,6 +170,79 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSyncBadge(int count, Tier2Status status, SyncWorkerState syncState) {
+    if (count == 0 && status != Tier2Status.degraded && syncState.status == SyncWorkerStatus.idle) {
+      if (syncState.lastSuccessAt == null) return const SizedBox.shrink();
+      
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          'LAST SECURED: ${syncState.lastSuccessAt!.hour}:${syncState.lastSuccessAt!.minute.toString().padLeft(2, "0")}',
+          style: AppTextStyles.sectionTitle.copyWith(fontSize: 6, letterSpacing: 0.5, color: AppColors.textMuted),
+        ),
+      );
+    }
+
+    final isSyncing = syncState.status == SyncWorkerStatus.syncing || count > 0;
+    final isFailed = syncState.status == SyncWorkerStatus.failed;
+
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TweenAnimationBuilder<double>(
+          duration: const Duration(seconds: 1),
+          tween: Tween(begin: 0.5, end: 1.0),
+          curve: Curves.easeInOut,
+          onEnd: () {}, 
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: isSyncing ? value : 1.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isFailed ? AppColors.expired.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isFailed ? AppColors.expired.withValues(alpha: 0.2) : AppColors.primary.withValues(alpha: 0.2),
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isFailed ? Icons.sync_problem_rounded : (isSyncing ? Icons.cloud_sync_rounded : Icons.cloud_done_rounded),
+                      size: 10,
+                      color: isFailed ? AppColors.expired : AppColors.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isFailed ? 'SYNC ERROR' : (isSyncing ? '$count ITEM(S) SECURING' : 'DATA SECURED'),
+                      style: AppTextStyles.sectionTitle.copyWith(
+                        fontSize: 7,
+                        letterSpacing: 0.5,
+                        color: isFailed ? AppColors.expired : AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        if (syncState.lastSuccessAt != null && !isSyncing)
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Text(
+              '${syncState.lastSuccessAt!.hour}:${syncState.lastSuccessAt!.minute.toString().padLeft(2, "0")}',
+              style: AppTextStyles.sectionTitle.copyWith(fontSize: 6, color: AppColors.textMuted),
+            ),
+          ),
+      ],
     );
   }
 
@@ -310,4 +413,31 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildSyncDebtBanner(int count, SyncWorkerState state) {
+    if (count < 10 && state.status != SyncWorkerStatus.failed) return const SizedBox.shrink();
+
+    final isHighDebt = count > 20;
+    final isError = state.status == SyncWorkerStatus.failed;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: AlertBanner(
+        title: isError ? 'SYNC ENGINE ERROR' : 'PENDING SYNC DEBT',
+        subtitle: isError 
+            ? 'Recent changes are not secured in the cloud. Check connection.' 
+            : 'Warning: $count items unsynced. Do NOT uninstall the app.',
+        isError: isHighDebt || isError,
+      ),
+    );
+  }
 }
+
+
+
+
+
+
+
+
+

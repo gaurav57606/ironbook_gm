@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/providers/member_provider.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
-import 'package:ironbook_gm/core/utils/clock.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
 import 'dart:io';
 
 class MockEventRepository extends Mock implements IEventRepository {}
@@ -41,6 +41,8 @@ void main() {
     mockHmac = MockHmacService();
 
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
+    when(() => mockHmac.signSnapshot(any(), any())).thenAnswer((_) async => 'mock-sig');
+    when(() => mockHmac.verifySnapshot(any(), any(), any())).thenAnswer((_) async => true);
     when(() => mockClock.now).thenReturn(DateTime(2026, 1, 1));
     when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
   });
@@ -100,3 +102,5 @@ void main() {
     });
   });
 }
+
+
