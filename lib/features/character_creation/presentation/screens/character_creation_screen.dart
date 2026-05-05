@@ -9,6 +9,7 @@ import '../../../../core/providers/member_provider.dart';
 import '../../../../core/providers/payment_provider.dart';
 import '../../../../core/providers/sync_status_provider.dart';
 import '../../../../core/data/local/models/member_snapshot_model.dart';
+import '../../../../shared/utils/clock.dart';
 
 class CharacterCreationScreen extends ConsumerWidget {
   const CharacterCreationScreen({super.key});
@@ -19,6 +20,17 @@ class CharacterCreationScreen extends ConsumerWidget {
     final members = ref.watch(membersProvider);
     final payments = ref.watch(paymentsProvider);
     final syncStatus = ref.watch(syncStatusProvider);
+    final now = ref.watch(clockProvider).now;
+
+    // ⚡ Bolt: Cache DateTime.now() outside the loop and use getStatus()
+    // to avoid O(N) DateTime object allocations during screen builds.
+    final now = DateTime.now();
+    int activeMembers = 0;
+    for (final m in members) {
+      if (m.getStatus(now) == MemberStatus.active) {
+        activeMembers++;
+      }
+    }
 
     // Dynamic Metric Calculation
     final totalMembers = members.length;
@@ -27,6 +39,7 @@ class CharacterCreationScreen extends ConsumerWidget {
     final activeMembers = members
         .where((m) => m.getStatus(now) == MemberStatus.active)
         .length;
+    final activeMembers = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
     final endurance = totalMembers > 0 ? (activeMembers / totalMembers) : 0.5;
 
     final totalRevenue = payments.fold(0.0, (sum, p) => sum + p.amount);
