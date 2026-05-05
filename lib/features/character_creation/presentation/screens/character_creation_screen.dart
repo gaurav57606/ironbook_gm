@@ -9,6 +9,7 @@ import '../../../../core/providers/member_provider.dart';
 import '../../../../core/providers/payment_provider.dart';
 import '../../../../core/providers/sync_status_provider.dart';
 import '../../../../core/data/local/models/member_snapshot_model.dart';
+import '../../../../shared/utils/clock.dart';
 
 class CharacterCreationScreen extends ConsumerWidget {
   const CharacterCreationScreen({super.key});
@@ -19,10 +20,11 @@ class CharacterCreationScreen extends ConsumerWidget {
     final members = ref.watch(membersProvider);
     final payments = ref.watch(paymentsProvider);
     final syncStatus = ref.watch(syncStatusProvider);
+    final now = ref.watch(clockProvider).now;
 
     // Dynamic Metric Calculation
     final totalMembers = members.length;
-    final activeMembers = members.where((m) => m.status == MemberStatus.active).length;
+    final activeMembers = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
     final endurance = totalMembers > 0 ? (activeMembers / totalMembers) : 0.5;
 
     final totalRevenue = payments.fold(0.0, (sum, p) => sum + p.amount);
