@@ -11,3 +11,6 @@
 ## 2024-05-24 - [Avoid Race Conditions During App Initialization]
 **Learning:** Registering asynchronous listeners (like a real-time event bus listener) before fully populating an initial state can lead to race conditions. If an event fires while the initial state is still loading, the listener's update may be overwritten by the completion of the initial state load.
 **Action:** Always ensure the initial state is fully loaded and reconciled before registering real-time listeners.
+## 2024-05-24 - [Avoid `Future.wait` Memory Bloat on Hive `LazyBox`]
+**Learning:** Fetching all keys from a Hive `LazyBox` at once and mapping them to `box.get(key)` inside a single `Future.wait` forces all records into memory simultaneously. For large databases, this completely defeats the purpose of a `LazyBox` and causes severe memory spikes or Out-Of-Memory (OOM) crashes.
+**Action:** When performing bulk reads from a `LazyBox`, always batch the keys into smaller chunks (e.g., using `skip().take(50)`) and use `Future.wait` *within* each chunk. This preserves the speed of parallel I/O while strictly capping peak memory usage.

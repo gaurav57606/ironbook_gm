@@ -56,7 +56,14 @@ class HiveEventRepository implements IEventRepository {
     _entityIndex.clear();
 
     // Audit 6.2: Parallelize Hive access
-    final events = await Future.wait(_box.keys.map((key) => _box.get(key)));
+    // Performance Optimization: Batch LazyBox reads to prevent OOM crashes
+    final keys = _box.keys.toList();
+    final List<DomainEvent?> events = [];
+    for (int i = 0; i < keys.length; i += 50) {
+      final chunk = keys.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
+      events.addAll(chunkEvents);
+    }
     for (final event in events) {
       if (event != null) {
         if (!event.synced) {
@@ -115,7 +122,14 @@ class HiveEventRepository implements IEventRepository {
   @override
   Future<List<DomainEvent>> getAll() async {
     final List<DomainEvent> validEvents = [];
-    final allEvents = await Future.wait(_box.keys.map((key) => _box.get(key)));
+    // Performance Optimization: Batch LazyBox reads to prevent OOM crashes
+    final keys = _box.keys.toList();
+    final List<DomainEvent?> allEvents = [];
+    for (int i = 0; i < keys.length; i += 50) {
+      final chunk = keys.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
+      allEvents.addAll(chunkEvents);
+    }
     final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
 
     final verificationResults = await Future.wait(
@@ -139,7 +153,14 @@ class HiveEventRepository implements IEventRepository {
     await ensureIndexLoaded();
     final List<DomainEvent> unsynced = [];
 
-    final allEvents = await Future.wait(_unsyncedIds.map((id) => _box.get(id)));
+    // Performance Optimization: Batch LazyBox reads to prevent OOM crashes
+    final keys = _unsyncedIds.toList();
+    final List<DomainEvent?> allEvents = [];
+    for (int i = 0; i < keys.length; i += 50) {
+      final chunk = keys.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
+      allEvents.addAll(chunkEvents);
+    }
     final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
 
     final verificationResults = await Future.wait(
@@ -169,7 +190,13 @@ class HiveEventRepository implements IEventRepository {
     final eventIds = _entityIndex[entityId] ?? [];
     final List<DomainEvent> results = [];
 
-    final allEvents = await Future.wait(eventIds.map((id) => _box.get(id)));
+    // Performance Optimization: Batch LazyBox reads to prevent OOM crashes
+    final List<DomainEvent?> allEvents = [];
+    for (int i = 0; i < eventIds.length; i += 50) {
+      final chunk = eventIds.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((id) => _box.get(id)));
+      allEvents.addAll(chunkEvents);
+    }
     final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
 
     final verificationResults = await Future.wait(
