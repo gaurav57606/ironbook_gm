@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../providers/auth_provider.dart';
+import 'package:ironbook_gm/core/providers/auth_provider.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -40,7 +40,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Create Account', style: AppTextStyles.heroNumber.copyWith(fontSize: 32)),
+              Image.asset('assets/images/logo.png', width: 52, height: 52),
+              const SizedBox(height: 24),
+              Text('Set up your gym', style: AppTextStyles.heroNumber.copyWith(fontSize: 32)),
               const SizedBox(height: 8),
               Text('Set up your gym profile to get started.', style: AppTextStyles.bodySmall),
               const SizedBox(height: 32),
@@ -84,8 +86,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         ownerName: _nameController.text,
                         gymName: _gymNameController.text,
                       );
-                      if (success && mounted) {
-                        context.go('/pin-setup');
+                      if (!mounted) return;
+                      if (success) {
+                        context.go('/setup-pin');
                       }
                     }
                   },
@@ -105,10 +108,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     text: TextSpan(
                       text: 'Already have an account? ',
                       style: AppTextStyles.bodySmall,
-                      children: [
+                      children: const [
                         TextSpan(
                           text: 'Log In',
-                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -122,3 +125,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+

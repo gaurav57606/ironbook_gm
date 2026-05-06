@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../constants/colors.dart';
+import 'package:ironbook_gm/core/constants/colors.dart';
 
 class AppTheme {
   static ThemeData darkTheme({bool useGoogleFonts = true}) {
@@ -57,3 +57,12 @@ class AppTheme {
     );
   }
 }
+
+
+
+
+
+
+
+
+

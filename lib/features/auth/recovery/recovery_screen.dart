@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/sync/recovery_service.dart';
 
 class RecoveryScreen extends ConsumerStatefulWidget {
   const RecoveryScreen({super.key});
@@ -16,30 +17,49 @@ class _RecoveryScreenState extends ConsumerState<RecoveryScreen> {
   int _done = 0;
   int _total = 0;
   bool _isComplete = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _startRecovery();
+    // Schedule the start after the first frame to ensure providers are ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startRecovery();
+    });
   }
 
   Future<void> _startRecovery() async {
-    // In a real implementation, this would call FirestoreRecovery.restoreAll
-    // and update state via the onProgress callback.
-    // For now, simulating progress.
-    _total = 100;
-    for (int i = 0; i <= _total; i++) {
-      await Future.delayed(const Duration(milliseconds: 30));
+    try {
+      final recoveryService = ref.read(recoveryServiceProvider);
+      
+      await recoveryService.recoverAll(
+        onProgress: (done, total) {
+          if (mounted) {
+            setState(() {
+              _done = done;
+              _total = total;
+              _progress = done / total;
+            });
+          }
+        },
+      );
+
       if (mounted) {
         setState(() {
-          _done = i;
-          _progress = i / _total;
-          if (i == _total) _isComplete = true;
+          _isComplete = true;
+          _progress = 1.0;
+        });
+        
+        await Future.delayed(const Duration(milliseconds: 1500));
+        if (mounted) context.go('/setup-pin');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
         });
       }
     }
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (mounted) context.go('/pin-setup');
   }
 
   @override
@@ -54,31 +74,71 @@ class _RecoveryScreenState extends ConsumerState<RecoveryScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_download_outlined,
-                    size: 80, color: AppColors.primary),
-                const SizedBox(height: 32),
-                Text('Restoring Data',
-                    style: AppTextStyles.cardTitle.copyWith(fontSize: 24)),
-                const SizedBox(height: 12),
-                Text('Please wait while we sync your records from the cloud.',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodySmall),
-                const SizedBox(height: 48),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: _progress,
-                    backgroundColor: AppColors.bg4,
-                    color: AppColors.primary,
-                    minHeight: 12,
-                  ),
+                Icon(
+                  _error != null ? Icons.error_outline_rounded : Icons.cloud_download_outlined,
+                  size: 80, 
+                  color: _error != null ? AppColors.expired : AppColors.primary
                 ),
-                const SizedBox(height: 16),
-                Text('Restoring $_done / $_total events',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+                const SizedBox(height: 32),
+                Text(
+                  _error != null ? 'Recovery Failed' : 'Restoring Data',
+                  style: AppTextStyles.cardTitle.copyWith(fontSize: 24)
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _error ?? 'Please wait while we sync your records from the cloud.',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySmall
+                ),
+                const SizedBox(height: 48),
+                if (_error == null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: _progress,
+                      backgroundColor: AppColors.bg4,
+                      color: AppColors.primary,
+                      minHeight: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _total > 0 ? 'Restoring $_done / $_total events' : 'Initializing...',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)
+                  ),
+                ] else ...[
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _error = null;
+                        _progress = 0;
+                        _done = 0;
+                        _total = 0;
+                      });
+                      _startRecovery();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Try Again'),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text('Cancel'),
+                  ),
+                ],
                 if (_isComplete) ...[
                   const SizedBox(height: 24),
-                  const Icon(Icons.check_circle, color: AppColors.active, size: 32),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: AppColors.active, size: 32),
+                      SizedBox(width: 8),
+                      Text('Verification Successful', style: TextStyle(color: AppColors.active, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ],
               ],
             ),
