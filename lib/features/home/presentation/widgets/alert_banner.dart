@@ -62,9 +62,18 @@ class AlertBanner extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+          const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
         ],
       ),
     );
   }
 }
+
+
+
+
+
+
+
+
+

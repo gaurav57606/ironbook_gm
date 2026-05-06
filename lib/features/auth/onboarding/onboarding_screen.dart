@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/widgets/app_button.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../../shared/widgets/app_button.dart';
+import 'package:ironbook_gm/core/providers/auth_provider.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -195,3 +195,14 @@ class OnboardingData {
     required this.subtitle,
   });
 }
+
+
+
+
+
+
+
+
+
+
+

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/auth_provider.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class NotificationsSettingsScreen extends ConsumerWidget {
@@ -21,7 +21,7 @@ class NotificationsSettingsScreen extends ConsumerWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => context.pop(),
           ),
           title: Text(
@@ -33,7 +33,7 @@ class NotificationsSettingsScreen extends ConsumerWidget {
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: AppColors.backgroundGradient,
           ),
           child: SingleChildScrollView(
@@ -225,3 +225,12 @@ class NotificationsSettingsScreen extends ConsumerWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+

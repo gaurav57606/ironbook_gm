@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/auth_provider.dart';
-import '../../../../data/local/models/owner_profile_model.dart';
-import '../../../../data/local/models/domain_event_model.dart';
-import '../../../../data/repositories/event_repository.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/app_text_field.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/data/local/models/owner_profile_model.dart';
+import '../../../../core/data/local/models/domain_event_model.dart';
+import '../../../../core/data/repositories/event_repository.dart';
 
 class OwnershipTransferScreen extends ConsumerStatefulWidget {
   const OwnershipTransferScreen({super.key});
@@ -67,11 +67,11 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Transfer', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            child: const Text('Transfer', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -135,7 +135,7 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => context.pop(),
           ),
           title: Text(
@@ -147,7 +147,7 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: AppColors.backgroundGradient,
           ),
           child: SingleChildScrollView(
@@ -226,7 +226,7 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
+          const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
           const SizedBox(width: 16),
           Expanded(
             child: Text(
@@ -243,3 +243,12 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
     );
   }
 }
+
+
+
+
+
+
+
+
+

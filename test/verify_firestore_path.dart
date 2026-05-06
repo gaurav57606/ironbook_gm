@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 
 // This is a manual verification script to be run in a controlled environment or mocked
 // to verify the logic of the write path.
@@ -25,3 +25,5 @@ void main() {
     // print('✅ Firestore path logic verified.');
   });
 }
+
+

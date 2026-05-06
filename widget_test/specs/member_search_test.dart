@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/members_list_screen.dart';
-import 'package:ironbook_gm/providers/member_provider.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/data/repositories/event_repository.dart';
-import 'package:ironbook_gm/core/utils/clock.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -116,3 +116,5 @@ void main() {
     });
   });
 }
+
+

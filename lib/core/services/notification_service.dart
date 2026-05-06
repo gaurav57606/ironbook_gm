@@ -1,6 +1,6 @@
 import "package:flutter/foundation.dart";
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import '../../data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 
 class NotificationService {
   static FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
@@ -52,3 +52,12 @@ class NotificationService {
     );
   }
 }
+
+
+
+
+
+
+
+
+
