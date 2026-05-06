@@ -33,6 +33,7 @@ class DashboardScreen extends ConsumerWidget {
     int activeCount = 0;
     int expiringCount = 0;
     int expiredCount = 0;
+    int totalRevenue = 0;
     final expiredMemberNames = <String>[];
     final expiringMemberNames = <String>[];
     final dueMembers = <MemberSnapshot>[];
@@ -42,6 +43,21 @@ class DashboardScreen extends ConsumerWidget {
       totalRevenue += m.totalPaid;
 
       final days = m.getDaysRemaining(now);
+      if (days >= 0 && days <= 3) {
+        dueMembers.add(m);
+      }
+
+      MemberStatus status;
+      if (m.expiryDate == null) {
+        status = MemberStatus.pending;
+      } else if (days < 0) {
+        status = MemberStatus.expired;
+      } else if (days <= 7) {
+        status = MemberStatus.expiring;
+      } else {
+        status = MemberStatus.active;
+      }
+
       if (days >= 0 && days <= 3) dueMembers.add(m);
 
       final status = m.getStatus(now);
