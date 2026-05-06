@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironbook_gm/core/constants/app_colors.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/shared/widgets/status_bar_wrapper.dart';
+import '../data/repositories/nutrition_repository.dart';
+import '../data/models/nutrition_plan_model.dart';
+import '../../../core/data/repositories/member_repository.dart';
+import '../../../core/data/local/models/member_snapshot_model.dart';
 
-class NutritionScreen extends StatelessWidget {
+class NutritionScreen extends ConsumerWidget {
   const NutritionScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plansAsync = ref.watch(nutritionPlansProvider);
+
     return StatusBarWrapper(
       child: Scaffold(
         backgroundColor: AppColors.bg,
@@ -26,52 +34,146 @@ class NutritionScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Nutrition Plans',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.bg2,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: const Icon(Icons.restaurant_menu_rounded, color: AppColors.orange, size: 20),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildHeader(),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(24),
-                    children: [
-                      _buildQuickAction('Assign New Plan', Icons.add_task_rounded, Colors.blue),
-                      const SizedBox(height: 24),
-                      const Text('Recent Clients', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 16),
-                      _buildClientCard('John Doe', 'High Protein', '2,400 kcal', 0.85),
-                      _buildClientCard('Sarah Jenkins', 'Keto Diet', '1,800 kcal', 0.45),
-                      _buildClientCard('Mike Ross', 'Maintenance', '2,200 kcal', 0.95),
-                      const SizedBox(height: 24),
-                      const Text('Diet Popularity', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 16),
-                      _buildDietStats(),
-                    ],
+                  child: plansAsync.when(
+                    data: (plans) => _buildContent(context, ref, plans),
+                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.orange)),
+                    error: (e, st) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
                   ),
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Nutrition Plans',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.bg2,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Icon(Icons.restaurant_menu_rounded, color: AppColors.orange, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, WidgetRef ref, List<NutritionPlan> plans) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        GestureDetector(
+          onTap: () => _showAssignPlanDialog(context, ref),
+          child: _buildQuickAction('Assign New Plan', Icons.add_task_rounded, Colors.blue),
+        ),
+        const SizedBox(height: 24),
+        const Text('Active Clients', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 16),
+        if (plans.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Text('No active nutrition plans.', style: TextStyle(color: AppColors.text3, fontSize: 14)),
+          )
+        else
+          ...plans.map((plan) {
+            final memberAsync = ref.watch(memberProvider(plan.memberId));
+            return memberAsync.when(
+              data: (member) => _buildClientCard(member?.name ?? 'Unknown', plan.planName, plan.calories, plan.adherence),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            );
+          }),
+        const SizedBox(height: 24),
+        const Text('Diet Distribution', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 16),
+        _buildDietStats(plans),
+      ],
+    );
+  }
+
+  void _showAssignPlanDialog(BuildContext context, WidgetRef ref) async {
+    final members = await ref.read(memberRepositoryProvider).getAll();
+    if (members.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No members found. Please add members first.')));
+      }
+      return;
+    }
+
+    String? selectedMemberId;
+    String? selectedPlan = 'High Protein';
+    final calorieController = TextEditingController(text: '2000 kcal');
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: AppColors.bg2,
+          title: const Text('Assign Nutrition Plan', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButton<String>(
+                value: selectedMemberId,
+                hint: const Text('Select Member', style: TextStyle(color: AppColors.text3)),
+                dropdownColor: AppColors.bg2,
+                isExpanded: true,
+                items: members.map((m) => DropdownMenuItem(value: m.memberId, child: Text(m.name, style: const TextStyle(color: Colors.white)))).toList(),
+                onChanged: (v) => setState(() => selectedMemberId = v),
+              ),
+              const SizedBox(height: 16),
+              DropdownButton<String>(
+                value: selectedPlan,
+                dropdownColor: AppColors.bg2,
+                isExpanded: true,
+                items: ['High Protein', 'Keto Diet', 'Vegan Plan', 'Maintenance'].map((p) => DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(color: Colors.white)))).toList(),
+                onChanged: (v) => setState(() => selectedPlan = v),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: calorieController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(labelText: 'Target Calories', labelStyle: TextStyle(color: AppColors.text3)),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: selectedMemberId == null ? null : () async {
+                await ref.read(nutritionRepositoryProvider).assignPlan(
+                  memberId: selectedMemberId!,
+                  planName: selectedPlan!,
+                  calories: calorieController.text,
+                );
+                ref.invalidate(nutritionPlansProvider);
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Assign'),
+            ),
+          ],
         ),
       ),
     );
@@ -139,7 +241,7 @@ class NutritionScreen extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: progress,
+                value: progress == 0 ? 0.05 : progress, // Show a sliver if 0
                 minHeight: 4,
                 backgroundColor: Colors.white.withValues(alpha: 0.05),
                 valueColor: AlwaysStoppedAnimation<Color>(progress > 0.8 ? Colors.green : AppColors.orange),
@@ -151,14 +253,24 @@ class NutritionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDietStats() {
+  Widget _buildDietStats(List<NutritionPlan> plans) {
+    if (plans.isEmpty) return const SizedBox.shrink();
+
+    final counts = <String, int>{};
+    for (var p in plans) {
+      counts[p.planName] = (counts[p.planName] ?? 0) + 1;
+    }
+
+    final total = plans.length;
+    final sorted = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _buildDietCircle('Keto', 0.45, Colors.blue),
-        _buildDietCircle('Vegan', 0.25, Colors.green),
-        _buildDietCircle('Palio', 0.30, Colors.purple),
-      ],
+      children: sorted.take(3).map((e) {
+        final colors = [Colors.blue, Colors.green, Colors.purple];
+        final index = sorted.indexOf(e) % colors.length;
+        return _buildDietCircle(e.key, e.value / total, colors[index]);
+      }).toList(),
     );
   }
 

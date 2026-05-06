@@ -33,6 +33,7 @@ void main() {
   setUp(() async {
     eventBox = await Hive.openBox<DomainEvent>('events');
     snapshotBox = await Hive.openLazyBox<MemberSnapshot>('snapshots');
+    await Hive.openBox('meta'); // Ensure meta box is open for reconciliation
     await eventBox.clear();
     await snapshotBox.clear();
 
@@ -45,6 +46,7 @@ void main() {
     when(() => mockHmac.verifySnapshot(any(), any(), any())).thenAnswer((_) async => true);
     when(() => mockClock.now).thenReturn(DateTime(2026, 1, 1));
     when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
+    when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => []);
   });
 
   tearDown(() async {
@@ -69,6 +71,7 @@ void main() {
       // Simulate existing events in repo
       when(() => mockRepo.getAll()).thenAnswer((_) async => [event]);
       when(() => mockRepo.getByEntityId('M1')).thenAnswer((_) async => [event]);
+      when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => [event]);
 
       final notifier = MemberNotifier(mockRepo, mockClock, mockHmac);
       

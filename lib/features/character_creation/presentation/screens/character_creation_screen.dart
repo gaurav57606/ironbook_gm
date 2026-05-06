@@ -22,31 +22,15 @@ class CharacterCreationScreen extends ConsumerWidget {
     final syncStatus = ref.watch(syncStatusProvider);
     final now = ref.watch(clockProvider).now;
 
-    // ⚡ Bolt: Cache DateTime.now() outside the loop and use getStatus()
-    // to avoid O(N) DateTime object allocations during screen builds.
-    final now = DateTime.now();
-    int activeMembers = 0;
-    for (final m in members) {
-      if (m.getStatus(now) == MemberStatus.active) {
-        activeMembers++;
-      }
-    }
-
-    // Dynamic Metric Calculation
     final totalMembers = members.length;
-    final now = DateTime.now();
     int activeMembers = 0;
+    
+    // ⚡ Bolt: Consolidated logic into a single O(N) loop with cached DateTime
     for (final m in members) {
       if (m.getStatus(now) == MemberStatus.active) {
         activeMembers++;
       }
     }
-    // Performance: Cache DateTime.now() to prevent redundant object allocation inside the loop
-    final now = DateTime.now();
-    final activeMembers = members
-        .where((m) => m.getStatus(now) == MemberStatus.active)
-        .length;
-    final activeMembers = members.where((m) => m.getStatus(now) == MemberStatus.active).length;
     final endurance = totalMembers > 0 ? (activeMembers / totalMembers) : 0.5;
 
     final totalRevenue = payments.fold(0.0, (sum, p) => sum + p.amount);

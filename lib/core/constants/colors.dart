@@ -9,6 +9,7 @@ class AppColors {
 
   // Primary
   static const Color orange = Color(0xFFFF6B2B);
+  static const Color orange2 = Color(0xFFFF8C5A);
   static const Color orangeD = Color(0xFFCC4A15);
 
   // Status

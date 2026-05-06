@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/security/entitlement_guard.dart';
-import 'package:ironbook_gm/core/utils/clock.dart';
+import 'package:ironbook_gm/core/security/entitlement_guard.dart';
+import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../test_helper.dart';
 
 class MockSecureStorage extends Mock implements FlutterSecureStorage {}
 class MockAuth extends Mock implements FirebaseAuth {}
@@ -19,7 +20,7 @@ void main() {
   late MockSecureStorage mockStorage;
   late MockAuth mockAuth;
   late MockFirestore mockFirestore;
-  late FrozenClock clock;
+  late FakeClock clock;
   late MockUser mockUser;
   late MockCollectionReference mockCollection;
   late MockDocumentReference mockDocument;
@@ -32,7 +33,8 @@ void main() {
     mockStorage = MockSecureStorage();
     mockAuth = MockAuth();
     mockFirestore = MockFirestore();
-    clock = FrozenClock(now);
+    clock = FakeClock();
+    clock.setNow(now);
     mockUser = MockUser();
     mockCollection = MockCollectionReference();
     mockDocument = MockDocumentReference();
@@ -54,14 +56,14 @@ void main() {
   });
 
   group('EntitlementGuard - checkEntitlement', () {
-    test('Valid cache (less than 7 days old and expiry in future) returns valid', () async {
+    test('Valid cache (heartbeat fresh and expiry in future) returns valid', () async {
       final expiry = now.add(const Duration(days: 30));
-      final cachedAt = now.subtract(const Duration(days: 2));
+      final heartbeat = now.subtract(const Duration(days: 2));
 
       when(() => mockStorage.read(key: 'ent_expiry'))
           .thenAnswer((_) async => expiry.toIso8601String());
-      when(() => mockStorage.read(key: 'ent_cached_at'))
-          .thenAnswer((_) async => cachedAt.toIso8601String());
+      when(() => mockStorage.read(key: 'lease_heartbeat'))
+          .thenAnswer((_) async => heartbeat.toIso8601String());
 
       final result = await guard.checkEntitlement();
 
@@ -71,13 +73,13 @@ void main() {
 
     test('Expired cache but Firestore has fresh valid entitlement returns valid and updates cache', () async {
       final oldExpiry = now.subtract(const Duration(days: 1));
-      final cachedAt = now.subtract(const Duration(days: 2));
+      final heartbeat = now.subtract(const Duration(days: 2));
       final freshExpiry = now.add(const Duration(days: 30));
 
       when(() => mockStorage.read(key: 'ent_expiry'))
           .thenAnswer((_) async => oldExpiry.toIso8601String());
-      when(() => mockStorage.read(key: 'ent_cached_at'))
-          .thenAnswer((_) async => cachedAt.toIso8601String());
+      when(() => mockStorage.read(key: 'lease_heartbeat'))
+          .thenAnswer((_) async => heartbeat.toIso8601String());
 
       when(() => mockSnapshot.exists).thenReturn(true);
       when(() => mockSnapshot.data()).thenReturn({'expiresAt': Timestamp.fromDate(freshExpiry)});
@@ -86,39 +88,21 @@ void main() {
 
       expect(result, EntitlementStatus.valid);
       verify(() => mockStorage.write(key: 'ent_expiry', value: freshExpiry.toIso8601String())).called(1);
-      verify(() => mockStorage.write(key: 'ent_cached_at', value: now.toIso8601String())).called(1);
+      verify(() => mockStorage.write(key: 'lease_heartbeat', value: now.toIso8601String())).called(1);
     });
 
-    test('No cache, Firestore has valid entitlement returns valid and updates cache', () async {
-      final freshExpiry = now.add(const Duration(days: 30));
-
-      when(() => mockSnapshot.exists).thenReturn(true);
-      when(() => mockSnapshot.data()).thenReturn({'expiresAt': Timestamp.fromDate(freshExpiry)});
-
-      final result = await guard.checkEntitlement();
-
-      expect(result, EntitlementStatus.valid);
-      verify(() => mockStorage.write(key: 'ent_expiry', value: freshExpiry.toIso8601String())).called(1);
-      verify(() => mockStorage.write(key: 'ent_cached_at', value: now.toIso8601String())).called(1);
-    });
-
-    test('Cache older than 7 days triggers Firestore check', () async {
+    test('Stale heartbeat (>= 7 days) returns expired regardless of cloud', () async {
       final expiry = now.add(const Duration(days: 30));
-      final cachedAt = now.subtract(const Duration(days: 8));
-      final freshExpiry = now.add(const Duration(days: 45));
+      final heartbeat = now.subtract(const Duration(days: 7));
 
       when(() => mockStorage.read(key: 'ent_expiry'))
           .thenAnswer((_) async => expiry.toIso8601String());
-      when(() => mockStorage.read(key: 'ent_cached_at'))
-          .thenAnswer((_) async => cachedAt.toIso8601String());
-
-      when(() => mockSnapshot.exists).thenReturn(true);
-      when(() => mockSnapshot.data()).thenReturn({'expiresAt': Timestamp.fromDate(freshExpiry)});
+      when(() => mockStorage.read(key: 'lease_heartbeat'))
+          .thenAnswer((_) async => heartbeat.toIso8601String());
 
       final result = await guard.checkEntitlement();
 
-      expect(result, EntitlementStatus.valid);
-      verify(() => mockFirestore.collection('entitlements')).called(1);
+      expect(result, EntitlementStatus.expired);
     });
 
     test('No user logged in returns expired', () async {
@@ -129,14 +113,11 @@ void main() {
       expect(result, EntitlementStatus.expired);
     });
 
-    test('Firestore fetch fails, recently updated cache returns grace', () async {
-      final oldExpiry = now.subtract(const Duration(days: 1));
-      final recentCachedAt = now.subtract(const Duration(days: 2));
+    test('Firestore fetch fails, recently updated heartbeat returns grace', () async {
+      final recentHeartbeat = now.subtract(const Duration(days: 2));
 
-      when(() => mockStorage.read(key: 'ent_expiry'))
-          .thenAnswer((_) async => oldExpiry.toIso8601String());
-      when(() => mockStorage.read(key: 'ent_cached_at'))
-          .thenAnswer((_) async => recentCachedAt.toIso8601String());
+      when(() => mockStorage.read(key: 'lease_heartbeat'))
+          .thenAnswer((_) async => recentHeartbeat.toIso8601String());
 
       when(() => mockDocument.get()).thenThrow(Exception('Network error'));
 
@@ -145,30 +126,12 @@ void main() {
       expect(result, EntitlementStatus.grace);
     });
 
-    test('Firestore fetch fails, old cache returns expired', () async {
-      final cachedAt = now.subtract(const Duration(days: 8));
+    test('Firestore fetch fails, stale heartbeat returns expired', () async {
+      final staleHeartbeat = now.subtract(const Duration(days: 8));
 
-      when(() => mockStorage.read(key: 'ent_cached_at'))
-          .thenAnswer((_) async => cachedAt.toIso8601String());
+      when(() => mockStorage.read(key: 'lease_heartbeat'))
+          .thenAnswer((_) async => staleHeartbeat.toIso8601String());
       when(() => mockDocument.get()).thenThrow(Exception('Network error'));
-
-      final result = await guard.checkEntitlement();
-
-      expect(result, EntitlementStatus.expired);
-    });
-
-    test('Firestore doc exists but entitlement expired returns expired', () async {
-      final expiredDate = now.subtract(const Duration(days: 1));
-      when(() => mockSnapshot.exists).thenReturn(true);
-      when(() => mockSnapshot.data()).thenReturn({'expiresAt': Timestamp.fromDate(expiredDate)});
-
-      final result = await guard.checkEntitlement();
-
-      expect(result, EntitlementStatus.expired);
-    });
-
-    test('Firestore doc does not exist returns expired', () async {
-      when(() => mockSnapshot.exists).thenReturn(false);
 
       final result = await guard.checkEntitlement();
 

@@ -92,6 +92,12 @@ class AppBootstrap {
           options: DefaultFirebaseOptions.currentPlatform,
         ).timeout(const Duration(seconds: 10));
 
+        // 1.1 Configure Monitoring (Hardening)
+        if (!kIsWeb) {
+          await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
+          FirebaseCrashlytics.instance.log('IronBook Tier 2 Cloud Services Started');
+        }
+
         await Future.wait([
           if (!kIsWeb) FcmService.init(),
           if (!kIsWeb) NotificationService.init(),
@@ -111,6 +117,7 @@ class AppBootstrap {
         try {
           await Workmanager().initialize(
             MidnightEngine.callbackDispatcher,
+            isInDebugMode: kDebugMode,
           );
           await Workmanager().registerPeriodicTask(
             "1",

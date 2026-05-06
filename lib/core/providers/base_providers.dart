@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
+import 'package:ironbook_gm/core/services/config_service.dart';
 
 final firebaseAuthProvider = Provider<FirebaseAuth?>((ref) {
   if (kIsWeb) return null;
@@ -37,8 +38,9 @@ final hmacServiceProvider = Provider<HmacService>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
   final auth = ref.watch(firebaseAuthProvider);
   final firestore = ref.watch(firestoreProvider);
+  final config = ref.watch(configServiceProvider);
   
-  return HmacService(storage, auth, firestore);
+  return HmacService(storage, auth, firestore, config);
 });
 
 

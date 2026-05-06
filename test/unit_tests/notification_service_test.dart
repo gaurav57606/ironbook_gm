@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:ironbook_gm/core/services/notification_service.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 
 class MockFlutterLocalNotificationsPlugin extends Mock
     implements FlutterLocalNotificationsPlugin {}

@@ -40,6 +40,7 @@ import '../../features/analytics/presentation/screens/analytics_screen.dart';
 import '../../features/nutrition/presentation/screens/nutrition_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_hub_screen.dart';
 import '../../features/character_creation/presentation/screens/character_creation_screen.dart';
+import '../../features/legal/presentation/screens/legal_screens.dart';
 
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
@@ -300,12 +301,34 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
                     builder: (context, state) => const AboutScreen(),
                   ),
                   GoRoute(
+                    path: 'privacy',
+                    builder: (context, state) => const LegalScreen(
+                      title: 'Privacy Policy',
+                      content: LegalScreen.privacyPolicyContent,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'terms',
+                    builder: (context, state) => const LegalScreen(
+                      title: 'Terms of Service',
+                      content: LegalScreen.termsOfServiceContent,
+                    ),
+                  ),
+                  GoRoute(
                     path: 'transfer',
                     builder: (context, state) => const OwnershipTransferScreen(),
                   ),
                   GoRoute(
                     path: 'backup',
                     builder: (context, state) => const BackupRestoreScreen(),
+                  ),
+                  GoRoute(
+                    path: 'privacy',
+                    builder: (context, state) => const PrivacyPolicyScreen(),
+                  ),
+                  GoRoute(
+                    path: 'terms',
+                    builder: (context, state) => const TermsOfServiceScreen(),
                   ),
                 ],
               ),
@@ -315,18 +338,12 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       ),
       GoRoute(
         path: '/paywall',
-        builder: (context, state) => const PaywallPlaceholder(),
+        builder: (context, state) => const SubscriptionScreen(),
       ),
     ],
   );
 });
 
-class PaywallPlaceholder extends StatelessWidget {
-  const PaywallPlaceholder({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: Text('Paywall')));
-}
 
 
 

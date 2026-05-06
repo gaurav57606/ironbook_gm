@@ -219,6 +219,8 @@ class FakeRepo implements IEventRepository {
   @override
   Future<List<DomainEvent>> getAll() async => [];
   @override
+  Future<List<DomainEvent>> getEventsSince(DateTime since) async => [];
+  @override
   Future<void> markAsSynced(String eventId) async {}
   @override
   Future<void> persistSynced(DomainEvent event) async {}

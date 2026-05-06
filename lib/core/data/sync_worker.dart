@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'local/drift/outbox_repository.dart';
 import 'repositories/event_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
@@ -63,6 +64,13 @@ class SyncWorker {
       return;
     }
 
+    // Connectivity guard: prevent unneeded attempts while offline
+    if (!await _checkConnectivity()) {
+      debugPrint('SyncWorker: Device offline, skipping sync.');
+      await _coordinator.releaseLock(holderId);
+      return;
+    }
+
     _isSyncing = true;
     _ref.read(_statusProvider.notifier).state = SyncWorkerState(status: SyncWorkerStatus.syncing);
 
@@ -84,6 +92,7 @@ class SyncWorker {
       }
       
       _consecutiveFailures = 0;
+      _lastSuccessAt = DateTime.now();
       debugPrint('SyncWorker: Sync completed successfully');
     } catch (e) {
       _consecutiveFailures++;
@@ -139,6 +148,11 @@ class SyncWorker {
       lastSuccessAt: _lastSuccessAt,
       errorMessage: error,
     );
+  }
+
+  Future<bool> _checkConnectivity() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    return !connectivityResult.contains(ConnectivityResult.none);
   }
 }
 

@@ -43,7 +43,6 @@ class MemberSnapshot extends HiveObject {
   String? gender;
 
   @HiveField(13)
-  @HiveField(13)
   int? age;
 
   @HiveField(14)

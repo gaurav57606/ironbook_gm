@@ -1,4 +1,12 @@
+# IMPORTANT: If .env was previously committed, run this command to untrack it:
+# git rm --cached .env
+# Then commit the result. The file stays on disk but leaves git history.
+
 # Miscellaneous
+# Environment secrets — never commit
+.env
+.env.*
+!.env.example
 *.class
 *.log
 *.pyc

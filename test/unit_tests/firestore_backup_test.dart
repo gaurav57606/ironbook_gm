@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/data/remote/firestore_backup.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/remote/firestore_backup.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 
 // Mocks
 class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}

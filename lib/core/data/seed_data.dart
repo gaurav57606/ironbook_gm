@@ -26,9 +26,10 @@ class SeedData {
     final hmac = container.read(hmacServiceProvider);
     final pinService = container.read(pinServiceProvider);
     final storage = container.read(appSecureStorageProvider);
+    final eventBox = Hive.box<DomainEvent>('events');
     const deviceId = 'seed-device';
 
-    bool needsSeeding = plansBox.isEmpty;
+    bool needsSeeding = plansBox.isEmpty && eventBox.isEmpty;
     if (!needsSeeding) {
       final firstPlan = plansBox.values.first;
       if (firstPlan.hmacSignature == null) {

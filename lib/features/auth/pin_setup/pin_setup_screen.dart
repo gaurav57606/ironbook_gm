@@ -20,7 +20,7 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
         _pin += digit;
       });
       if (_pin.length == 6) {
-        // In a real app, verify and save PIN.
+        ref.read(authProvider.notifier).setPin(_pin);
         context.go('/');
       }
     }

@@ -10,6 +10,7 @@ import 'models/app_settings_model.dart';
 import 'models/invoice_sequence.dart';
 import 'models/product_model.dart';
 import 'models/sale_model.dart';
+import 'models/nutrition_plan_model.dart';
 import 'adapters/manual_adapters.dart';
 
 class HiveInit {
@@ -29,6 +30,7 @@ class HiveInit {
     Hive.registerAdapter(ProductAdapter());
     Hive.registerAdapter(SaleAdapter());
     Hive.registerAdapter(SaleItemAdapter());
+    Hive.registerAdapter(NutritionPlanAdapter());
   }
 
   static Future<void> openAllBoxes() async {
@@ -43,6 +45,7 @@ class HiveInit {
       'invoice_sequences': InvoiceSequence,
       'products': Product,
       'sales': Sale,
+      'nutrition': NutritionPlan,
     };
 
     for (final entry in boxNames.entries) {
@@ -60,6 +63,21 @@ class HiveInit {
         } catch (e2) {
           debugPrint('Hive: Critical failure opening box "$name" after deletion: $e2');
           if (name == 'events') rethrow; // Events are non-negotiable (Source of Truth)
+        }
+      }
+    }
+
+    // Open untyped meta box (checkpoint storage)
+    if (!Hive.isBoxOpen('meta')) {
+      try {
+        await Hive.openBox('meta');
+      } catch (e) {
+        debugPrint('Hive: Failed to open meta box: $e. Attempting recovery...');
+        try {
+          await Hive.deleteBoxFromDisk('meta');
+          await Hive.openBox('meta');
+        } catch (e2) {
+          debugPrint('Hive: Critical failure opening meta box: $e2');
         }
       }
     }
@@ -84,6 +102,8 @@ class HiveInit {
       await Hive.openBox<Product>(name, encryptionCipher: cipher);
     } else if (type == Sale) {
       await Hive.openBox<Sale>(name, encryptionCipher: cipher);
+    } else if (type == NutritionPlan) {
+      await Hive.openBox<NutritionPlan>(name, encryptionCipher: cipher);
     } else {
       await Hive.openBox(name, encryptionCipher: cipher);
     }

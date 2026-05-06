@@ -9,15 +9,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/shared/utils/canonical_json.dart';
+import 'package:ironbook_gm/core/services/config_service.dart';
 
 class HmacService {
   final FlutterSecureStorage _storage;
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
+  final ConfigService? _config;
   
   static const _keyStorageName = 'hmac_device_key';
   
-  HmacService(this._storage, this._auth, this._firestore);
+  HmacService(this._storage, this._auth, this._firestore, [this._config]);
   
   static String? _testKey;
   static void setKeyForTest(String key) => _testKey = key;
@@ -35,6 +37,8 @@ class HmacService {
         debugPrint('HmacService Static Init Error: $e');
       }
     }
+    // We can't easily get ConfigService here without a container, 
+    // so we skip it for early static init (or better, use the provider)
     final service = HmacService(storage, auth, firestore);
     await service._getOrCreateKey();
   }
@@ -91,10 +95,10 @@ class HmacService {
   }
 
   String _wrapKey(String rawKey, String uid) {
-    // Basic KDF for wrapping: UID + internal salt
-    final salt = crypto.sha256.convert(utf8.encode('ironbook-hmac-salt')).bytes;
-    final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid));
-    final wrapperKeyBytes = kdf.convert(salt).bytes;
+    // Audit Hardening 2.7: KDF uses Identity + Environment Secret
+    final hmacKey = _config?.hmacSecret ?? 'default-internal-salt';
+    final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid + hmacKey));
+    final wrapperKeyBytes = kdf.convert(utf8.encode(uid)).bytes;
     
     final key = enc.Key(Uint8List.fromList(wrapperKeyBytes));
     final iv = enc.IV.fromLength(16);
@@ -111,9 +115,9 @@ class HmacService {
     final iv = enc.IV.fromBase64(parts[0]);
     final encrypted = enc.Encrypted.fromBase64(parts[1]);
     
-    final salt = crypto.sha256.convert(utf8.encode('ironbook-hmac-salt')).bytes;
-    final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid));
-    final wrapperKeyBytes = kdf.convert(salt).bytes;
+    final hmacKey = _config?.hmacSecret ?? 'default-internal-salt';
+    final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid + hmacKey));
+    final wrapperKeyBytes = kdf.convert(utf8.encode(uid)).bytes;
     
     final key = enc.Key(Uint8List.fromList(wrapperKeyBytes));
     final encrypter = enc.Encrypter(enc.AES(key));

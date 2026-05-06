@@ -26,6 +26,10 @@ class MockRepo implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getAll() async => List.from(events);
+  @override
+  Future<List<DomainEvent>> getEventsSince(DateTime since) async {
+    return events.where((e) => e.deviceTimestamp.isAfter(since)).toList();
+  }
 
   @override
   Future<void> markAsSynced(String eventId) async {}

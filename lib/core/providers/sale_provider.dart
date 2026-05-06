@@ -54,7 +54,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
           final iMap = Map<String, dynamic>.from(i);
           return SaleItem(
             productId: iMap['productId'] ?? '',
-            productName: 'Unknown Product', // Product names aren't in payload currently
+            productName: iMap['productName'] as String? ?? 'Unknown Product',
             price: (iMap['price'] as num?)?.toDouble() ?? 0.0,
             quantity: iMap['qty'] ?? 1,
           );
@@ -156,6 +156,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
         'method': method,
         'items': items.map((i) => {
           'productId': i.productId,
+          'productName': i.productName,
           'qty': i.quantity,
           'price': i.price,
         }).toList(),

@@ -1,7 +1,7 @@
 name: ironbook_gm
 description: Gym Management App for solo gym owners
 publish_to: "none"
-version: 1.0.0+1
+version: 2.4.0+1
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -15,6 +15,7 @@ dependencies:
   flutter_dotenv: ^5.1.0
   lucide_icons: ^0.257.0
   collection: ^1.18.0
+  connectivity_plus: ^6.0.0
 
   # Local storage — device is the authority
   hive: ^2.2.3
@@ -35,6 +36,8 @@ dependencies:
   firebase_auth: ^5.7.0
   cloud_firestore: ^5.6.12
   firebase_messaging: ^15.2.10
+  firebase_crashlytics: ^4.3.0
+  firebase_analytics: ^11.4.0
 
 
   # Security

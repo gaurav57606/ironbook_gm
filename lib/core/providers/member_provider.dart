@@ -44,6 +44,12 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   }).toList();
 });
 
+final memberProvider = Provider.family<AsyncValue<MemberSnapshot?>, String>((ref, id) {
+  final members = ref.watch(membersProvider);
+  final member = members.where((m) => m.memberId == id).firstOrNull;
+  return AsyncValue.data(member);
+});
+
 class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   final IEventRepository _repo;
   final IClock _clock;
@@ -63,6 +69,17 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     // 1. Real-time updates via Event Bus (Register before loading to avoid app-kill gaps)
     _repo.watch().listen((event) async {
+      // ⚡ Bolt: Fast-path skip for non-member events to avoid unnecessary Disk I/O
+      if (![
+        EventType.memberCreated,
+        EventType.memberUpdated,
+        EventType.memberArchived,
+        EventType.checkInRecorded,
+        EventType.paymentRecorded
+      ].contains(event.eventType)) {
+        return;
+      }
+
       final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
       final current = await snapshotBox.get(event.entityId);
       
@@ -77,10 +94,18 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         final signature = await _hmac.signSnapshot(event.entityId, updated.toFirestore());
         final signed = updated.copyWith(hmacSignature: signature);
         await snapshotBox.put(event.entityId, signed);
-        state = await _loadAllSnapshots(snapshotBox);
+        
+        // ⚡ Bolt: Incremental state update instead of full O(N) reload from disk
+        final index = state.indexWhere((m) => m.memberId == event.entityId);
+        if (index != -1) {
+          state = [...state]..[index] = signed;
+        } else {
+          state = [...state, signed];
+        }
       } else if (event.eventType == EventType.memberArchived) {
         await snapshotBox.delete(event.entityId);
-        state = await _loadAllSnapshots(snapshotBox);
+        // ⚡ Bolt: Incremental state update
+        state = state.where((m) => m.memberId != event.entityId).toList();
       }
     });
 
@@ -134,45 +159,51 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   }
 
   Future<void> _reconcileSnapshots() async {
+    // Checkpoint-based reconciliation: only process events newer than last checkpoint.
+    // This is O(new events) not O(all events), keeping startup fast as gym grows.
+    final metaBox = Hive.box('meta');
+    final lastCheckMs = metaBox.get('member_reconcile_ts') as int? ?? 0;
+    final lastCheckTime = DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
+
+    final recentEvents = await _repo.getEventsSince(lastCheckTime);
+
+    if (recentEvents.isEmpty) {
+      // Nothing new since last check — update checkpoint and return fast
+      await metaBox.put('member_reconcile_ts', DateTime.now().millisecondsSinceEpoch);
+      return;
+    }
+
     final box = Hive.lazyBox<MemberSnapshot>('snapshots');
-    final allEvents = await _repo.getAll(); 
-    
-    if (allEvents.isEmpty) return;
 
-    // Audit 1.5 Fix: Reconcile from ALL local events to catch app-kill gaps
-    final latestByEntity = <String, DateTime>{};
-    final eventsByEntity = <String, List<DomainEvent>>{};
-
-    for (final e in allEvents) {
-      if (latestByEntity[e.entityId] == null || e.deviceTimestamp.isAfter(latestByEntity[e.entityId]!)) {
-        latestByEntity[e.entityId] = e.deviceTimestamp;
-      }
+    // Group recent events by entityId
+    final Map<String, List<DomainEvent>> eventsByEntity = {};
+    for (final e in recentEvents) {
       eventsByEntity.putIfAbsent(e.entityId, () => []).add(e);
     }
 
     bool updatedAny = false;
-    final keys = latestByEntity.keys.toList();
-    const batchSize = 50;
+    for (final entityId in eventsByEntity.keys) {
+      final snap = await box.get(entityId);
+      final latestEventTime = eventsByEntity[entityId]!
+          .map((e) => e.deviceTimestamp)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
 
-    for (int i = 0; i < keys.length; i += batchSize) {
-      final batch = keys.skip(i).take(batchSize).toList();
-
-      await Future.wait(batch.map((entityId) async {
-        final snap = await box.get(entityId);
-        if (snap == null || snap.lastUpdated.isBefore(latestByEntity[entityId]!)) {
-          debugPrint('MemberNotifier: Lagging snapshot detected for $entityId. Rebuilding...');
-          final history = eventsByEntity[entityId] ?? [];
-          final rebuilt = SnapshotBuilder.rebuild(history);
-          if (rebuilt != null) {
-            // Sign the rebuilt snapshot before putting
-            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
-            final signed = rebuilt.copyWith(hmacSignature: signature);
-            await box.put(entityId, signed);
-            updatedAny = true;
-          }
+      if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+        debugPrint('MemberNotifier: Lagging snapshot for $entityId. Rebuilding from checkpoint events...');
+        // Rebuild from ALL entity events for correctness (only triggered when needed)
+        final fullHistory = await _repo.getByEntityId(entityId);
+        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+        if (rebuilt != null) {
+          final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
+          final signed = rebuilt.copyWith(hmacSignature: signature);
+          await box.put(entityId, signed);
+          updatedAny = true;
         }
-      }));
+      }
     }
+
+    // Save checkpoint — next startup skips all events processed today
+    await metaBox.put('member_reconcile_ts', DateTime.now().millisecondsSinceEpoch);
 
     if (updatedAny) {
       state = await _loadAllSnapshots(box);
@@ -193,6 +224,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     required String phone,
     required String planId,
     required DateTime joinDate,
+    String? gender,
+    int? age,
   }) async {
     final memberId = const Uuid().v4();
     final now = _clock.now;
@@ -217,6 +250,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         EventPayloadKeys.planName: plan.name,
         EventPayloadKeys.joinDate: joinDate.toUtc().toIso8601String(),
         EventPayloadKeys.newExpiry: expiryDate.toUtc().toIso8601String(),
+        if (gender != null) EventPayloadKeys.gender: gender,
+        if (age != null) EventPayloadKeys.age: age,
       },
     );
 
@@ -280,7 +315,12 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       final signature = await _hmac.signSnapshot(memberId, updated.toFirestore());
       final signed = updated.copyWith(hmacSignature: signature);
       await snapshotBox.put(memberId, signed);
-      state = await _loadAllSnapshots(snapshotBox);
+      
+      // ⚡ Bolt: Incremental state update instead of full O(N) reload from disk
+      final index = state.indexWhere((m) => m.memberId == memberId);
+      if (index != -1) {
+        state = [...state]..[index] = signed;
+      }
     }
   }
 
@@ -307,7 +347,12 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       final signature = await _hmac.signSnapshot(memberId, updated.toFirestore());
       final signed = updated.copyWith(hmacSignature: signature);
       await snapshotBox.put(memberId, signed);
-      state = await _loadAllSnapshots(snapshotBox);
+      
+      // ⚡ Bolt: Incremental state update instead of full O(N) reload from disk
+      final index = state.indexWhere((m) => m.memberId == memberId);
+      if (index != -1) {
+        state = [...state]..[index] = signed;
+      }
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import '../../../../features/nutrition/data/models/nutrition_plan_model.dart';
 import '../models/domain_event_model.dart';
 import '../models/member_snapshot_model.dart';
 import '../models/payment_model.dart';
@@ -9,6 +10,34 @@ import '../models/app_settings_model.dart';
 import '../models/join_date_change_model.dart';
 import '../models/product_model.dart';
 import '../models/sale_model.dart';
+
+
+class NutritionPlanAdapter extends TypeAdapter<NutritionPlan> {
+  @override
+  final int typeId = 20;
+
+  @override
+  NutritionPlan read(BinaryReader reader) {
+    return NutritionPlan(
+      id: reader.read() as String,
+      memberId: reader.read() as String,
+      planName: reader.read() as String,
+      calories: reader.read() as String,
+      adherence: (reader.read() as num).toDouble(),
+      assignedAt: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, NutritionPlan obj) {
+    writer.write(obj.id);
+    writer.write(obj.memberId);
+    writer.write(obj.planName);
+    writer.write(obj.calories);
+    writer.write(obj.adherence);
+    writer.write(obj.assignedAt.millisecondsSinceEpoch);
+  }
+}
 
 class DomainEventAdapter extends TypeAdapter<DomainEvent> {
   @override
@@ -67,6 +96,7 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
     final lastCheckInTs = reader.read() as num?;
     final lastCheckIn = lastCheckInTs != null ? DateTime.fromMillisecondsSinceEpoch(lastCheckInTs.toInt()) : null;
     final lastCheckInDevice = reader.read() as String?;
+    final hmacSignature = reader.read() as String?;
     
     return MemberSnapshot(
       memberId: memberId,
@@ -86,6 +116,7 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
       checkInPin: checkInPin,
       lastCheckIn: lastCheckIn,
       lastCheckInDevice: lastCheckInDevice,
+      hmacSignature: hmacSignature,
     );
   }
 
@@ -108,6 +139,7 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
     writer.write(obj.checkInPin);
     writer.write(obj.lastCheckIn?.millisecondsSinceEpoch);
     writer.write(obj.lastCheckInDevice);
+    writer.write(obj.hmacSignature);
   }
 }
 
@@ -132,6 +164,7 @@ class PaymentAdapter extends TypeAdapter<Payment> {
       gstAmount: (reader.read() as num).toDouble(),
       gstRate: (reader.read() as num).toDouble(),
       durationMonths: (reader.read() as num).toInt(),
+      hmacSignature: reader.read() as String?,
     );
   }
 
@@ -151,6 +184,7 @@ class PaymentAdapter extends TypeAdapter<Payment> {
     writer.write(obj.gstAmount);
     writer.write(obj.gstRate);
     writer.write(obj.durationMonths);
+    writer.write(obj.hmacSignature);
   }
 }
 
@@ -166,6 +200,7 @@ class PlanAdapter extends TypeAdapter<Plan> {
       durationMonths: (reader.read() as num).toInt(),
       components: List<PlanComponent>.from(reader.read()),
       active: reader.read() as bool,
+      hmacSignature: reader.read() as String?,
     );
   }
 
@@ -176,6 +211,7 @@ class PlanAdapter extends TypeAdapter<Plan> {
     writer.write(obj.durationMonths);
     writer.write(obj.components);
     writer.write(obj.active);
+    writer.write(obj.hmacSignature);
   }
 }
 
@@ -259,6 +295,13 @@ class OwnerProfileAdapter extends TypeAdapter<OwnerProfile> {
       ifsc: reader.read(),
       upiId: reader.read(),
       logoPath: reader.read(),
+      hmacSignature: reader.read() as String?,
+      level: (reader.read() as num).toInt(),
+      exp: (reader.read() as num).toInt(),
+      strength: (reader.read() as num).toDouble(),
+      endurance: (reader.read() as num).toDouble(),
+      dexterity: (reader.read() as num).toDouble(),
+      selectedCharacterId: reader.read() as String,
     );
   }
 
@@ -274,6 +317,13 @@ class OwnerProfileAdapter extends TypeAdapter<OwnerProfile> {
     writer.write(obj.ifsc);
     writer.write(obj.upiId);
     writer.write(obj.logoPath);
+    writer.write(obj.hmacSignature);
+    writer.write(obj.level);
+    writer.write(obj.exp);
+    writer.write(obj.strength);
+    writer.write(obj.endurance);
+    writer.write(obj.dexterity);
+    writer.write(obj.selectedCharacterId);
   }
 }
 
@@ -290,6 +340,10 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       biometricEnabled: reader.read() as bool,
       businessType: reader.read() as String,
       useBiometrics: reader.read() as bool,
+      lastBackupAt: (() {
+        final ts = reader.read() as num?;
+        return ts != null ? DateTime.fromMillisecondsSinceEpoch(ts.toInt()) : null;
+      })(),
     );
   }
 
@@ -301,6 +355,7 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
     writer.write(obj.biometricEnabled);
     writer.write(obj.businessType);
     writer.write(obj.useBiometrics);
+    writer.write(obj.lastBackupAt?.millisecondsSinceEpoch);
   }
 }
 
@@ -342,6 +397,7 @@ class SaleAdapter extends TypeAdapter<Sale> {
       paymentMethod: reader.read() as String,
       items: List<SaleItem>.from(reader.read()),
       invoiceNumber: reader.read() as String,
+      hmacSignature: reader.read() as String?,
     );
   }
 
@@ -353,6 +409,7 @@ class SaleAdapter extends TypeAdapter<Sale> {
     writer.write(obj.paymentMethod);
     writer.write(obj.items);
     writer.write(obj.invoiceNumber);
+    writer.write(obj.hmacSignature);
   }
 }
 
