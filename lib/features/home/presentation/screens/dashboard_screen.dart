@@ -37,6 +37,7 @@ class DashboardScreen extends ConsumerWidget {
     final expiredMemberNames = <String>[];
     final expiringMemberNames = <String>[];
     final dueMembers = <MemberSnapshot>[];
+    int totalRevenue = 0;
 
     for (final m in members) {
       totalRevenue += m.totalPaid;
@@ -57,6 +58,9 @@ class DashboardScreen extends ConsumerWidget {
         status = MemberStatus.active;
       }
 
+      if (days >= 0 && days <= 3) dueMembers.add(m);
+
+      final status = m.getStatus(now);
       switch (status) {
         case MemberStatus.active:
           activeCount++;

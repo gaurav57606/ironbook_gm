@@ -289,6 +289,7 @@ class MembersListScreen extends ConsumerWidget {
       );
     }
 
+    // ⚡ Bolt: Extracted `ref.watch` outside loop to prevent O(N) dependency evaluations
     final now = ref.watch(clockProvider).now;
 
     return Column(

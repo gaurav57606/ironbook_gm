@@ -15,7 +15,9 @@ abstract class IEventRepository {
   Future<DomainEvent?> getById(String id);
   Future<List<DomainEvent>> getByEntityId(String entityId);
   Future<void> markAsSynced(String eventId);
-  Future<void> persistSynced(DomainEvent event); // Recovery: Persist without Outbox
+  Future<void> persistSynced(
+    DomainEvent event,
+  ); // Recovery: Persist without Outbox
   Stream<DomainEvent> watch();
 }
 
@@ -52,8 +54,17 @@ class HiveEventRepository implements IEventRepository {
   Future<void> _loadIndex() async {
     _unsyncedIds.clear();
     _entityIndex.clear();
-    for (final key in _box.keys) {
-      final event = await _box.get(key);
+
+    // Audit 6.2: Parallelize Hive access
+    // Performance Optimization: Batch LazyBox reads to prevent OOM crashes
+    final keys = _box.keys.toList();
+    final List<DomainEvent?> events = [];
+    for (int i = 0; i < keys.length; i += 50) {
+      final chunk = keys.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
+      events.addAll(chunkEvents);
+    }
+    for (final event in events) {
       if (event != null) {
         if (!event.synced) {
           _unsyncedIds.add(event.id);
@@ -67,11 +78,13 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<void> persist(DomainEvent event) async {
-    debugPrint('HiveEventRepository: ACID Dual-Write Start: ${event.eventType}');
-    
+    debugPrint(
+      'HiveEventRepository: ACID Dual-Write Start: ${event.eventType}',
+    );
+
     // 1. Sign (Security Enforcement)
     event.hmacSignature = await _hmacService.signEvent(event);
-    
+
     try {
       // 2. Drift Outbox write (The Source of Truth for Sync)
       // Audit Hardening: On Web, sql.js might be missing. We allow local-only mode if this fails.
@@ -80,7 +93,9 @@ class HiveEventRepository implements IEventRepository {
         debugPrint('HiveEventRepository: 1/2 Drift Outbox Success');
       } catch (e) {
         if (kIsWeb) {
-          debugPrint('HiveEventRepository: Drift Outbox skipped on Web (sql.js missing/error): $e');
+          debugPrint(
+            'HiveEventRepository: Drift Outbox skipped on Web (sql.js missing/error): $e',
+          );
         } else {
           rethrow;
         }
@@ -98,7 +113,6 @@ class HiveEventRepository implements IEventRepository {
       if (!kIsWeb) {
         _syncCoordinator.triggerSync();
       }
-      
     } catch (e) {
       debugPrint('HiveEventRepository: ACID FAILURE - Transaction Aborted: $e');
       rethrow;
@@ -107,30 +121,55 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getAll() async {
-    final List<DomainEvent> events = [];
-    for (final key in _box.keys) {
-      final e = await _box.get(key);
-      if (e != null) {
-        if (await _hmacService.verifyInstance(e)) {
-          events.add(e);
-        } else {
-          debugPrint('HiveEventRepository: TAMPER DETECTED for event ${e.id}. Skipping.');
-        }
+    final List<DomainEvent> validEvents = [];
+    // Performance Optimization: Batch LazyBox reads to prevent OOM crashes
+    final keys = _box.keys.toList();
+    final List<DomainEvent?> allEvents = [];
+    for (int i = 0; i < keys.length; i += 50) {
+      final chunk = keys.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
+      allEvents.addAll(chunkEvents);
+    }
+    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
+
+    final verificationResults = await Future.wait(
+      nonNullEvents.map((e) => _hmacService.verifyInstance(e)),
+    );
+
+    for (int i = 0; i < nonNullEvents.length; i++) {
+      if (verificationResults[i]) {
+        validEvents.add(nonNullEvents[i]);
+      } else {
+        debugPrint(
+          'HiveEventRepository: TAMPER DETECTED for event ${nonNullEvents[i].id}. Skipping.',
+        );
       }
     }
-    return events;
+    return validEvents;
   }
 
   @override
   Future<List<DomainEvent>> getAllUnsynced() async {
     await ensureIndexLoaded();
     final List<DomainEvent> unsynced = [];
-    for (final id in _unsyncedIds) {
-      final event = await _box.get(id);
-      if (event != null) {
-        if (await _hmacService.verifyInstance(event)) {
-          unsynced.add(event);
-        }
+
+    // Performance Optimization: Batch LazyBox reads to prevent OOM crashes
+    final keys = _unsyncedIds.toList();
+    final List<DomainEvent?> allEvents = [];
+    for (int i = 0; i < keys.length; i += 50) {
+      final chunk = keys.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
+      allEvents.addAll(chunkEvents);
+    }
+    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
+
+    final verificationResults = await Future.wait(
+      nonNullEvents.map((e) => _hmacService.verifyInstance(e)),
+    );
+
+    for (int i = 0; i < nonNullEvents.length; i++) {
+      if (verificationResults[i]) {
+        unsynced.add(nonNullEvents[i]);
       }
     }
     return unsynced;
@@ -150,12 +189,23 @@ class HiveEventRepository implements IEventRepository {
     await ensureIndexLoaded();
     final eventIds = _entityIndex[entityId] ?? [];
     final List<DomainEvent> results = [];
-    for (final id in eventIds) {
-      final e = await _box.get(id);
-      if (e != null) {
-        if (await _hmacService.verifyInstance(e)) {
-          results.add(e);
-        }
+
+    // Performance Optimization: Batch LazyBox reads to prevent OOM crashes
+    final List<DomainEvent?> allEvents = [];
+    for (int i = 0; i < eventIds.length; i += 50) {
+      final chunk = eventIds.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((id) => _box.get(id)));
+      allEvents.addAll(chunkEvents);
+    }
+    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
+
+    final verificationResults = await Future.wait(
+      nonNullEvents.map((e) => _hmacService.verifyInstance(e)),
+    );
+
+    for (int i = 0; i < nonNullEvents.length; i++) {
+      if (verificationResults[i]) {
+        results.add(nonNullEvents[i]);
       }
     }
     return results;
@@ -173,16 +223,18 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<void> persistSynced(DomainEvent event) async {
-    debugPrint('HiveEventRepository: Persisting recovered/synced event: ${event.id}');
+    debugPrint(
+      'HiveEventRepository: Persisting recovered/synced event: ${event.id}',
+    );
     // 1. Ensure signed
     if (event.hmacSignature.isEmpty) {
       event.hmacSignature = await _hmacService.signEvent(event);
     }
-    
+
     // 2. Direct to Hive (Bypass Outbox)
     _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
     await _box.put(event.id, event);
-    
+
     // 3. Dispatch
     _eventBus.publish(event);
   }
@@ -197,17 +249,6 @@ final eventRepositoryProvider = Provider<IEventRepository>((ref) {
   final hmac = ref.watch(hmacServiceProvider);
   final outboxRepo = ref.watch(outboxRepositoryProvider);
   final syncCoord = ref.watch(syncCoordinatorProvider);
-  
+
   return HiveEventRepository(box, bus, hmac, outboxRepo, syncCoord);
 });
-
-
-
-
-
-
-
-
-
-
-
