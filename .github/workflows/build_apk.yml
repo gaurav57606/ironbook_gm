@@ -48,6 +48,8 @@ jobs:
           }
           EOF
         
+      - name: Run Unit Tests
+        run: flutter test test/unit_tests/
       - name: Create mock Firebase Options
         run: echo "import 'package:firebase_core/firebase_core.dart' show FirebaseOptions; class DefaultFirebaseOptions { static const FirebaseOptions currentPlatform = FirebaseOptions(apiKey: 'fake', appId: 'fake', messagingSenderId: 'fake', projectId: 'fake'); }" > lib/firebase_options.dart
       - name: Create dummy Firebase options
