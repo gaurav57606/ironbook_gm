@@ -1,0 +1,860 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0C0C0E;--bg2:#141417;--bg3:#1C1C21;--bg4:#242429;
+  --orange:#FF6B2B;--orangeD:#CC4A15;
+  --green:#22C55E;--red:#EF4444;--amber:#F59E0B;--blue:#3B82F6;
+  --text:#F0EEF6;--text2:#9896A4;--text3:#5C5A67;
+  --border:#2A2A30;--r:14px;--rs:8px;
+}
+body{font-family:'Outfit',sans-serif;background:#1a1a1f;color:var(--text);padding:20px 8px 32px;min-height:100%;}
+.wrap{max-width:900px;margin:0 auto;}
+.title-bar{text-align:center;margin-bottom:20px;}
+.title-bar h1{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+.title-bar h2{font-size:24px;font-weight:800;color:var(--text);}
+.title-bar h2 span{color:var(--orange);}
+.title-bar p{font-size:12px;color:var(--text2);margin-top:4px;}
+
+.section-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3);text-align:center;margin:24px 0 14px;padding:6px 16px;background:var(--bg3);border-radius:20px;border:1px solid var(--border);display:inline-block;position:relative;left:50%;transform:translateX(-50%);}
+
+.phones-row{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;justify-content:flex-start;scrollbar-width:none;}
+.phones-row::-webkit-scrollbar{display:none;}
+
+.phone{width:260px;min-width:260px;background:var(--bg);border-radius:32px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;}
+.screen-inner{display:flex;flex-direction:column;min-height:520px;}
+
+.statusbar{display:flex;justify-content:space-between;align-items:center;padding:10px 18px 4px;font-size:10px;font-weight:600;color:var(--text2);flex-shrink:0;}
+
+.content{flex:1;overflow:hidden;}
+.card{background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;}
+.badge.active{background:rgba(34,197,94,.15);color:var(--green);}
+.badge.expiring{background:rgba(245,158,11,.15);color:var(--amber);}
+.badge.expired{background:rgba(239,68,68,.15);color:var(--red);}
+.dot{width:4px;height:4px;border-radius:50%;background:currentColor;display:inline-block;}
+
+.bottomnav{background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:center;padding:6px 0 14px;flex-shrink:0;}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.nb svg{width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:1.8;}
+.nb span{font-size:8px;color:var(--text3);font-weight:500;}
+.nb.on svg{stroke:var(--orange);}
+.nb.on span{color:var(--orange);}
+.fab-wrap{flex:none;width:44px;margin:0 6px;}
+.fab{width:42px;height:42px;background:var(--orange);border-radius:13px;display:flex;align-items:center;justify-content:center;margin-top:-14px;box-shadow:0 4px 16px rgba(255,107,43,.4);}
+.fab svg{width:18px;height:18px;stroke:#fff;stroke-width:2.2;}
+
+.pill-tab-row{display:flex;background:var(--bg3);border-radius:10px;padding:2px;margin:0 14px 10px;border:1px solid var(--border);}
+.ptab{flex:1;padding:5px;text-align:center;font-size:9px;font-weight:600;border-radius:8px;color:var(--text2);}
+.ptab.on{background:var(--orange);color:#fff;}
+
+.chip-row{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto;scrollbar-width:none;}
+.chip-row::-webkit-scrollbar{display:none;}
+.chip{padding:4px 10px;border-radius:20px;font-size:9px;font-weight:600;border:1px solid var(--border);color:var(--text2);background:var(--bg3);white-space:nowrap;}
+.chip.on{background:var(--orange);color:#fff;border-color:var(--orange);}
+
+.member-row{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);}
+.member-row:last-child{border-bottom:none;}
+.av{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.mi{flex:1;min-width:0;}
+.mn{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ms{font-size:9px;color:var(--text2);margin-top:1px;}
+.mr{text-align:right;flex-shrink:0;}
+.dnum{font-size:13px;font-weight:700;}
+.dlbl{font-size:8px;color:var(--text3);}
+
+.info-card{margin:0 14px 10px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);padding:10px;}
+.ir{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-top:1px solid var(--border);}
+.ir:first-child{border-top:none;}
+.ik{font-size:10px;color:var(--text2);}
+.iv{font-size:10px;font-weight:600;}
+
+.tl-item{display:flex;gap:8px;padding:7px 14px;}
+.tl-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0;margin-top:3px;}
+.tl-dot.g{background:var(--green);}
+.tl-bar{flex:1;width:1px;background:var(--border);margin-top:2px;}
+.tl-c{flex:1;}
+.tl-t{font-size:11px;font-weight:600;}
+.tl-s{font-size:9px;color:var(--text2);margin-top:1px;}
+.tl-a{font-size:11px;font-weight:700;color:var(--orange);margin-top:1px;}
+
+.form-field{margin-bottom:10px;padding:0 14px;}
+.fl{font-size:9px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.fi{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:11px;color:var(--text);font-family:'Outfit',sans-serif;}
+
+.sec-h{display:flex;justify-content:space-between;align-items:center;padding:0 14px;margin-bottom:7px;}
+.sec-t{font-size:9px;font-weight:600;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;}
+.sec-l{font-size:10px;color:var(--orange);font-weight:500;}
+
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px;margin-bottom:12px;}
+.stat-card{background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);padding:10px;}
+.stat-card.og{background:linear-gradient(135deg,#CC4A15,#FF6B2B);border-color:transparent;}
+.sn{font-size:22px;font-weight:800;line-height:1;}
+.sl{font-size:9px;color:var(--text2);font-weight:500;margin-top:3px;text-transform:uppercase;letter-spacing:.4px;}
+.stat-card.og .sl{color:rgba(255,255,255,.7);}
+.stat-card.og .sn{color:#fff;}
+
+.page-bar{display:flex;align-items:center;padding:8px 14px;flex-shrink:0;}
+.page-title{font-size:16px;font-weight:700;flex:1;}
+.icon-btn{width:28px;height:28px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;}
+.icon-btn svg{width:13px;height:13px;stroke:var(--text);fill:none;stroke-width:1.8;}
+
+.back-btn{width:28px;height:28px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+.action-row{display:flex;gap:6px;padding:0 14px 10px;}
+.act{flex:1;padding:8px;border-radius:9px;font-size:9px;font-weight:600;text-align:center;border:none;}
+.act.p{background:var(--orange);color:#fff;}
+.act.s{background:var(--bg3);color:var(--text);border:1px solid var(--border);}
+
+.pin-dots{display:flex;gap:10px;justify-content:center;margin:20px 0 24px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border);}
+.pin-dot.filled{background:var(--orange);border-color:var(--orange);}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 28px;}
+.key{aspect-ratio:1;background:var(--bg3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;border:1px solid var(--border);}
+.key.empty{background:transparent;border-color:transparent;}
+
+.onb-slide{padding:0 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.onb-illus{width:140px;height:110px;background:var(--bg3);border-radius:16px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin:16px auto 0;}
+.onb-dots{display:flex;gap:5px;justify-content:center;}
+.onb-dot{width:5px;height:5px;border-radius:50%;background:var(--text3);}
+.onb-dot.on{background:var(--orange);width:16px;border-radius:3px;}
+
+.alert-banner{margin:0 14px 10px;padding:9px 11px;border-radius:var(--rs);display:flex;align-items:center;gap:7px;}
+.alert-banner.r{background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.25);}
+.alert-banner.a{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.25);}
+.alert-icon{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.alert-icon.r{background:var(--red);}
+.alert-icon.a{background:var(--amber);}
+.at{flex:1;}
+.at-title{font-size:10px;font-weight:600;}
+.alert-banner.r .at-title{color:var(--red);}
+.alert-banner.a .at-title{color:var(--amber);}
+.at-sub{font-size:9px;color:var(--text2);margin-top:1px;}
+
+.settings-group{background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin:0 14px 12px;}
+.srow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);}
+.srow:last-child{border-bottom:none;}
+.si{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.si svg{width:12px;height:12px;stroke-width:1.8;fill:none;}
+.slbl{flex:1;font-size:11px;font-weight:500;}
+.sval{font-size:9px;color:var(--text3);}
+.sarr{font-size:11px;color:var(--text3);margin-left:4px;}
+
+.donut-wrap{padding:0 14px;margin-bottom:12px;}
+.donut-card{background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);padding:12px;display:flex;align-items:center;gap:12px;}
+.legend-item{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.ldot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.llbl{font-size:9px;color:var(--text2);}
+.lval{font-size:10px;font-weight:600;margin-left:auto;}
+
+.inv-card{margin:0 14px 10px;background:linear-gradient(135deg,#1a1206,#2a1d0a);border:1px solid rgba(245,158,11,.2);border-radius:var(--r);padding:12px;}
+.inv-logo{font-size:15px;font-weight:800;color:var(--orange);}
+.inv-div{height:1px;background:var(--border);margin:7px 0;}
+.inv-row{display:flex;justify-content:space-between;margin-bottom:4px;}
+.inv-lbl{font-size:9px;color:var(--text2);}
+.inv-val{font-size:9px;font-weight:500;}
+.inv-total{display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--border);margin-top:3px;}
+.inv-tl{font-size:11px;font-weight:700;}
+.inv-tv{font-size:13px;font-weight:800;color:var(--orange);}
+
+.plan-chip-row{display:flex;gap:5px;flex-wrap:wrap;}
+.pc{padding:5px 10px;border-radius:8px;font-size:9px;font-weight:600;border:1px solid var(--border);color:var(--text2);background:var(--bg3);}
+.pc.on{border-color:var(--orange);color:var(--orange);background:rgba(255,107,43,.1);}
+
+.share-btn{margin:0 14px 14px;background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px;font-size:11px;font-weight:600;width:calc(100% - 28px);font-family:'Outfit',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;}
+
+.gym-profile-card{margin:6px 14px 12px;background:linear-gradient(135deg,var(--bg3),var(--bg4));border-radius:var(--r);border:1px solid var(--border);padding:12px;display:flex;align-items:center;gap:10px;}
+.gym-av{width:38px;height:38px;background:var(--orange);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0;}
+
+.mini-bars{display:flex;align-items:flex-end;gap:3px;height:36px;}
+.mb{width:6px;background:var(--bg4);border-radius:2px;}
+.mb.on{background:var(--orange);}
+
+.phone-label{text-align:center;font-size:10px;color:var(--text3);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
+
+.nav-tabs{display:flex;gap:5px;overflow-x:auto;padding:0 0 14px;scrollbar-width:none;justify-content:center;flex-wrap:wrap;}
+.nav-tabs::-webkit-scrollbar{display:none;}
+.ntab{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap;transition:all .2s;}
+.ntab.on{background:var(--orange);color:#fff;border-color:var(--orange);}
+
+.auth-section, .main-section{margin-bottom:8px;}
+</style>
+
+<div class="wrap">
+<div class="title-bar">
+  <h1>IronBook GM · Complete Concept</h1>
+  <h2>All 13 screens <span>designed</span></h2>
+  <p>Click any tab to jump to that screen</p>
+</div>
+
+<div class="nav-tabs" id="nav-tabs">
+  <div class="ntab on" onclick="show('splash')">Splash</div>
+  <div class="ntab" onclick="show('onboarding')">Onboarding</div>
+  <div class="ntab" onclick="show('signup')">Sign Up</div>
+  <div class="ntab" onclick="show('login')">Login</div>
+  <div class="ntab" onclick="show('forgot')">Forgot PW</div>
+  <div class="ntab" onclick="show('pinsetup')">PIN Setup</div>
+  <div class="ntab" onclick="show('pinentry')">PIN Entry</div>
+  <div class="ntab" onclick="show('dashboard')">Dashboard</div>
+  <div class="ntab" onclick="show('members')">Members</div>
+  <div class="ntab" onclick="show('detail')">Detail</div>
+  <div class="ntab" onclick="show('invoice')">Invoice</div>
+  <div class="ntab" onclick="show('quickadd')">Quick Add</div>
+  <div class="ntab" onclick="show('settings')">Settings</div>
+</div>
+
+<div id="screens">
+
+<!-- ══════ SPLASH ══════ -->
+<div class="phones-row" id="s-splash">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Splash screen</div>
+  <div class="phone">
+    <div class="screen-inner" style="justify-content:center;align-items:center;gap:12px;background:var(--bg);padding:20px;">
+      <div style="width:72px;height:72px;background:var(--orange);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;">IG</div>
+      <div style="text-align:center;">
+        <div style="font-size:24px;font-weight:800;">IronBook <span style="color:var(--orange)">GM</span></div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Gym Management · Solo Owner Edition</div>
+      </div>
+      <div style="margin-top:32px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="width:22px;height:22px;border:2px solid var(--orange);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <div style="font-size:10px;color:var(--text3);">Loading...</div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ ONBOARDING ══════ -->
+<div class="phones-row" id="s-onboarding" style="display:none;">
+  <div>
+  <div class="phone-label">Slide 1</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:20px 16px 0;">
+        <div class="onb-illus">
+          <svg width="80" height="70" viewBox="0 0 80 70" fill="none">
+            <rect x="8" y="8" width="28" height="36" rx="6" fill="#22C55E" fill-opacity=".15" stroke="#22C55E" stroke-width="1"/>
+            <rect x="10" y="13" width="16" height="2" rx="1" fill="#22C55E" fill-opacity=".6"/>
+            <rect x="10" y="18" width="12" height="1.5" rx=".75" fill="#22C55E" fill-opacity=".4"/>
+            <rect x="10" y="22" width="14" height="1.5" rx=".75" fill="#22C55E" fill-opacity=".4"/>
+            <circle cx="30" cy="10" r="4" fill="#22C55E"/>
+            <rect x="26" y="48" width="28" height="14" rx="4" fill="#EF4444" fill-opacity=".15" stroke="#EF4444" stroke-width="1"/>
+            <rect x="28" y="51" width="16" height="1.5" rx=".75" fill="#EF4444" fill-opacity=".6"/>
+            <rect x="28" y="55" width="10" height="1.5" rx=".75" fill="#EF4444" fill-opacity=".4"/>
+            <rect x="44" y="20" width="28" height="36" rx="6" fill="#F59E0B" fill-opacity=".15" stroke="#F59E0B" stroke-width="1"/>
+            <rect x="46" y="25" width="16" height="2" rx="1" fill="#F59E0B" fill-opacity=".6"/>
+            <rect x="46" y="30" width="12" height="1.5" rx=".75" fill="#F59E0B" fill-opacity=".4"/>
+            <circle cx="63" cy="22" r="4" fill="#F59E0B"/>
+          </svg>
+        </div>
+        <div style="text-align:center;margin-top:16px;">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px;">Track every member</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.6;">See who's active, expiring, and due — at a glance every morning.</div>
+        </div>
+      </div>
+      <div style="padding:16px;">
+        <div class="onb-dots" style="margin-bottom:16px;"><div class="onb-dot on"></div><div class="onb-dot"></div><div class="onb-dot"></div></div>
+        <div style="width:100%;background:var(--orange);color:#fff;border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;">Next</div>
+        <div style="text-align:center;margin-top:10px;font-size:10px;color:var(--text3);">Skip</div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div>
+  <div class="phone-label">Slide 2</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:20px 16px 0;">
+        <div class="onb-illus">
+          <svg width="80" height="70" viewBox="0 0 80 70" fill="none">
+            <rect x="16" y="6" width="48" height="58" rx="8" fill="#1C1C21" stroke="#2A2A30" stroke-width="1"/>
+            <rect x="20" y="14" width="40" height="4" rx="2" fill="#FF6B2B" fill-opacity=".5"/>
+            <rect x="20" y="22" width="28" height="2" rx="1" fill="#9896A4" fill-opacity=".6"/>
+            <rect x="20" y="26" width="22" height="2" rx="1" fill="#9896A4" fill-opacity=".4"/>
+            <rect x="20" y="34" width="40" height="1" rx=".5" fill="#2A2A30"/>
+            <rect x="20" y="38" width="24" height="1.5" rx=".75" fill="#9896A4" fill-opacity=".4"/>
+            <rect x="20" y="42" width="18" height="1.5" rx=".75" fill="#9896A4" fill-opacity=".4"/>
+            <rect x="20" y="46" width="20" height="1.5" rx=".75" fill="#9896A4" fill-opacity=".4"/>
+            <rect x="20" y="52" width="40" height="1" rx=".5" fill="#2A2A30"/>
+            <rect x="20" y="56" width="20" height="2" rx="1" fill="#9896A4" fill-opacity=".4"/>
+            <rect x="44" y="54" width="16" height="5" rx="2.5" fill="#FF6B2B"/>
+            <rect x="46" y="56" width="12" height="1.5" rx=".75" fill="#fff" fill-opacity=".9"/>
+          </svg>
+        </div>
+        <div style="text-align:center;margin-top:16px;">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px;">Instant invoices</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.6;">Generate and share professional GST invoices via WhatsApp in seconds.</div>
+        </div>
+      </div>
+      <div style="padding:16px;">
+        <div class="onb-dots" style="margin-bottom:16px;"><div class="onb-dot"></div><div class="onb-dot on"></div><div class="onb-dot"></div></div>
+        <div style="width:100%;background:var(--orange);color:#fff;border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;">Next</div>
+        <div style="text-align:center;margin-top:10px;font-size:10px;color:var(--text3);">Skip</div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div>
+  <div class="phone-label">Slide 3</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:20px 16px 0;">
+        <div class="onb-illus">
+          <svg width="80" height="70" viewBox="0 0 80 70" fill="none">
+            <rect x="22" y="24" width="36" height="22" rx="5" fill="#FF6B2B" fill-opacity=".15" stroke="#FF6B2B" stroke-width="1"/>
+            <rect x="26" y="28" width="12" height="2" rx="1" fill="#FF6B2B" fill-opacity=".7"/>
+            <rect x="26" y="32" width="20" height="1.5" rx=".75" fill="#FF6B2B" fill-opacity=".4"/>
+            <rect x="26" y="36" width="14" height="1.5" rx=".75" fill="#FF6B2B" fill-opacity=".4"/>
+            <rect x="50" y="18" width="2" height="8" rx="1" fill="#FF6B2B" fill-opacity=".4"/>
+            <rect x="46" y="22" width="10" height="2" rx="1" fill="#FF6B2B" fill-opacity=".4"/>
+            <circle cx="40" cy="12" r="8" fill="none" stroke="#FF6B2B" stroke-width="1.5" stroke-dasharray="3 2"/>
+            <circle cx="40" cy="12" r="3" fill="#FF6B2B"/>
+            <rect x="10" y="42" width="22" height="16" rx="4" fill="#1C1C21" stroke="#2A2A30" stroke-width="1"/>
+            <rect x="13" y="45" width="10" height="1.5" rx=".75" fill="#9896A4" fill-opacity=".5"/>
+            <rect x="13" y="49" width="14" height="1.5" rx=".75" fill="#9896A4" fill-opacity=".4"/>
+            <rect x="13" y="53" width="8" height="2" rx="1" fill="#FF6B2B" fill-opacity=".6"/>
+            <rect x="48" y="44" width="22" height="16" rx="4" fill="#1C1C21" stroke="#2A2A30" stroke-width="1"/>
+            <rect x="51" y="47" width="10" height="1.5" rx=".75" fill="#9896A4" fill-opacity=".5"/>
+            <rect x="51" y="51" width="14" height="1.5" rx=".75" fill="#9896A4" fill-opacity=".4"/>
+            <rect x="51" y="55" width="8" height="2" rx="1" fill="#FF6B2B" fill-opacity=".6"/>
+          </svg>
+        </div>
+        <div style="text-align:center;margin-top:16px;">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px;">Your gym, your rules</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.6;">Set your own plans, pricing, and components. Everything in one place.</div>
+        </div>
+      </div>
+      <div style="padding:16px;">
+        <div class="onb-dots" style="margin-bottom:16px;"><div class="onb-dot"></div><div class="onb-dot"></div><div class="onb-dot on"></div></div>
+        <div style="width:100%;background:var(--orange);color:#fff;border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;">Get started</div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ SIGN UP ══════ -->
+<div class="phones-row" id="s-signup" style="display:none;">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Sign up</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);overflow-y:auto;">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div style="padding:16px 14px 0;display:flex;align-items:center;gap:8px;">
+        <div class="back-btn"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--text)" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></div>
+      </div>
+      <div style="padding:12px 14px 14px;">
+        <div style="font-size:20px;font-weight:700;margin-bottom:3px;">Set up your gym</div>
+        <div style="font-size:11px;color:var(--text2);">Create your account to get started</div>
+      </div>
+      <div class="form-field"><div class="fl">Gym Name</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;">Raj's Fitness</div></div>
+      <div class="form-field"><div class="fl">Your Name</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;">Rajesh Kumar</div></div>
+      <div class="form-field"><div class="fl">Email Address</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;">raj@rajsfitness.com</div></div>
+      <div class="form-field"><div class="fl">Phone</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;">+91 98765 43210</div></div>
+      <div class="form-field"><div class="fl">Password</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text);font-size:14px;letter-spacing:3px;">••••••••</div></div>
+      <div class="form-field"><div class="fl">Confirm Password</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text);font-size:14px;letter-spacing:3px;">••••••••</div></div>
+      <div style="padding:8px 14px 16px;">
+        <div style="background:var(--orange);color:#fff;border-radius:10px;padding:11px;text-align:center;font-size:12px;font-weight:700;">Create Account</div>
+        <div style="text-align:center;margin-top:10px;font-size:10px;color:var(--text2);">Already have an account? <span style="color:var(--orange);">Log in</span></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ LOGIN ══════ -->
+<div class="phones-row" id="s-login" style="display:none;">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Login</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);justify-content:center;">
+      <div style="padding:0 14px;">
+        <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:24px;margin-top:20px;">
+          <div style="width:52px;height:52px;background:var(--orange);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;margin-bottom:14px;">IG</div>
+          <div style="font-size:20px;font-weight:700;margin-bottom:3px;">Welcome back</div>
+          <div style="font-size:11px;color:var(--text2);">Log in to your gym account</div>
+        </div>
+        <div class="form-field" style="padding:0;margin-bottom:10px;"><div class="fl">Email Address</div><div class="fi" style="border:1px solid var(--orange);border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;">raj@rajsfitness.com</div></div>
+        <div class="form-field" style="padding:0;margin-bottom:6px;"><div class="fl">Password</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text);font-size:14px;letter-spacing:3px;">••••••••</div></div>
+        <div style="text-align:right;margin-bottom:16px;"><span style="font-size:10px;color:var(--orange);">Forgot password?</span></div>
+        <div style="background:var(--orange);color:#fff;border-radius:10px;padding:11px;text-align:center;font-size:12px;font-weight:700;">Log In</div>
+        <div style="text-align:center;margin-top:12px;font-size:10px;color:var(--text2);">New here? <span style="color:var(--orange);">Create an account</span></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ FORGOT PASSWORD ══════ -->
+<div class="phones-row" id="s-forgot" style="display:none;">
+  <div>
+  <div class="phone-label">Step 1 — enter email</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div style="padding:8px 14px 0;"><div class="back-btn"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--text)" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></div></div>
+      <div style="padding:12px 14px 20px;">
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Reset password</div>
+        <div style="font-size:11px;color:var(--text2);">Enter your email and we'll send a reset link.</div>
+      </div>
+      <div class="form-field"><div class="fl">Email Address</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;border:1px solid var(--orange);">raj@rajsfitness.com</div></div>
+      <div style="padding:12px 14px;">
+        <div style="background:var(--orange);color:#fff;border-radius:10px;padding:11px;text-align:center;font-size:12px;font-weight:700;">Send Reset Link</div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div>
+  <div class="phone-label">Step 2 — email sent</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);justify-content:center;align-items:center;padding:0 24px;gap:10px;">
+      <div style="width:56px;height:56px;background:rgba(34,197,94,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:18px;font-weight:700;margin-bottom:6px;">Email sent!</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.6;">Check raj@rajsfitness.com for your reset link. Check your spam folder too.</div>
+      </div>
+      <div style="background:var(--orange);color:#fff;border-radius:10px;padding:10px 24px;font-size:12px;font-weight:700;margin-top:8px;">Back to Login</div>
+      <div style="font-size:10px;color:var(--orange);margin-top:4px;">Resend email (60s)</div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ PIN SETUP ══════ -->
+<div class="phones-row" id="s-pinsetup" style="display:none;">
+  <div>
+  <div class="phone-label">Step 1 — create PIN</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div style="text-align:center;padding:24px 14px 0;">
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Create your PIN</div>
+        <div style="font-size:11px;color:var(--text2);">You'll use this PIN every time you open the app</div>
+      </div>
+      <div class="pin-dots" style="margin:28px 0 28px;">
+        <div class="pin-dot filled"></div>
+        <div class="pin-dot filled"></div>
+        <div class="pin-dot filled"></div>
+        <div class="pin-dot"></div>
+      </div>
+      <div class="keypad">
+        <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+        <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+        <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+        <div class="key empty"></div><div class="key">0</div>
+        <div class="key" style="font-size:12px;">⌫</div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div>
+  <div class="phone-label">Step 2 — confirm PIN</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div style="text-align:center;padding:24px 14px 0;">
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Confirm your PIN</div>
+        <div style="font-size:11px;color:var(--text2);">Enter the same PIN again to confirm</div>
+      </div>
+      <div class="pin-dots" style="margin:28px 0 28px;">
+        <div class="pin-dot filled"></div>
+        <div class="pin-dot filled"></div>
+        <div class="pin-dot" style="border-color:var(--red);"></div>
+        <div class="pin-dot" style="border-color:var(--red);"></div>
+      </div>
+      <div style="text-align:center;font-size:10px;color:var(--red);margin-bottom:16px;">PINs don't match, try again</div>
+      <div class="keypad">
+        <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+        <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+        <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+        <div class="key empty"></div><div class="key">0</div>
+        <div class="key" style="font-size:12px;">⌫</div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div>
+  <div class="phone-label">Biometric prompt</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);justify-content:center;align-items:center;padding:0 20px;gap:14px;">
+      <div style="width:64px;height:64px;background:rgba(255,107,43,.12);border-radius:50%;display:flex;align-items:center;justify-content:center;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.5"><path d="M12 1C8.5 1 5.7 3 5.7 3s.3 2 .3 4c0 3.3 2.7 6 6 6s6-2.7 6-6c0-2-.3-4-.3-4S15.5 1 12 1z"/><path d="M5 15.5C3.5 17 3 19 3 21h18c0-2-.5-4-2-5.5"/><path d="M9 14.5c1 1 2 1.5 3 1.5s2-.5 3-1.5"/></svg>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Enable fingerprint unlock?</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.6;">Skip the PIN and open the app with your fingerprint.</div>
+      </div>
+      <div style="background:var(--orange);color:#fff;border-radius:10px;padding:10px 28px;font-size:12px;font-weight:700;">Enable Fingerprint</div>
+      <div style="font-size:10px;color:var(--text3);">Skip for now</div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ PIN ENTRY ══════ -->
+<div class="phones-row" id="s-pinentry" style="display:none;">
+  <div>
+  <div class="phone-label">Daily unlock</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div style="text-align:center;padding:20px 14px 0;">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">Raj's Fitness</div>
+        <div style="width:48px;height:48px;background:var(--orange);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;margin:0 auto 12px;">R</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:2px;">Enter your PIN</div>
+      </div>
+      <div class="pin-dots" style="margin:22px 0 22px;">
+        <div class="pin-dot filled"></div>
+        <div class="pin-dot filled"></div>
+        <div class="pin-dot filled"></div>
+        <div class="pin-dot filled"></div>
+      </div>
+      <div class="keypad">
+        <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+        <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+        <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+        <div class="key" style="background:transparent;border-color:transparent;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.5"><path d="M12 1C8.5 1 5.7 3 5.7 3s.3 2 .3 4c0 3.3 2.7 6 6 6s6-2.7 6-6c0-2-.3-4-.3-4S15.5 1 12 1z"/></svg>
+        </div>
+        <div class="key">0</div>
+        <div class="key" style="font-size:12px;">⌫</div>
+      </div>
+      <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--orange);">Forgot PIN?</div>
+    </div>
+  </div>
+  </div>
+  <div>
+  <div class="phone-label">Wrong PIN — lockout</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div style="text-align:center;padding:20px 14px 0;">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">Raj's Fitness</div>
+        <div style="width:48px;height:48px;background:var(--orange);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;margin:0 auto 12px;">R</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:2px;">Enter your PIN</div>
+        <div style="font-size:10px;color:var(--red);margin-top:3px;">Incorrect PIN. Try again in 27s...</div>
+      </div>
+      <div class="pin-dots" style="margin:22px 0 22px;">
+        <div class="pin-dot" style="border-color:var(--red);background:rgba(239,68,68,.2);"></div>
+        <div class="pin-dot" style="border-color:var(--red);background:rgba(239,68,68,.2);"></div>
+        <div class="pin-dot" style="border-color:var(--red);background:rgba(239,68,68,.2);"></div>
+        <div class="pin-dot" style="border-color:var(--red);background:rgba(239,68,68,.2);"></div>
+      </div>
+      <div class="keypad" style="opacity:.35;pointer-events:none;">
+        <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+        <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+        <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+        <div class="key empty"></div><div class="key">0</div><div class="key" style="font-size:12px;">⌫</div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ DASHBOARD ══════ -->
+<div class="phones-row" id="s-dashboard" style="display:none;">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Dashboard</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="content" style="overflow-y:auto;">
+        <div style="padding:12px 14px 10px;">
+          <div style="font-size:11px;color:var(--text2);">Good morning</div>
+          <div style="font-size:18px;font-weight:700;">Raj's Fitness</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">Saturday, 21 March 2026</div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card og"><div class="sn">124</div><div class="sl">Total Members</div></div>
+          <div class="stat-card"><div class="sn" style="color:var(--green)">98</div><div class="sl">Active</div></div>
+          <div class="stat-card"><div class="sn" style="color:var(--amber)">14</div><div class="sl">Expiring Soon</div></div>
+          <div class="stat-card"><div class="sn" style="color:var(--red)">12</div><div class="sl">Expired</div></div>
+        </div>
+        <div class="donut-wrap">
+          <div class="donut-card">
+            <svg width="72" height="72" viewBox="0 0 72 72" style="flex-shrink:0;">
+              <circle cx="36" cy="36" r="28" fill="none" stroke="#2A2A30" stroke-width="10"/>
+              <circle cx="36" cy="36" r="28" fill="none" stroke="#22C55E" stroke-width="10" stroke-dasharray="139 37" stroke-dashoffset="0" transform="rotate(-90 36 36)"/>
+              <circle cx="36" cy="36" r="28" fill="none" stroke="#F59E0B" stroke-width="10" stroke-dasharray="19 157" stroke-dashoffset="-139" transform="rotate(-90 36 36)"/>
+              <circle cx="36" cy="36" r="28" fill="none" stroke="#EF4444" stroke-width="10" stroke-dasharray="17 159" stroke-dashoffset="-158" transform="rotate(-90 36 36)"/>
+              <text x="36" y="33" text-anchor="middle" fill="#F0EEF6" font-size="12" font-weight="800" font-family="Outfit,sans-serif">79%</text>
+              <text x="36" y="43" text-anchor="middle" fill="#9896A4" font-size="7" font-family="Outfit,sans-serif">ACTIVE</text>
+            </svg>
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:600;margin-bottom:7px;">Member Health</div>
+              <div class="legend-item"><div class="ldot" style="background:var(--green)"></div><span class="llbl">Active</span><span class="lval" style="color:var(--green)">98</span></div>
+              <div class="legend-item"><div class="ldot" style="background:var(--amber)"></div><span class="llbl">Expiring</span><span class="lval" style="color:var(--amber)">14</span></div>
+              <div class="legend-item"><div class="ldot" style="background:var(--red)"></div><span class="llbl">Expired</span><span class="lval" style="color:var(--red)">12</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="alert-banner r"><div class="alert-icon r"></div><div class="at"><div class="at-title">12 memberships expired</div><div class="at-sub">Karan, Pooja, Nitin +9 more</div></div><span style="font-size:12px;color:var(--text3);">›</span></div>
+        <div class="alert-banner a"><div class="alert-icon a"></div><div class="at"><div class="at-title">14 expiring in 7 days</div><div class="at-sub">Priya, Arjun, Meena +11</div></div><span style="font-size:12px;color:var(--text3);">›</span></div>
+        <div class="sec-h"><span class="sec-t">Due Today</span><span class="sec-l">See all</span></div>
+        <div style="margin:0 14px 10px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;">
+          <div class="member-row"><div class="av" style="background:rgba(239,68,68,.15);color:var(--red)">KS</div><div class="mi"><div class="mn">Karan Sharma</div><div class="ms">Monthly · ₹1,298</div></div><div class="mr"><div class="dnum red" style="color:var(--red)">0</div><div class="dlbl">days left</div></div></div>
+          <div class="member-row"><div class="av" style="background:rgba(245,158,11,.15);color:var(--amber)">PA</div><div class="mi"><div class="mn">Priya Agarwal</div><div class="ms">Monthly · ₹1,298</div></div><div class="mr"><div class="dnum" style="color:var(--amber)">3</div><div class="dlbl">days left</div></div></div>
+        </div>
+        <div class="sec-h"><span class="sec-t">This Month</span></div>
+        <div style="margin:0 14px 16px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);padding:11px;display:flex;justify-content:space-between;align-items:flex-end;">
+          <div><div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Revenue</div><div style="font-size:20px;font-weight:800;margin-top:2px;">₹42,800</div><div style="font-size:9px;color:var(--green);">↑ 12% vs last month</div></div>
+          <div class="mini-bars"><div class="mb" style="height:55%"></div><div class="mb" style="height:65%"></div><div class="mb" style="height:45%"></div><div class="mb" style="height:80%"></div><div class="mb" style="height:60%"></div><div class="mb" style="height:85%"></div><div class="mb on" style="height:100%"></div></div>
+        </div>
+      </div>
+      <div class="bottomnav">
+        <div class="nb on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Home</span></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Members</span></div>
+        <div class="fab-wrap"><div class="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div style="font-size:8px;color:var(--text3);text-align:center;margin-top:3px;">Add</div></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Invoice</span></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg><span>Settings</span></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ MEMBERS ══════ -->
+<div class="phones-row" id="s-members" style="display:none;">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Members list</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="page-bar"><div class="page-title">Members</div><div class="icon-btn"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg></div></div>
+      <div style="margin:0 14px 8px;position:relative;"><svg style="position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;stroke:var(--text3);fill:none;stroke-width:2;" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:7px 10px 7px 28px;font-size:11px;color:var(--text3);">Search name or phone...</div></div>
+      <div class="pill-tab-row"><div class="ptab on">All 124</div><div class="ptab">Active 98</div><div class="ptab">Expiring 14</div><div class="ptab">Expired 12</div></div>
+      <div style="display:flex;align-items:center;gap:6px;padding:0 14px 8px;"><span style="font-size:9px;color:var(--text2);">Sort by</span><div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:9px;color:var(--text);">Expiry (soonest) ▾</div></div>
+      <div class="content" style="overflow-y:auto;">
+        <div style="margin:0 14px 10px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;">
+          <div class="member-row"><div class="av" style="background:rgba(239,68,68,.15);color:var(--red)">KS</div><div class="mi"><div class="mn">Karan Sharma</div><div class="ms">Monthly · Since Jan 2024</div></div><div class="mr"><span class="badge expired"><span class="dot"></span>Expired</span></div></div>
+          <div class="member-row"><div class="av" style="background:rgba(239,68,68,.15);color:var(--red)">PS</div><div class="mi"><div class="mn">Pooja Singh</div><div class="ms">Quarterly · Since Mar 2023</div></div><div class="mr"><span class="badge expired"><span class="dot"></span>Expired</span></div></div>
+          <div class="member-row"><div class="av" style="background:rgba(245,158,11,.15);color:var(--amber)">PA</div><div class="mi"><div class="mn">Priya Agarwal</div><div class="ms">Monthly · Since Jun 2024</div></div><div class="mr"><span class="badge expiring"><span class="dot"></span>3 days</span></div></div>
+          <div class="member-row"><div class="av" style="background:rgba(245,158,11,.15);color:var(--amber)">AK</div><div class="mi"><div class="mn">Arjun Kapoor</div><div class="ms">6-Month · Since Aug 2024</div></div><div class="mr"><span class="badge expiring"><span class="dot"></span>5 days</span></div></div>
+          <div class="member-row"><div class="av" style="background:rgba(34,197,94,.15);color:var(--green)">RM</div><div class="mi"><div class="mn">Rohit Mehta</div><div class="ms">Annual · Since Nov 2024</div></div><div class="mr"><span class="badge active"><span class="dot"></span>218d</span></div></div>
+          <div class="member-row"><div class="av" style="background:rgba(34,197,94,.15);color:var(--green)">SN</div><div class="mi"><div class="mn">Sneha Nair</div><div class="ms">Monthly · Since Feb 2025</div></div><div class="mr"><span class="badge active"><span class="dot"></span>12d</span></div></div>
+        </div>
+        <div style="text-align:center;font-size:9px;color:var(--text3);padding-bottom:8px;">Showing 6 of 124 members</div>
+      </div>
+      <div class="bottomnav">
+        <div class="nb"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Home</span></div>
+        <div class="nb on"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Members</span></div>
+        <div class="fab-wrap"><div class="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div style="font-size:8px;color:var(--text3);text-align:center;margin-top:3px;">Add</div></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Invoice</span></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg><span>Settings</span></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ DETAIL ══════ -->
+<div class="phones-row" id="s-detail" style="display:none;">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Member detail</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div style="padding:8px 14px;display:flex;align-items:center;gap:8px;">
+        <div class="back-btn"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--text)" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <div class="av" style="background:rgba(239,68,68,.15);color:var(--red);width:40px;height:40px;border-radius:12px;font-size:13px;">KS</div>
+        <div style="flex:1;"><div style="font-size:14px;font-weight:700;">Karan Sharma</div><div style="font-size:10px;color:var(--text2);">+91 98765 43210</div></div>
+        <span class="badge expired"><span class="dot"></span>Expired</span>
+      </div>
+      <div class="action-row">
+        <div class="act p">Generate Invoice</div>
+        <div class="act s">Renew</div>
+        <div class="act s">WhatsApp</div>
+      </div>
+      <div class="content" style="overflow-y:auto;">
+        <div class="sec-h"><span class="sec-t">Subscription</span></div>
+        <div class="info-card">
+          <div class="ir"><span class="ik">Plan</span><span class="iv">Monthly Plan</span></div>
+          <div class="ir"><span class="ik">Join Date</span><span class="iv">15 Jan 2024 <span style="font-size:9px;background:rgba(255,107,43,.15);color:var(--orange);padding:1px 5px;border-radius:3px;">🔒 Edit</span></span></div>
+          <div class="ir"><span class="ik">Expiry</span><span class="iv" style="color:var(--red);">21 Mar 2026</span></div>
+          <div class="ir"><span class="ik">Status</span><span class="iv" style="color:var(--red);">Expired (0 days)</span></div>
+        </div>
+        <div class="sec-h"><span class="sec-t">Plan Includes</span></div>
+        <div class="info-card">
+          <div class="ir"><span class="ik">Gym Access</span><span class="iv">₹800</span></div>
+          <div class="ir"><span class="ik">Locker</span><span class="iv">₹150</span></div>
+          <div class="ir"><span class="ik">Steam Room</span><span class="iv">₹150</span></div>
+          <div class="ir"><span class="ik">GST 18%</span><span class="iv">₹198</span></div>
+          <div class="ir"><span class="ik" style="font-weight:700;color:var(--text);">Total</span><span class="iv" style="color:var(--orange);font-size:13px;">₹1,298</span></div>
+        </div>
+        <div class="sec-h"><span class="sec-t">Payment History</span></div>
+        <div style="padding-bottom:10px;">
+          <div class="tl-item"><div class="tl-left"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-c"><div class="tl-t">Monthly Renewal</div><div class="tl-s">21 Feb 2026 · UPI · #8821</div><div class="tl-a">₹1,298</div></div></div>
+          <div class="tl-item"><div class="tl-left"><div class="tl-dot g"></div><div class="tl-bar"></div></div><div class="tl-c"><div class="tl-t">Monthly Renewal</div><div class="tl-s">21 Jan 2026 · Cash</div><div class="tl-a">₹1,298</div></div></div>
+          <div class="tl-item"><div class="tl-left"><div class="tl-dot g"></div></div><div class="tl-c"><div class="tl-t">Rejoined after break</div><div class="tl-s">15 Dec 2025 · Date edited 🔒</div><div class="tl-a">₹1,298</div></div></div>
+        </div>
+      </div>
+      <div class="bottomnav">
+        <div class="nb"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Home</span></div>
+        <div class="nb on"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Members</span></div>
+        <div class="fab-wrap"><div class="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div style="font-size:8px;color:var(--text3);text-align:center;margin-top:3px;">Add</div></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Invoice</span></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg><span>Settings</span></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ INVOICE ══════ -->
+<div class="phones-row" id="s-invoice" style="display:none;">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Invoice</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="page-bar">
+        <div class="back-btn" style="margin-right:8px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--text)" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <div class="page-title">Invoice</div>
+        <div style="display:flex;gap:6px;">
+          <div class="icon-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+          <div class="icon-btn"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></div>
+        </div>
+      </div>
+      <div class="content" style="overflow-y:auto;">
+        <div class="inv-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div><div class="inv-logo">Raj's Fitness</div><div style="font-size:9px;color:var(--text2);margin-top:2px;">Sector 14, Gurugram · GSTIN 07ABC...</div></div>
+            <div style="text-align:right;"><div style="font-size:10px;font-weight:700;color:var(--orange);">INVOICE</div><div style="font-size:9px;color:var(--text2);">#INV-2026-0142</div></div>
+          </div>
+          <div class="inv-div"></div>
+          <div class="inv-row"><span class="inv-lbl">Member</span><span class="inv-val">Karan Sharma</span></div>
+          <div class="inv-row"><span class="inv-lbl">Date</span><span class="inv-val">21 Mar 2026</span></div>
+          <div class="inv-row"><span class="inv-lbl">Period</span><span class="inv-val">21 Mar – 20 Apr 2026</span></div>
+          <div class="inv-div"></div>
+          <div class="inv-row"><span class="inv-lbl">Gym Access</span><span class="inv-val">₹800.00</span></div>
+          <div class="inv-row"><span class="inv-lbl">Locker</span><span class="inv-val">₹150.00</span></div>
+          <div class="inv-row"><span class="inv-lbl">Steam Room</span><span class="inv-val">₹150.00</span></div>
+          <div class="inv-div"></div>
+          <div class="inv-row"><span class="inv-lbl">Subtotal</span><span class="inv-val">₹1,100.00</span></div>
+          <div class="inv-row"><span class="inv-lbl">GST @ 18%</span><span class="inv-val">₹198.00</span></div>
+          <div class="inv-total"><span class="inv-tl">Total Due</span><span class="inv-tv">₹1,298.00</span></div>
+          <div class="inv-div"></div>
+          <div style="font-size:9px;color:var(--text2);">HDFC · A/C 1234567890 · IFSC HDFC0001234</div>
+        </div>
+        <div class="sec-h" style="margin-top:6px;"><span class="sec-t">Payment Method</span></div>
+        <div style="padding:0 14px 12px;"><div class="plan-chip-row"><div class="pc on">Cash</div><div class="pc">UPI</div><div class="pc">Card</div><div class="pc">Bank</div></div></div>
+        <div class="share-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share via WhatsApp</div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ QUICK ADD ══════ -->
+<div class="phones-row" id="s-quickadd" style="display:none;">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Quick add member</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="page-bar">
+        <div class="back-btn" style="margin-right:8px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--text)" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <div class="page-title">Add Member</div>
+      </div>
+      <div class="content" style="overflow-y:auto;padding:0 0 14px;">
+        <div class="form-field"><div class="fl">Full Name</div><div class="fi" style="border:1px solid var(--orange);border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;">Ravi Kumar</div></div>
+        <div class="form-field"><div class="fl">Phone Number</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;">+91 99887 76655</div></div>
+        <div class="form-field"><div class="fl">Join Date</div><div class="fi" style="border-radius:8px;padding:7px 10px;color:var(--text2);font-size:11px;">21 Mar 2026</div></div>
+        <div class="form-field">
+          <div class="fl">Select Plan</div>
+          <div class="plan-chip-row">
+            <div class="pc on">Monthly ₹1,298</div>
+            <div class="pc">Quarterly ₹3,540</div>
+            <div class="pc">Half-Year ₹6,490</div>
+            <div class="pc">Annual ₹11,800</div>
+          </div>
+        </div>
+        <div style="margin:8px 14px 10px;background:rgba(255,107,43,.08);border:1px solid rgba(255,107,43,.2);border-radius:9px;padding:10px;">
+          <div style="font-size:9px;color:var(--orange);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Plan Summary</div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px;"><span style="color:var(--text2);">Gym Access + Locker + Steam</span><span>₹1,100</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:4px;"><span style="color:var(--text2);">GST 18%</span><span>₹198</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;border-top:1px solid rgba(255,107,43,.2);padding-top:5px;"><span>Total</span><span style="color:var(--orange);">₹1,298</span></div>
+          <div style="font-size:9px;color:var(--text2);margin-top:3px;">Expires: 20 Apr 2026</div>
+        </div>
+        <div class="form-field">
+          <div class="fl">Payment Method</div>
+          <div class="plan-chip-row"><div class="pc">Cash</div><div class="pc on">UPI</div><div class="pc">Card</div><div class="pc">Bank</div></div>
+        </div>
+        <div style="padding:4px 14px 0;"><div style="background:var(--orange);color:#fff;border-radius:11px;padding:11px;text-align:center;font-size:11px;font-weight:700;">Register Member & Generate Invoice</div></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════ SETTINGS ══════ -->
+<div class="phones-row" id="s-settings" style="display:none;">
+  <div style="margin:0 auto;">
+  <div class="phone-label">Settings</div>
+  <div class="phone">
+    <div class="screen-inner" style="background:var(--bg);">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="page-bar"><div class="page-title">Settings</div></div>
+      <div class="content" style="overflow-y:auto;">
+        <div class="gym-profile-card">
+          <div class="gym-av">R</div>
+          <div><div style="font-size:13px;font-weight:700;">Raj's Fitness</div><div style="font-size:10px;color:var(--text2);">Sector 14, Gurugram</div><div style="font-size:9px;color:var(--orange);margin-top:1px;">GSTIN: 07ABCDE1234F1Z5 · Tap to edit</div></div>
+        </div>
+        <div style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:0 14px 6px;padding:0 2px;">Pricing Plans</div>
+        <div class="settings-group">
+          <div class="srow"><div class="si" style="background:rgba(255,107,43,.15);"><svg viewBox="0 0 24 24" stroke="var(--orange)"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><span class="slbl">Manage Plans</span><span class="sval">4 plans</span><span class="sarr">›</span></div>
+          <div class="srow"><div class="si" style="background:rgba(59,130,246,.15);"><svg viewBox="0 0 24 24" stroke="var(--blue)"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div><span class="slbl">Plan Components</span><span class="sval">6 items</span><span class="sarr">›</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:0 14px 6px;padding:0 2px;">Notifications</div>
+        <div class="settings-group">
+          <div class="srow"><div class="si" style="background:rgba(245,158,11,.15);"><svg viewBox="0 0 24 24" stroke="var(--amber)"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><span class="slbl">Expiry Reminders</span><span class="sval">7 days before</span><span class="sarr">›</span></div>
+          <div class="srow"><div class="si" style="background:rgba(34,197,94,.15);"><svg viewBox="0 0 24 24" stroke="var(--green)"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><span class="slbl">WhatsApp Reminders</span><span class="sval">Enabled</span><span class="sarr">›</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:0 14px 6px;padding:0 2px;">Security & Data</div>
+        <div class="settings-group">
+          <div class="srow"><div class="si" style="background:rgba(239,68,68,.15);"><svg viewBox="0 0 24 24" stroke="var(--red)"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><span class="slbl">Edit Password</span><span class="sval">Protected</span><span class="sarr">›</span></div>
+          <div class="srow"><div class="si" style="background:rgba(255,107,43,.15);"><svg viewBox="0 0 24 24" stroke="var(--orange)"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg></div><span class="slbl">Change PIN</span><span class="sval">4-digit</span><span class="sarr">›</span></div>
+          <div class="srow"><div class="si" style="background:rgba(107,114,128,.15);"><svg viewBox="0 0 24 24" stroke="var(--text2)"><polyline points="23 4 23 8 19 8"/><polyline points="1 20 1 16 5 16"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div><span class="slbl">Backup Data</span><span class="sval">Export CSV</span><span class="sarr">›</span></div>
+        </div>
+        <div style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:0 14px 6px;padding:0 2px;">Account</div>
+        <div class="settings-group">
+          <div class="srow"><div class="si" style="background:rgba(59,130,246,.15);"><svg viewBox="0 0 24 24" stroke="var(--blue)"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><span class="slbl">Owner Details</span><span class="sval">Rajesh Kumar</span><span class="sarr">›</span></div>
+          <div class="srow"><div class="si" style="background:rgba(34,197,94,.15);"><svg viewBox="0 0 24 24" stroke="var(--green)"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><span class="slbl">Bank Details</span><span class="sval">HDFC ···7890</span><span class="sarr">›</span></div>
+          <div class="srow"><div class="si" style="background:rgba(239,68,68,.1);"><svg viewBox="0 0 24 24" stroke="var(--red)"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><span class="slbl" style="color:var(--red);">Log Out</span><span class="sval"></span></div>
+        </div>
+        <div style="text-align:center;font-size:9px;color:var(--text3);padding:4px 0 16px;">IronBook GM v2.0 · Made for solo gym owners</div>
+      </div>
+      <div class="bottomnav">
+        <div class="nb"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Home</span></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Members</span></div>
+        <div class="fab-wrap"><div class="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div style="font-size:8px;color:var(--text3);text-align:center;margin-top:3px;">Add</div></div>
+        <div class="nb"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Invoice</span></div>
+        <div class="nb on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg><span>Settings</span></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<style>
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+<script>
+function show(id){
+  document.querySelectorAll('[id^="s-"]').forEach(el=>el.style.display='none');
+  document.getElementById('s-'+id).style.display='flex';
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('on'));
+  const tabs=document.querySelectorAll('.ntab');
+  const names=['splash','onboarding','signup','login','forgot','pinsetup','pinentry','dashboard','members','detail','invoice','quickadd','settings'];
+  const idx=names.indexOf(id);
+  if(idx>=0&&tabs[idx])tabs[idx].classList.add('on');
+}
+</script>
