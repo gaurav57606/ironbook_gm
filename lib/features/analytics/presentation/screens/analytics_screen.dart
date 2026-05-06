@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/constants/app_colors.dart';
 import 'package:ironbook_gm/shared/widgets/status_bar_wrapper.dart';
-import '../data/repositories/analytics_repository.dart';
-import '../data/models/analytics_summary.dart';
+import '../../data/repositories/analytics_repository.dart';
+import '../../data/models/analytics_summary.dart';
 import 'package:intl/intl.dart';
 
 class AnalyticsScreen extends ConsumerWidget {

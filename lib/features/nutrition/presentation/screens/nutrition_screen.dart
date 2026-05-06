@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ironbook_gm/core/constants/app_colors.dart';
+import 'package:ironbook_gm/features/nutrition/data/repositories/nutrition_repository.dart';
+import 'package:ironbook_gm/features/nutrition/data/models/nutrition_plan_model.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/core/constants/app_colors.dart';
 import 'package:ironbook_gm/shared/widgets/status_bar_wrapper.dart';
-import '../data/repositories/nutrition_repository.dart';
-import '../data/models/nutrition_plan_model.dart';
-import '../../../core/data/repositories/member_repository.dart';
-import '../../../core/data/local/models/member_snapshot_model.dart';
 
 class NutritionScreen extends ConsumerWidget {
   const NutritionScreen({super.key});
@@ -112,7 +110,7 @@ class NutritionScreen extends ConsumerWidget {
   }
 
   void _showAssignPlanDialog(BuildContext context, WidgetRef ref) async {
-    final members = await ref.read(memberRepositoryProvider).getAll();
+    final members = ref.read(membersProvider);
     if (members.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No members found. Please add members first.')));

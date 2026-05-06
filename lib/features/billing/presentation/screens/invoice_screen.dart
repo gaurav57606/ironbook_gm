@@ -12,7 +12,7 @@ import '../../../../core/providers/member_provider.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/data/local/models/payment_model.dart';
 import '../../../../shared/utils/date_formatter.dart';
-import '../services/invoice_pdf_service.dart';
+import '../../services/invoice_pdf_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:printing/printing.dart';
 import 'dart:io';

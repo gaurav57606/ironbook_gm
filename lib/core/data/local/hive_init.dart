@@ -10,7 +10,7 @@ import 'models/app_settings_model.dart';
 import 'models/invoice_sequence.dart';
 import 'models/product_model.dart';
 import 'models/sale_model.dart';
-import 'models/nutrition_plan_model.dart';
+import '../../../features/nutrition/data/models/nutrition_plan_model.dart';
 import 'adapters/manual_adapters.dart';
 
 class HiveInit {
