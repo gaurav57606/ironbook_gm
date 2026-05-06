@@ -11,3 +11,20 @@
 ## 2024-05-24 - Strict Enforcement of Dependency File Boundaries
 **Learning:** Running commands like `flutter pub get` or test execution in this environment can unexpectedly update `pubspec.lock` (e.g., bumping SDK versions), which triggers a blocking review failure. The instruction "Never modify package.json" strictly applies to its Dart equivalent, `pubspec.lock`.
 **Action:** Always run `git status` after local commands and use `git restore pubspec.lock` (or `--staged`) to explicitly discard any unintended dependency or SDK version bumps before submitting a PR.
+## 2024-05-24 - [Avoid Provider Reads in Loops]\n**Learning:** Reading Riverpod providers (like ) inside a  or  loop causes the provider to be evaluated N times, which is a hidden performance bottleneck during widget builds.\n**Action:** Always extract provider reads and expensive computations outside of loops in UI build methods.
+## 2024-05-24 - [Avoid Provider Reads in Loops]
+**Learning:** Reading Riverpod providers (like `ref.watch(clockProvider).now`) inside a `List.generate` or `.map` loop causes the provider to be evaluated N times, which is a hidden performance bottleneck during widget builds.
+**Action:** Always extract provider reads and expensive computations outside of loops in UI build methods.
+## 2026-04-24 - [Hidden Costs of Dart Getters in Iteration]
+**Learning:** The `status` property on `MemberSnapshot` is a dynamic getter that evaluates `DateTime.now()` and recalculates date differences each time it is accessed. Using this getter inside list operations like `.where((m) => m.status == ...)` causes hidden redundant evaluations, severely degrading performance for large lists.
+**Action:** When filtering or folding lists based on time-dependent properties in Dart, always examine if the property is a dynamic getter. If so, cache `DateTime.now()` outside the loop and call the underlying calculation method explicitly (e.g., `m.getStatus(now)`) inside the loop.
+## 2024-05-24 - [Avoid Event Log Fetch Optimization Pitfall]
+**Learning:** When reconstructing historical snapshots, do not attempt to "optimize" database fetches by using a previously cached/partial list of events (like `_repo.getAll()` which might only return local/unsynced events). Rebuilding snapshots from an incomplete event list leads to missing data and corruption.
+**Action:** Always fetch the complete event history for an entity (e.g. `await _repo.getByEntityId(entityId)`) when reconstructing snapshots to ensure accuracy and prevent data corruption, even if it requires an extra DB query.
+
+## 2024-05-24 - [Avoid Race Conditions During App Initialization]
+**Learning:** Registering asynchronous listeners (like a real-time event bus listener) before fully populating an initial state can lead to race conditions. If an event fires while the initial state is still loading, the listener's update may be overwritten by the completion of the initial state load.
+**Action:** Always ensure the initial state is fully loaded and reconciled before registering real-time listeners.
+## 2024-05-24 - [Avoid `Future.wait` Memory Bloat on Hive `LazyBox`]
+**Learning:** Fetching all keys from a Hive `LazyBox` at once and mapping them to `box.get(key)` inside a single `Future.wait` forces all records into memory simultaneously. For large databases, this completely defeats the purpose of a `LazyBox` and causes severe memory spikes or Out-Of-Memory (OOM) crashes.
+**Action:** When performing bulk reads from a `LazyBox`, always batch the keys into smaller chunks (e.g., using `skip().take(50)`) and use `Future.wait` *within* each chunk. This preserves the speed of parallel I/O while strictly capping peak memory usage.

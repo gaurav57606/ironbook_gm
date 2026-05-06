@@ -51,6 +51,7 @@ android {
 
     buildTypes {
         release {
+            // Only set signingConfig if keystore properties are available
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             if (keystorePropertiesFile.exists()) {
