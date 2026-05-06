@@ -34,6 +34,13 @@ class CharacterCreationScreen extends ConsumerWidget {
 
     // Dynamic Metric Calculation
     final totalMembers = members.length;
+    final now = DateTime.now();
+    int activeMembers = 0;
+    for (final m in members) {
+      if (m.getStatus(now) == MemberStatus.active) {
+        activeMembers++;
+      }
+    }
     // Performance: Cache DateTime.now() to prevent redundant object allocation inside the loop
     final now = DateTime.now();
     final activeMembers = members
