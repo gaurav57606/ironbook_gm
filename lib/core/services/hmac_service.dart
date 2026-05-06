@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:math';
@@ -8,8 +7,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
-import '../../data/local/models/domain_event_model.dart';
-import '../utils/canonical_json.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/shared/utils/canonical_json.dart';
 
 class HmacService {
   final FlutterSecureStorage _storage;
@@ -24,7 +23,7 @@ class HmacService {
   static void setKeyForTest(String key) => _testKey = key;
 
   static Future<void> init() async {
-    final storage = const FlutterSecureStorage();
+    const storage = FlutterSecureStorage();
     // Use try-catch or safe access for web compatibility
     FirebaseAuth? auth;
     FirebaseFirestore? firestore;
@@ -141,6 +140,22 @@ class HmacService {
     return signStatic(event, keyStr);
   }
 
+  Future<String> signSnapshot(String entityId, Map<String, dynamic> data) async {
+    final keyStr = _testKey ?? await _getOrCreateKey();
+    final keyBytes = base64Decode(keyStr);
+    final payloadJson = CanonicalJson.encode(data);
+    final canonical = '$entityId|$payloadJson';
+    
+    final hmacSha256 = crypto.Hmac(crypto.sha256, keyBytes);
+    final digest = hmacSha256.convert(utf8.encode(canonical));
+    return base64Encode(digest.bytes);
+  }
+
+  Future<bool> verifySnapshot(String entityId, Map<String, dynamic> data, String signature) async {
+    final expected = await signSnapshot(entityId, data);
+    return expected == signature;
+  }
+
   static Future<String> sign(DomainEvent event) async {
     if (_testKey == null) throw Exception("Test key not set. Use HmacService.setKeyForTest()");
     return signStatic(event, _testKey!);
@@ -197,3 +212,14 @@ class HmacService {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+

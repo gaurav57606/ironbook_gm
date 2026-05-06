@@ -1,12 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/data/local/snapshot_builder.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/core/services/hmac_service.dart';
-import 'package:ironbook_gm/core/utils/date_utils.dart';
-import 'package:ironbook_gm/data/local/models/invoice_sequence.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/constants/event_payload_keys.dart';
-import 'package:uuid/uuid.dart';
+import 'package:ironbook_gm/core/data/local/snapshot_builder.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/shared/utils/date_utils.dart';
+import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 
 void main() {
   group('Architecture Audit Strategy Verification', () {
@@ -24,7 +20,7 @@ void main() {
     });
 
     test('[1.4] Snapshot Rebuild: Multi-event chain produces deterministic state', () {
-      final memberId = 'M-TEST';
+      const memberId = 'M-TEST';
       final now = DateTime(2026, 1, 1);
       
       final events = [
@@ -69,3 +65,5 @@ void main() {
 
   });
 }
+
+

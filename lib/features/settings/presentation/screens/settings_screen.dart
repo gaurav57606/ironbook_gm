@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/auth_provider.dart';
-import '../../../../sync/recovery_service.dart';
-import '../../../../data/sync_worker.dart';
-import '../../../../providers/member_provider.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/auth_provider.dart';
+import 'package:ironbook_gm/core/sync/recovery_service.dart';
+import '../../../../core/data/sync_worker.dart';
+import '../../../../core/providers/member_provider.dart';
 import '../../../../core/services/csv_export_service.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../providers/payment_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb;
+import '../../../../core/providers/payment_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -27,7 +26,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return StatusBarWrapper(
       child: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: AppColors.backgroundGradient,
         ),
         child: Column(
@@ -119,7 +118,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         messenger.showSnackBar(const SnackBar(content: Text('Generating CSV...')));
                         try {
                           final members = ref.read(membersProvider);
-                          await CsvExportService.exportMembers(members);
+                          await ref.read(csvExportServiceProvider).exportMembers(members);
                         } catch (e) {
                           messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
                         }
@@ -134,16 +133,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         messenger.showSnackBar(const SnackBar(content: Text('Generating Payments CSV...')));
                         try {
                           final payments = ref.read(paymentsProvider);
-                          await CsvExportService.exportPayments(payments);
+                          await ref.read(csvExportServiceProvider).exportPayments(payments);
                         } catch (e) {
                           messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
                         }
                       },
                     ),
+                    _buildSettingsRow(
+                      Icons.enhanced_encryption_outlined,
+                      'Offline Backup (Encrypted)',
+                      'Local .igmb file',
+                      onTap: () => context.push('/settings/backup'),
+                    ),
                   ]),
                   _buildSettingsGroup('Support', [
                     _buildSettingsRow(Icons.help_outline_rounded, 'Help Center', null, onTap: () => context.push('/settings/help')),
                     _buildSettingsRow(Icons.info_outline_rounded, 'About IronBook GM', 'v2.4.0', onTap: () => context.push('/settings/about')),
+                  ]),
+                  _buildSettingsGroup('Troubleshooting', [
+                    _buildSettingsRow(
+                      Icons.rebase_edit,
+                      'Rebuild Local Database',
+                      'Fix data discrepancies',
+                      onTap: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        messenger.showSnackBar(const SnackBar(content: Text('Rebuilding cache from event log...')));
+                        await ref.read(membersProvider.notifier).rebuildCache();
+                        if (context.mounted) {
+                          messenger.showSnackBar(const SnackBar(content: Text('Database rebuilt and verified.')));
+                        }
+                      },
+                    ),
                   ]),
                   const SizedBox(height: 32),
                   Padding(
@@ -331,7 +351,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, size: 24, color: AppColors.textMuted),
+            const Icon(Icons.chevron_right_rounded, size: 24, color: AppColors.textMuted),
           ],
         ),
       ),
@@ -402,10 +422,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
               ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+            const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
           ],
         ),
       ),
     );
   }
 }
+
+
+
+
+
+
+
+
+

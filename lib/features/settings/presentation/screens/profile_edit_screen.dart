@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../data/local/models/owner_profile_model.dart';
-import '../../../../providers/auth_provider.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/app_text_field.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/data/local/models/owner_profile_model.dart';
+import '../../../../core/providers/auth_provider.dart';
 
 class ProfileEditScreen extends ConsumerStatefulWidget {
   final bool isGymProfile;
@@ -65,14 +65,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           ),
           centerTitle: true,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
             onPressed: () => Navigator.pop(context),
           ),
         ),
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: AppColors.backgroundGradient,
           ),
           child: SingleChildScrollView(
@@ -104,7 +104,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   const SizedBox(height: 24),
                   Row(
                     children: [
-                      Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                      const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
@@ -116,7 +116,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                      const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -178,3 +178,12 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     if (mounted) Navigator.pop(context);
   }
 }
+
+
+
+
+
+
+
+
+

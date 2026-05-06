@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 
 
@@ -123,3 +123,6 @@ void main() {
     });
   });
 }
+
+
+
