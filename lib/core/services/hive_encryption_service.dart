@@ -26,3 +26,13 @@ class HiveEncryptionService {
     return HiveAesCipher(base64Url.decode(keyBase64));
   }
 }
+
+
+
+
+
+
+
+
+
+

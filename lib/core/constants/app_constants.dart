@@ -5,3 +5,12 @@ class AppConstants {
   static const int pinMaxAttempts = 10;
   static const Duration offlineGracePeriod = Duration(days: 7);
 }
+
+
+
+
+
+
+
+
+

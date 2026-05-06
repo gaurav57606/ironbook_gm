@@ -62,3 +62,12 @@ class AppColors {
   static const Color elevation3 = Color(0xFF242429);
   static const Color elevation4 = Color(0xFF2C2C34);
 }
+
+
+
+
+
+
+
+
+

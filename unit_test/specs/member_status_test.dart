@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 
 void main() {
   group('Member Status Logic (TC-UNIT-01)', () {
@@ -79,3 +79,6 @@ void main() {
     });
   });
 }
+
+
+

@@ -3,16 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/status_bar_wrapper.dart';
-import '../../../../providers/member_provider.dart';
-import '../../../../data/local/models/member_snapshot_model.dart';
-import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/utils/currency_formatter.dart';
-import '../../../../data/repositories/event_repository.dart';
-import '../../../../data/local/models/domain_event_model.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/member_provider.dart';
+import '../../../../core/data/local/models/member_snapshot_model.dart';
+import '../../../../shared/utils/date_formatter.dart';
+import '../../../../shared/utils/currency_formatter.dart';
+import '../../../../core/data/repositories/event_repository.dart';
+import '../../../../core/data/local/models/domain_event_model.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/utils/clock.dart';
+import '../../../../shared/utils/clock.dart';
 
 class MemberDetailScreen extends ConsumerStatefulWidget {
   final String memberId;
@@ -143,7 +143,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.phone_rounded, size: 12, color: AppColors.textMuted),
+              const Icon(Icons.phone_rounded, size: 12, color: AppColors.textMuted),
               const SizedBox(width: 4),
               Text(member.phone ?? 'No phone', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
             ],
@@ -221,7 +221,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                 flex: 2,
                 child: AppButton(
                   text: 'Generate Invoice',
-                  onPressed: () => context.push('/invoice'),
+                  onPressed: () => context.push('/gym/member-details/${member.memberId}/invoice'),
                 ),
               ),
               const SizedBox(width: 6),
@@ -280,7 +280,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
         title: Text('Delete Member', style: AppTextStyles.cardTitle),
         content: Text('Are you sure you want to delete ${member.name}?', style: AppTextStyles.body),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: AppColors.textSecondary))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary))),
           TextButton(
             onPressed: () {
               ref.read(membersProvider.notifier).deleteMember(member.memberId);
@@ -493,11 +493,11 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.lock_rounded, size: 10, color: AppColors.primary),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           Text('LOCKED', style: TextStyle(fontSize: 8, color: AppColors.primary, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
         ],
       ),
@@ -522,3 +522,12 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     return 'Active Status';
   }
 }
+
+
+
+
+
+
+
+
+
