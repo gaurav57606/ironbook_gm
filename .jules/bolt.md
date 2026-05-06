@@ -4,3 +4,13 @@
 ## 2024-05-23 - [Single Pass List Iteration for Multi-Stats]
 **Learning:** Chaining multiple `.where().length` or `.take()` calls on a list inside build methods (like computing active, expiring, expired member counts) repeats list iteration and re-evaluates expensive item methods like `DateTime.now().difference()`.
 **Action:** When computing multiple derivations from a single list in Flutter UI classes, always use a single manual `for` loop with a `switch` or `if/else` block. Cache expensive arguments like `DateTime.now()` outside the loop. This reduces computation from O(k*N) to O(N) and limits expensive method evaluations.
+## 2024-05-24 - [Avoid Event Log Fetch Optimization Pitfall]
+**Learning:** When reconstructing historical snapshots, do not attempt to "optimize" database fetches by using a previously cached/partial list of events (like `_repo.getAll()` which might only return local/unsynced events). Rebuilding snapshots from an incomplete event list leads to missing data and corruption.
+**Action:** Always fetch the complete event history for an entity (e.g. `await _repo.getByEntityId(entityId)`) when reconstructing snapshots to ensure accuracy and prevent data corruption, even if it requires an extra DB query.
+
+## 2024-05-24 - [Avoid Race Conditions During App Initialization]
+**Learning:** Registering asynchronous listeners (like a real-time event bus listener) before fully populating an initial state can lead to race conditions. If an event fires while the initial state is still loading, the listener's update may be overwritten by the completion of the initial state load.
+**Action:** Always ensure the initial state is fully loaded and reconciled before registering real-time listeners.
+## 2024-05-24 - [Avoid `Future.wait` Memory Bloat on Hive `LazyBox`]
+**Learning:** Fetching all keys from a Hive `LazyBox` at once and mapping them to `box.get(key)` inside a single `Future.wait` forces all records into memory simultaneously. For large databases, this completely defeats the purpose of a `LazyBox` and causes severe memory spikes or Out-Of-Memory (OOM) crashes.
+**Action:** When performing bulk reads from a `LazyBox`, always batch the keys into smaller chunks (e.g., using `skip().take(50)`) and use `Future.wait` *within* each chunk. This preserves the speed of parallel I/O while strictly capping peak memory usage.
