@@ -140,6 +140,8 @@ enum EventType {
   checkInRecorded,
   @HiveField(15)
   ownershipTransferred,
+  @HiveField(16)
+  saleRecorded,
 }
 
 

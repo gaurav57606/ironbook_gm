@@ -39,14 +39,13 @@ import '../../features/backup/presentation/backup_restore_screen.dart';
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
 import '../../features/nutrition/presentation/screens/nutrition_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_hub_screen.dart';
-import '../../features/character_creation/presentation/screens/character_creation_screen.dart';
 import '../../features/legal/presentation/screens/legal_screens.dart';
 
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 
-final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
+final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
   final authState = ref.watch(authProvider);
   final tier2Status = ref.watch(tier2StatusProvider);
   final bootstrap = ref.watch(bootstrapStateProvider);
@@ -162,10 +161,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
       GoRoute(
         path: '/recovery',
         builder: (context, state) => const RecoveryScreen(),
-      ),
-      GoRoute(
-        path: '/character-creation',
-        builder: (context, state) => const CharacterCreationScreen(),
       ),
       GoRoute(
         path: '/lease-expired',
@@ -317,18 +312,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
                   GoRoute(
                     path: 'transfer',
                     builder: (context, state) => const OwnershipTransferScreen(),
-                  ),
-                  GoRoute(
-                    path: 'backup',
-                    builder: (context, state) => const BackupRestoreScreen(),
-                  ),
-                  GoRoute(
-                    path: 'privacy',
-                    builder: (context, state) => const PrivacyPolicyScreen(),
-                  ),
-                  GoRoute(
-                    path: 'terms',
-                    builder: (context, state) => const TermsOfServiceScreen(),
                   ),
                 ],
               ),

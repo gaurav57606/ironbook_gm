@@ -30,6 +30,7 @@ class EventPayloadKeys {
   // Metadata
   static const String notes = 'notes';
   static const String updatedAt = 'updatedAt';
+  static const String saleId = 'saleId';
 }
 
 

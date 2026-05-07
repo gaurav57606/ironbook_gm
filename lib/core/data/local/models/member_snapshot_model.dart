@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'join_date_change_model.dart';
+part 'member_snapshot_model.g.dart';
 
 @HiveType(typeId: 11)
 class MemberSnapshot extends HiveObject {
@@ -223,7 +224,34 @@ class MemberSnapshot extends HiveObject {
       'checkInPin': checkInPin,
       'lastCheckIn': lastCheckIn?.toIso8601String(),
       'lastCheckInDevice': lastCheckInDevice,
+      'hmacSignature': hmacSignature,
     };
+  }
+
+  // Drift Integration
+  factory MemberSnapshot.fromDrift(dynamic d) {
+    return MemberSnapshot(
+      memberId: d.id,
+      name: d.name,
+      phone: d.phone,
+      joinDate: d.joinDate,
+      planId: d.planId,
+      planName: d.planName,
+      expiryDate: d.expiryDate,
+      totalPaid: d.totalPaid,
+      archived: d.archived,
+      gender: d.gender,
+      age: d.age,
+      checkInPin: d.checkInPin,
+      lastCheckIn: d.lastCheckIn,
+      hmacSignature: d.hmacSignature,
+    );
+  }
+
+  dynamic toDrift() {
+    // Note: We return the Companion/Data class type at runtime. 
+    // In actual implementation, we use the generated classes from outbox_database.g.dart
+    return null; // Placeholder, will be used in repository
   }
 }
 

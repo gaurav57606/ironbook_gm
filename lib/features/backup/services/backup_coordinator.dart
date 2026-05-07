@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:drift/drift.dart' as drift;
 
 import 'backup_encryption_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
@@ -14,11 +14,12 @@ import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/providers/payment_provider.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
-import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/plan_provider.dart';
 import 'package:ironbook_gm/core/providers/sale_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
+import 'package:ironbook_gm/features/nutrition/presentation/providers/nutrition_provider.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 
 // Models
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
@@ -30,6 +31,9 @@ import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
 import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/core/data/local/models/product_model.dart';
 import 'package:ironbook_gm/core/data/local/models/sale_model.dart';
+import 'package:ironbook_gm/features/nutrition/data/models/nutrition_plan_model.dart';
+import 'package:ironbook_gm/features/nutrition/data/models/meal_item_model.dart';
+import 'package:ironbook_gm/features/nutrition/data/models/water_log_model.dart';
 
 final backupCoordinatorProvider = Provider((ref) => BackupCoordinator(ref));
 
@@ -41,7 +45,7 @@ class BackupCoordinator {
 
   Future<void> exportBackup(String password) async {
     final Map<String, dynamic> backupData = {
-      'version': '1.1',
+      'version': '1.2', 
       'timestamp': DateTime.now().toIso8601String(),
       'data': await _gatherAllData(),
     };
@@ -62,11 +66,9 @@ class BackupCoordinator {
       text: 'IronBook GM backup file generated on ${DateFormat('MMM dd, yyyy').format(DateTime.now())}.',
     );
 
-    // If share was attempted (share_plus doesn't always return true on all platforms, 
-    // but we can assume success if no exception was thrown)
-    final settingsBox = Hive.box<AppSettings>('settings');
-    final settings = settingsBox.get('settings') ?? AppSettings();
-    await settingsBox.put('settings', settings.copyWith(lastBackupAt: DateTime.now()));
+    final settingsRepo = _ref.read(settingsRepositoryProvider);
+    final settings = await settingsRepo.getSettings();
+    await settingsRepo.updateSettings(settings.copyWith(lastBackupAt: DateTime.now()));
   }
 
   Future<void> importBackup(String password) async {
@@ -84,32 +86,26 @@ class BackupCoordinator {
     final backupData = jsonDecode(decryptedJson) as Map<String, dynamic>;
 
     final version = backupData['version'] as String?;
-    if (version != '1.1') {
-      throw Exception('Incompatible backup version: $version. Expected 1.1');
+    if (version != '1.1' && version != '1.2') {
+      throw Exception('Incompatible backup version: $version. Expected 1.1 or 1.2');
     }
 
-    // 1. Shadow Import: Parse first to ensure 100% success
     final data = backupData['data'] as Map<String, dynamic>;
     final parsed = _parseBackupData(data);
 
-    // 2. ONLY IF SUCCESSFUL, proceed to wipe
     await _hardWipe();
-
-    // 3. Insert pre-parsed data
     await _applyParsedData(parsed);
 
-    // 4. Comprehensive invalidation to prevent "Ghost State"
     _ref.invalidate(membersProvider);
     _ref.invalidate(eventRepositoryProvider);
     _ref.invalidate(authProvider);
     _ref.invalidate(paymentsProvider);
-    _ref.invalidate(unsyncedCountProvider);
     _ref.invalidate(ownerProvider);
     _ref.invalidate(planProvider);
     _ref.invalidate(productsProvider);
     _ref.invalidate(saleProvider);
     _ref.invalidate(settingsProvider);
-    // Note: Add any other core providers here if needed
+    _ref.invalidate(nutritionProvider);
   }
 
   _ParsedBackupData _parseBackupData(Map<String, dynamic> data) {
@@ -117,57 +113,77 @@ class BackupCoordinator {
 
     if (data.containsKey('settings')) {
       final list = data['settings'] as List;
-      if (list.isNotEmpty) {
-        parsed.settings = AppSettings.fromFirestore(list.first as Map<String, dynamic>);
+      if (list.isNotEmpty && list.first != null) {
+        parsed.settings = AppSettings.fromFirestore(Map<String, dynamic>.from(list.first));
       }
     }
 
     if (data.containsKey('owner')) {
       final list = data['owner'] as List;
-      if (list.isNotEmpty) {
-        parsed.owner = OwnerProfile.fromFirestore(list.first as Map<String, dynamic>);
+      if (list.isNotEmpty && list.first != null) {
+        parsed.owner = OwnerProfile.fromFirestore(Map<String, dynamic>.from(list.first));
       }
     }
 
     if (data.containsKey('plans')) {
       for (final item in data['plans'] as List) {
-        parsed.plans.add(Plan.fromFirestore(item as Map<String, dynamic>));
+        parsed.plans.add(Plan.fromFirestore(Map<String, dynamic>.from(item)));
       }
     }
 
     if (data.containsKey('events')) {
       for (final item in data['events'] as List) {
-        parsed.events.add(DomainEvent.fromFirestore(item as Map<String, dynamic>));
+        parsed.events.add(DomainEvent.fromFirestore(Map<String, dynamic>.from(item)));
       }
     }
 
-    if (data.containsKey('snapshots')) {
-      for (final item in data['snapshots'] as List) {
-        parsed.snapshots.add(MemberSnapshot.fromPayload(item['memberId'], item as Map<String, dynamic>));
+    if (data.containsKey('snapshots') || data.containsKey('members')) {
+      final list = (data['snapshots'] ?? data['members']) as List;
+      for (final item in list) {
+        final map = Map<String, dynamic>.from(item);
+        parsed.snapshots.add(MemberSnapshot.fromPayload(map['memberId'], map));
       }
     }
 
     if (data.containsKey('payments')) {
       for (final item in data['payments'] as List) {
-        parsed.payments.add(Payment.fromFirestore(item as Map<String, dynamic>));
+        parsed.payments.add(Payment.fromFirestore(Map<String, dynamic>.from(item)));
       }
     }
 
     if (data.containsKey('invoice_sequences')) {
       for (final item in data['invoice_sequences'] as List) {
-        parsed.sequences.add(InvoiceSequence.fromFirestore(item as Map<String, dynamic>));
+        parsed.sequences.add(InvoiceSequence.fromFirestore(Map<String, dynamic>.from(item)));
       }
     }
 
     if (data.containsKey('products')) {
       for (final item in data['products'] as List) {
-        parsed.products.add(Product.fromFirestore(item as Map<String, dynamic>));
+        parsed.products.add(Product.fromFirestore(Map<String, dynamic>.from(item)));
       }
     }
 
     if (data.containsKey('sales')) {
       for (final item in data['sales'] as List) {
-        parsed.sales.add(Sale.fromFirestore(item as Map<String, dynamic>));
+        parsed.sales.add(Sale.fromFirestore(Map<String, dynamic>.from(item)));
+      }
+    }
+
+    if (data.containsKey('nutrition_plans')) {
+      for (final item in data['nutrition_plans'] as List) {
+        parsed.nutritionPlans.add(NutritionPlan.fromFirestore(Map<String, dynamic>.from(item)));
+      }
+    }
+
+    if (data.containsKey('meal_items')) {
+      for (final item in data['meal_items'] as List) {
+        parsed.mealItems.add(MealItem.fromFirestore(Map<String, dynamic>.from(item)));
+      }
+    }
+
+    if (data.containsKey('water_logs')) {
+      for (final item in data['water_logs'] as List) {
+        parsed.waterLogs.add(WaterLog.fromFirestore(Map<String, dynamic>.from(item)));
       }
     }
 
@@ -175,125 +191,214 @@ class BackupCoordinator {
   }
 
   Future<void> _applyParsedData(_ParsedBackupData parsed) async {
-    if (parsed.settings != null) {
-      await Hive.box<AppSettings>('settings').put('settings', parsed.settings!);
-    }
+    final database = _ref.read(outboxDatabaseProvider);
 
-    if (parsed.owner != null) {
-      await Hive.box<OwnerProfile>('owner').put('owner', parsed.owner!);
-    }
-
-    final plansBox = Hive.box<Plan>('plans');
-    for (final plan in parsed.plans) {
-      await plansBox.put(plan.id, plan);
-    }
-
-    if (parsed.events.isNotEmpty) {
-      final eventsBox = await Hive.openLazyBox<DomainEvent>('events');
-      for (final event in parsed.events) {
-        await eventsBox.put(event.id, event);
+    await database.transaction(() async {
+      if (parsed.settings != null) {
+        final s = parsed.settings!;
+        await database.into(database.appSettingsTable).insert(db.AppSettingsTableCompanion.insert(
+          gstRate: drift.Value(s.gstRate),
+          expiryReminderDays: drift.Value(s.expiryReminderDays),
+          whatsappReminders: drift.Value(s.whatsappReminders),
+          biometricEnabled: drift.Value(s.biometricEnabled),
+          useBiometrics: drift.Value(s.useBiometrics),
+          businessType: drift.Value(s.businessType),
+          lastBackupAt: drift.Value(s.lastBackupAt),
+          hmacSignature: drift.Value(s.hmacSignature),
+        ));
       }
-      
-      final outboxRepo = _ref.read(outboxRepositoryProvider);
-      await outboxRepo.seedFromHive(parsed.events);
-    }
 
-    if (parsed.snapshots.isNotEmpty) {
-      final snapshotBox = await Hive.openLazyBox<MemberSnapshot>('snapshots');
-      for (final snap in parsed.snapshots) {
-        await snapshotBox.put(snap.memberId, snap);
+      if (parsed.owner != null) {
+        final o = parsed.owner!;
+        await database.into(database.ownerProfiles).insert(db.OwnerProfilesCompanion.insert(
+          gymName: o.gymName,
+          ownerName: o.ownerName,
+          phone: o.phone,
+          address: o.address,
+          gstin: drift.Value(o.gstin),
+          bankName: drift.Value(o.bankName),
+          accountNumber: drift.Value(o.accountNumber),
+          ifsc: drift.Value(o.ifsc),
+          upiId: drift.Value(o.upiId),
+          logoPath: drift.Value(o.logoPath),
+          level: drift.Value(o.level),
+          exp: drift.Value(o.exp),
+          strength: drift.Value(o.strength),
+          endurance: drift.Value(o.endurance),
+          dexterity: drift.Value(o.dexterity),
+          selectedCharacterId: drift.Value(o.selectedCharacterId),
+          hmacSignature: drift.Value(o.hmacSignature),
+        ));
       }
-    }
 
-    final paymentsBox = Hive.box<Payment>('payments');
-    for (final payment in parsed.payments) {
-      await paymentsBox.put(payment.id, payment);
-    }
+      for (final p in parsed.plans) {
+        await database.into(database.plans).insert(db.PlansCompanion.insert(
+          id: p.id,
+          name: p.name,
+          durationMonths: p.durationMonths,
+          price: p.totalPrice,
+          active: drift.Value(p.active),
+          componentsJson: drift.Value(jsonEncode(p.components.map((c) => {'id': c.id, 'name': c.name, 'price': c.price}).toList())),
+          hmacSignature: drift.Value(p.hmacSignature),
+        ));
+      }
 
-    final sequenceBox = Hive.box<InvoiceSequence>('invoice_sequences');
-    for (final seq in parsed.sequences) {
-      await sequenceBox.add(seq);
-    }
+      for (final e in parsed.events) {
+        await database.into(database.outboxEvents).insert(db.OutboxEventsCompanion.insert(
+          id: e.id,
+          entityId: e.entityId,
+          eventType: e.eventType.name,
+          payloadJson: jsonEncode(e.payload),
+          deviceTimestamp: e.deviceTimestamp.millisecondsSinceEpoch,
+          isSynced: drift.Value(e.synced ? 1 : 0),
+          hmacSignature: drift.Value(e.hmacSignature),
+          deviceId: drift.Value(e.deviceId),
+        ));
+      }
 
-    final productBox = Hive.box<Product>('products');
-    for (final prod in parsed.products) {
-      await productBox.put(prod.id, prod);
-    }
+      for (final s in parsed.snapshots) {
+        await database.into(database.members).insert(db.MembersCompanion.insert(
+          id: s.memberId,
+          name: s.name,
+          phone: drift.Value(s.phone),
+          joinDate: s.joinDate,
+          planId: drift.Value(s.planId),
+          planName: drift.Value(s.planName),
+          expiryDate: drift.Value(s.expiryDate),
+          totalPaid: drift.Value(s.totalPaid),
+          archived: drift.Value(s.archived),
+          gender: drift.Value(s.gender),
+          age: drift.Value(s.age),
+          checkInPin: drift.Value(s.checkInPin),
+          lastCheckIn: drift.Value(s.lastCheckIn),
+          hmacSignature: drift.Value(s.hmacSignature),
+        ));
+      }
 
-    final saleBox = Hive.box<Sale>('sales');
-    for (final sale in parsed.sales) {
-      await saleBox.put(sale.id, sale);
-    }
+      for (final p in parsed.payments) {
+        await database.into(database.payments).insert(db.PaymentsCompanion.insert(
+          id: p.id,
+          memberId: p.memberId,
+          date: p.date,
+          amount: p.amount,
+          method: p.method,
+          reference: drift.Value(p.reference),
+          planId: drift.Value(p.planId),
+          planName: drift.Value(p.planName),
+          durationMonths: drift.Value(p.durationMonths),
+          invoiceNumber: p.invoiceNumber,
+          subtotal: p.subtotal,
+          gstAmount: p.gstAmount,
+          gstRate: drift.Value(p.gstRate),
+          componentsJson: drift.Value(jsonEncode(p.components.map((c) => {'name': c.name, 'price': c.price}).toList())),
+          hmacSignature: drift.Value(p.hmacSignature),
+        ));
+      }
+
+      for (final s in parsed.sequences) {
+        await database.into(database.invoiceSequences).insert(db.InvoiceSequencesCompanion.insert(
+          prefix: s.prefix,
+          nextNumber: drift.Value(s.nextNumber),
+        ));
+      }
+
+      for (final prod in parsed.products) {
+        await database.into(database.products).insert(db.ProductsCompanion.insert(
+          id: prod.id,
+          name: prod.name,
+          price: prod.price,
+          category: prod.category,
+          iconCodePoint: prod.iconCodePoint,
+        ));
+      }
+
+      for (final sale in parsed.sales) {
+        await database.into(database.sales).insert(db.SalesCompanion.insert(
+          id: sale.id,
+          memberId: drift.Value(sale.memberId),
+          date: sale.date,
+          totalAmount: sale.totalAmount,
+          paymentMethod: sale.paymentMethod,
+          invoiceNumber: sale.invoiceNumber,
+          itemsJson: jsonEncode(sale.items.map((i) => {'productId': i.productId, 'productName': i.productName, 'price': i.price, 'quantity': i.quantity}).toList()),
+          hmacSignature: drift.Value(sale.hmacSignature),
+        ));
+      }
+
+      for (final np in parsed.nutritionPlans) {
+        await database.into(database.nutritionPlans).insert(db.NutritionPlansCompanion.insert(
+          id: np.id,
+          memberId: np.memberId,
+          planName: np.planName,
+          dailyCalories: np.dailyCalories,
+          adherence: drift.Value(np.adherence),
+          waterGoalMl: drift.Value(np.waterGoalMl),
+          hmacSignature: drift.Value(np.hmacSignature),
+        ));
+      }
+
+      for (final mi in parsed.mealItems) {
+        await database.into(database.mealItems).insert(db.MealItemsCompanion.insert(
+          id: mi.id,
+          memberId: mi.memberId,
+          foodName: mi.foodName,
+          grams: mi.grams,
+          calories: mi.calories,
+          timestamp: mi.timestamp,
+          hmacSignature: drift.Value(mi.hmacSignature),
+        ));
+      }
+
+      for (final wl in parsed.waterLogs) {
+        await database.into(database.waterLogs).insert(db.WaterLogsCompanion.insert(
+          id: wl.id,
+          memberId: wl.memberId,
+          amountMl: wl.amountMl,
+          timestamp: wl.timestamp,
+          hmacSignature: drift.Value(wl.hmacSignature),
+        ));
+      }
+    });
   }
 
   Future<Map<String, dynamic>> _gatherAllData() async {
+    final database = _ref.read(outboxDatabaseProvider);
     final Map<String, dynamic> data = {};
     
-    final boxNames = [
-      'events', 'snapshots', 'payments', 'plans', 
-      'owner', 'settings', 'invoice_sequences', 'products', 'sales'
-    ];
-
-    for (final name in boxNames) {
-      try {
-        if (Hive.isBoxOpen(name)) {
-          final box = Hive.box(name);
-          data[name] = box.values.map((e) => _modelToJson(e)).toList();
-        } else {
-          final box = Hive.isBoxOpen(name) 
-              ? Hive.lazyBox(name) 
-              : await Hive.openLazyBox(name);
-          
-          final List<dynamic> items = [];
-          for(final key in box.keys) {
-            final val = await box.get(key);
-            items.add(_modelToJson(val));
-          }
-          data[name] = items;
-        }
-      } catch (e) {
-        debugPrint('BackupCoordinator: Failed to read box $name: $e');
-      }
-    }
+    data['members'] = (await database.select(database.members).get()).map((r) => MemberSnapshot.fromDrift(r).toFirestore()).toList();
+    data['payments'] = (await database.select(database.payments).get()).map((r) => Payment.fromDrift(r).toFirestore()).toList();
+    data['plans'] = (await database.select(database.plans).get()).map((r) => Plan.fromDrift(r).toFirestore()).toList();
+    data['owner'] = (await database.select(database.ownerProfiles).get()).map((r) => OwnerProfile.fromDrift(r).toFirestore()).toList();
+    data['settings'] = (await database.select(database.appSettingsTable).get()).map((r) => AppSettings.fromDrift(r).toFirestore()).toList();
+    data['invoice_sequences'] = (await database.select(database.invoiceSequences).get()).map((r) => InvoiceSequence.fromDrift(r).toFirestore()).toList();
+    data['products'] = (await database.select(database.products).get()).map((r) => Product.fromDrift(r).toFirestore()).toList();
+    data['sales'] = (await database.select(database.sales).get()).map((r) => Sale.fromDrift(r).toFirestore()).toList();
+    data['events'] = (await database.select(database.outboxEvents).get()).map((r) => DomainEvent.fromOutbox(r).toFirestore()).toList();
+    
+    // Nutrition
+    data['nutrition_plans'] = (await database.select(database.nutritionPlans).get()).map((r) => NutritionPlan.fromDrift(r).toFirestore()).toList();
+    data['meal_items'] = (await database.select(database.mealItems).get()).map((r) => MealItem.fromDrift(r).toFirestore()).toList();
+    data['water_logs'] = (await database.select(database.waterLogs).get()).map((r) => WaterLog.fromDrift(r).toFirestore()).toList();
 
     return data;
   }
 
-  dynamic _modelToJson(dynamic model) {
-    if (model == null) return null;
-    if (model is DomainEvent) {
-      final map = model.toFirestore();
-      map['synced'] = model.synced; // Preserve actual local sync status
-      return map;
-    }
-    if (model is MemberSnapshot) return model.toFirestore();
-    if (model is Payment) return model.toFirestore();
-    if (model is Plan) return model.toFirestore();
-    if (model is OwnerProfile) return model.toFirestore();
-    if (model is AppSettings) return model.toFirestore();
-    if (model is InvoiceSequence) return model.toFirestore();
-    if (model is Product) return model.toFirestore();
-    if (model is Sale) return model.toFirestore();
-    return model;
-  }
-
   Future<void> _hardWipe() async {
-    final boxNames = [
-      'events', 'snapshots', 'payments', 'plans', 
-      'owner', 'settings', 'invoice_sequences', 'products', 'sales'
-    ];
-    for (final name in boxNames) {
-      if (Hive.isBoxOpen(name)) {
-        await Hive.box(name).clear();
-      } else if (Hive.isBoxOpen(name)) {
-        await Hive.lazyBox(name).clear();
-      } else {
-        await Hive.deleteBoxFromDisk(name);
-      }
-    }
-
-    final outboxRepo = _ref.read(outboxRepositoryProvider);
-    await outboxRepo.clearAll();
+    final database = _ref.read(outboxDatabaseProvider);
+    await database.transaction(() async {
+      await database.delete(database.outboxEvents).go();
+      await database.delete(database.members).go();
+      await database.delete(database.payments).go();
+      await database.delete(database.plans).go();
+      await database.delete(database.sales).go();
+      await database.delete(database.invoiceSequences).go();
+      await database.delete(database.products).go();
+      await database.delete(database.ownerProfiles).go();
+      await database.delete(database.appSettingsTable).go();
+      await database.delete(database.nutritionPlans).go();
+      await database.delete(database.mealItems).go();
+      await database.delete(database.waterLogs).go();
+    });
   }
 }
 
@@ -307,15 +412,7 @@ class _ParsedBackupData {
   final List<InvoiceSequence> sequences = [];
   final List<Product> products = [];
   final List<Sale> sales = [];
+  final List<NutritionPlan> nutritionPlans = [];
+  final List<MealItem> mealItems = [];
+  final List<WaterLog> waterLogs = [];
 }
-
-
-
-
-
-
-
-
-
-
-

@@ -1,10 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:drift/drift.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/shared/utils/event_bus.dart';
 import '../local/models/domain_event_model.dart';
-import '../local/drift/outbox_repository.dart';
+import '../local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 
@@ -22,131 +23,57 @@ abstract class IEventRepository {
   Stream<DomainEvent> watch();
 }
 
-class HiveEventRepository implements IEventRepository {
-  final LazyBox<DomainEvent> _box;
+class DriftEventRepository implements IEventRepository {
+  final OutboxDatabase _db;
   final EventBus _eventBus;
   final HmacService _hmacService;
-  final OutboxRepository _outboxRepo;
   final SyncCoordinator _syncCoordinator;
 
-  // Audit 6.2: In-memory index for performance (IDs only)
-  final Set<String> _unsyncedIds = {};
-  final Map<String, List<String>> _entityIndex = {};
-  bool _isIndexLoaded = false;
-  Future<void>? _loadingIndex;
-
-  HiveEventRepository(
-    this._box,
+  DriftEventRepository(
+    this._db,
     this._eventBus,
     this._hmacService,
-    this._outboxRepo,
     this._syncCoordinator,
   );
 
-  // Helper to load indexes asynchronously
-  Future<void> ensureIndexLoaded() async {
-    if (_isIndexLoaded) return;
-    if (_loadingIndex != null) return _loadingIndex;
-
-    _loadingIndex = _loadIndex();
-    return _loadingIndex;
-  }
-
-  Future<void> _loadIndex() async {
-    _unsyncedIds.clear();
-    _entityIndex.clear();
-    
-    // ⚡ Bolt Performance Optimization:
-    // Batch LazyBox reads to prevent OOM crashes and parallelize Hive lookups.
-    final keys = _box.keys.toList();
-    final List<DomainEvent?> allEvents = [];
-    
-    for (int i = 0; i < keys.length; i += 50) {
-      final chunk = keys.skip(i).take(50);
-      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
-      allEvents.addAll(chunkEvents);
-    }
-    
-    for (final event in allEvents) {
-      if (event != null) {
-        if (!event.synced) {
-          _unsyncedIds.add(event.id);
-        }
-        _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
-      }
-    }
-    
-    _isIndexLoaded = true;
-    _loadingIndex = null;
-  }
-
   @override
   Future<void> persist(DomainEvent event) async {
-    debugPrint(
-      'HiveEventRepository: ACID Dual-Write Start: ${event.eventType}',
+    if (event.hmacSignature.isEmpty) {
+      event.hmacSignature = await _hmacService.signEvent(event);
+    }
+
+    await _db.into(_db.outboxEvents).insert(
+      OutboxEventsCompanion.insert(
+        id: event.id,
+        entityId: event.entityId,
+        eventType: event.eventType.name,
+        payloadJson: jsonEncode(event.payload),
+        deviceTimestamp: event.deviceTimestamp.millisecondsSinceEpoch,
+        isSynced: Value(event.synced ? 1 : 0),
+        hmacSignature: Value(event.hmacSignature),
+        deviceId: Value(event.deviceId),
+      ),
+      mode: InsertMode.insertOrReplace,
     );
 
-    // 1. Sign (Security Enforcement)
-    event.hmacSignature = await _hmacService.signEvent(event);
-
-    try {
-      // 2. Drift Outbox write (The Source of Truth for Sync)
-      try {
-        await _outboxRepo.insertEvent(event);
-        debugPrint('HiveEventRepository: 1/2 Drift Outbox Success');
-      } catch (e) {
-        if (kIsWeb) {
-          debugPrint(
-            'HiveEventRepository: Drift Outbox skipped on Web (sql.js missing/error): $e',
-          );
-        } else {
-          rethrow;
-        }
-      }
-
-      // 3. Local Hive write (The Source of Truth for Local UI)
-      _unsyncedIds.add(event.id);
-      _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
-      await _box.put(event.id, event);
-      debugPrint('HiveEventRepository: 2/2 Hive Event Log Success');
-
-      // 4. Dispatch and Trigger
-      _eventBus.publish(event);
-      if (!kIsWeb) {
-        _syncCoordinator.triggerSync();
-      }
-    } catch (e) {
-      debugPrint('HiveEventRepository: ACID FAILURE - Transaction Aborted: $e');
-      rethrow;
+    _eventBus.publish(event);
+    if (!kIsWeb) {
+      _syncCoordinator.triggerSync();
     }
   }
 
   @override
   Future<List<DomainEvent>> getAll() async {
-    // ⚡ Bolt Performance Optimization:
-    // Batch LazyBox reads and parallelize HMAC verification.
-    final keys = _box.keys.toList();
-    final List<DomainEvent?> allEvents = [];
+    final docs = await _db.select(_db.outboxEvents).get();
+    final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
     
-    for (int i = 0; i < keys.length; i += 50) {
-      final chunk = keys.skip(i).take(50);
-      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
-      allEvents.addAll(chunkEvents);
-    }
-    
-    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
-    final verificationResults = await Future.wait(
-      nonNullEvents.map((e) => _hmacService.verifyInstance(e)),
-    );
-
+    // HMAC Verification
     final List<DomainEvent> validEvents = [];
-    for (int i = 0; i < nonNullEvents.length; i++) {
-      if (verificationResults[i]) {
-        validEvents.add(nonNullEvents[i]);
+    for (final e in events) {
+      if (await _hmacService.verifyInstance(e)) {
+        validEvents.add(e);
       } else {
-        debugPrint(
-          'HiveEventRepository: TAMPER DETECTED for event ${nonNullEvents[i].id}. Skipping.',
-        );
+        debugPrint('DriftEventRepository: TAMPER DETECTED for event ${e.id}. Skipping.');
       }
     }
     return validEvents;
@@ -154,105 +81,74 @@ class HiveEventRepository implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getAllUnsynced() async {
-    await ensureIndexLoaded();
-    
-    // ⚡ Bolt Performance Optimization:
-    // Batch LazyBox reads for unsynced IDs and parallelize verification.
-    final keys = _unsyncedIds.toList();
-    final List<DomainEvent?> allEvents = [];
-    
-    for (int i = 0; i < keys.length; i += 50) {
-      final chunk = keys.skip(i).take(50);
-      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
-      allEvents.addAll(chunkEvents);
-    }
-    
-    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
-    final verificationResults = await Future.wait(
-      nonNullEvents.map((e) => _hmacService.verifyInstance(e)),
-    );
-
-    final List<DomainEvent> unsynced = [];
-    for (int i = 0; i < nonNullEvents.length; i++) {
-      if (verificationResults[i]) {
-        unsynced.add(nonNullEvents[i]);
-      }
-    }
-    return unsynced;
+    final docs = await (_db.select(_db.outboxEvents)..where((t) => t.isSynced.equals(0))).get();
+    final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
+    return events;
   }
 
   @override
   Future<DomainEvent?> getById(String id) async {
-    final event = await _box.get(id);
-    if (event != null && await _hmacService.verifyInstance(event)) {
-      return event;
+    final doc = await (_db.select(_db.outboxEvents)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (doc != null) {
+      final event = DomainEvent.fromOutbox(doc);
+      if (await _hmacService.verifyInstance(event)) {
+        return event;
+      }
     }
     return null;
   }
 
   @override
   Future<List<DomainEvent>> getByEntityId(String entityId) async {
-    await ensureIndexLoaded();
-    final eventIds = _entityIndex[entityId] ?? [];
-    
-    // ⚡ Bolt Performance Optimization:
-    // Batch retrieve events by entity ID and parallelize signature validation.
-    final List<DomainEvent?> allEvents = [];
-    for (int i = 0; i < eventIds.length; i += 50) {
-      final chunk = eventIds.skip(i).take(50);
-      final chunkEvents = await Future.wait(chunk.map((id) => _box.get(id)));
-      allEvents.addAll(chunkEvents);
-    }
-    
-    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
-    final verificationResults = await Future.wait(
-      nonNullEvents.map((e) => _hmacService.verifyInstance(e)),
-    );
-
-    final List<DomainEvent> results = [];
-    for (int i = 0; i < nonNullEvents.length; i++) {
-      if (verificationResults[i]) {
-        results.add(nonNullEvents[i]);
-      }
-    }
-    return results;
+    final docs = await (_db.select(_db.outboxEvents)..where((t) => t.entityId.equals(entityId))).get();
+    final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
+    return events;
   }
 
   @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async {
+    // ⚡ Bolt Performance Optimization:
+    // Batch retrieve events and parallelize date checking and validation.
+    final keys = _box.keys.toList();
+    final List<DomainEvent?> allEvents = [];
+
+    for (int i = 0; i < keys.length; i += 50) {
+      final chunk = keys.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
+      allEvents.addAll(chunkEvents);
+    }
+
+    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
+    final List<DomainEvent> filteredByDate = nonNullEvents
+        .where((e) => e.deviceTimestamp.isAfter(since))
+        .toList();
+
+    final verificationResults = await Future.wait(
+      filteredByDate.map((e) => _hmacService.verifyInstance(e)),
+    );
+
     final List<DomainEvent> results = [];
-    for (final key in _box.keys) {
-      final event = await _box.get(key);
-      if (event != null && event.deviceTimestamp.isAfter(since)) {
-        if (await _hmacService.verifyInstance(event)) {
-          results.add(event);
-        }
+    for (int i = 0; i < filteredByDate.length; i++) {
+      if (verificationResults[i]) {
+        results.add(filteredByDate[i]);
       }
     }
     return results;
+    final docs = await (_db.select(_db.outboxEvents)..where((t) => t.deviceTimestamp.isBiggerThanValue(since.millisecondsSinceEpoch))).get();
+    return docs.map((d) => DomainEvent.fromOutbox(d)).toList();
   }
 
   @override
   Future<void> markAsSynced(String eventId) async {
-    final event = await _box.get(eventId);
-    if (event != null) {
-      event.synced = true;
-      _unsyncedIds.remove(eventId);
-      await _box.put(eventId, event);
-    }
+    await (_db.update(_db.outboxEvents)..where((t) => t.id.equals(eventId))).write(
+      const OutboxEventsCompanion(isSynced: Value(1)),
+    );
   }
 
   @override
   Future<void> persistSynced(DomainEvent event) async {
-    debugPrint(
-      'HiveEventRepository: Persisting recovered/synced event: ${event.id}',
-    );
-    if (event.hmacSignature.isEmpty) {
-      event.hmacSignature = await _hmacService.signEvent(event);
-    }
-    _entityIndex.putIfAbsent(event.entityId, () => []).add(event.id);
-    await _box.put(event.id, event);
-    _eventBus.publish(event);
+    event.synced = true;
+    await persist(event);
   }
 
   @override
@@ -260,11 +156,10 @@ class HiveEventRepository implements IEventRepository {
 }
 
 final eventRepositoryProvider = Provider<IEventRepository>((ref) {
-  final box = Hive.lazyBox<DomainEvent>('events');
+  final db = ref.watch(outboxDatabaseProvider);
   final bus = ref.watch(eventBusProvider);
   final hmac = ref.watch(hmacServiceProvider);
-  final outboxRepo = ref.watch(outboxRepositoryProvider);
   final syncCoord = ref.watch(syncCoordinatorProvider);
 
-  return HiveEventRepository(box, bus, hmac, outboxRepo, syncCoord);
+  return DriftEventRepository(db, bus, hmac, syncCoord);
 });

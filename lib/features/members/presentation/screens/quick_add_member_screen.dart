@@ -7,10 +7,9 @@ import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/providers/member_provider.dart';
-import '../../../../core/providers/plan_provider.dart';
-import '../../../../core/providers/payment_provider.dart';
-import '../../../../core/data/local/models/plan_model.dart';
+import '../../providers/members_provider.dart';
+import '../../../billing/providers/billing_provider.dart';
+import '../../../../core/data/local/drift/outbox_database.dart';
 
 class QuickAddMemberScreen extends ConsumerStatefulWidget {
   const QuickAddMemberScreen({super.key});
@@ -62,7 +61,8 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final plans = ref.read(planProvider);
+      final plansAsync = ref.read(activePlansProvider);
+      final plans = plansAsync.value ?? [];
       if (plans.isEmpty) {
         throw Exception('No gym plans configured. Please add one in settings.');
       }
@@ -70,7 +70,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
       final selectedPlan = plans[_selectedPlanIndex];
       final age = int.tryParse(ageStr);
       
-      final memberId = await ref.read(membersProvider.notifier).addMember(
+      final memberId = await ref.read(membersNotifierProvider).addMember(
         name: name,
         phone: phone,
         planId: selectedPlan.id,
@@ -80,7 +80,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
       );
 
       // Record financial transaction
-      await ref.read(paymentsProvider.notifier).recordMemberPayment(
+      await ref.read(billingNotifierProvider).recordMemberPayment(
         memberId: memberId,
         plan: selectedPlan,
         method: _paymentMethods[_selectedPayment],
@@ -105,7 +105,8 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final plans = ref.watch(planProvider);
+    final plansAsync = ref.watch(activePlansProvider);
+    final plans = plansAsync.value ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.bg,

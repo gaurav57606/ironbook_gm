@@ -32,30 +32,40 @@ class MealItem extends HiveObject {
     required this.timestamp,
     this.hmacSignature,
   });
-}
 
-@HiveType(typeId: 22)
-class WaterLog extends HiveObject {
-  @HiveField(0)
-  late String id;
+  factory MealItem.fromFirestore(Map<String, dynamic> data) {
+    return MealItem(
+      id: data['id'],
+      memberId: data['memberId'],
+      foodName: data['foodName'],
+      grams: (data['grams'] as num).toDouble(),
+      calories: data['calories'],
+      timestamp: DateTime.parse(data['timestamp']).toLocal(),
+      hmacSignature: data['hmacSignature'],
+    );
+  }
 
-  @HiveField(1)
-  late String memberId;
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'memberId': memberId,
+      'foodName': foodName,
+      'grams': grams,
+      'calories': calories,
+      'timestamp': timestamp.toUtc().toIso8601String(),
+      'hmacSignature': hmacSignature,
+    };
+  }
 
-  @HiveField(2)
-  late int amountMl;
-
-  @HiveField(3)
-  late DateTime timestamp;
-
-  @HiveField(4)
-  String? hmacSignature;
-
-  WaterLog({
-    required this.id,
-    required this.memberId,
-    required this.amountMl,
-    required this.timestamp,
-    this.hmacSignature,
-  });
+  factory MealItem.fromDrift(dynamic d) {
+    return MealItem(
+      id: d.id,
+      memberId: d.memberId,
+      foodName: d.foodName,
+      grams: d.grams,
+      calories: d.calories,
+      timestamp: d.timestamp,
+      hmacSignature: d.hmacSignature,
+    );
+  }
 }

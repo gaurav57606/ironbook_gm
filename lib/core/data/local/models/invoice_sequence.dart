@@ -19,6 +19,13 @@ class InvoiceSequence extends HiveObject {
     );
   }
 
+  factory InvoiceSequence.fromDrift(dynamic d) {
+    return InvoiceSequence(
+      prefix: d.prefix,
+      nextNumber: d.nextNumber,
+    );
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'prefix': prefix,
