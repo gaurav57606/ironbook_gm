@@ -16,7 +16,6 @@ import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'services/hmac_service.dart';
 import 'services/notification_service.dart';
 import 'services/config_service.dart';
 import 'services/logger_service.dart';
@@ -122,7 +121,6 @@ class AppBootstrap {
         try {
           await Workmanager().initialize(
             MidnightEngine.callbackDispatcher,
-            isInDebugMode: kDebugMode,
           );
           await Workmanager().registerPeriodicTask(
             "1",

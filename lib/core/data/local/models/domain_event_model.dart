@@ -104,6 +104,28 @@ class DomainEvent extends HiveObject {
       deviceId: doc.deviceId,
     );
   }
+
+  DomainEvent copyWith({
+    String? id,
+    String? entityId,
+    EventType? eventType,
+    Map<String, dynamic>? payload,
+    DateTime? deviceTimestamp,
+    bool? synced,
+    String? hmacSignature,
+    String? deviceId,
+  }) {
+    return DomainEvent(
+      id: id ?? this.id,
+      entityId: entityId ?? this.entityId,
+      eventType: eventType ?? this.eventType,
+      payload: payload ?? this.payload,
+      deviceTimestamp: deviceTimestamp ?? this.deviceTimestamp,
+      synced: synced ?? this.synced,
+      hmacSignature: hmacSignature ?? this.hmacSignature,
+      deviceId: deviceId ?? this.deviceId,
+    );
+  }
 }
 
 @HiveType(typeId: 11) // Using different typeId for enum if needed, or keeping it

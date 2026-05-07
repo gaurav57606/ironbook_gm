@@ -29,7 +29,80 @@ void main() {
   });
 
   group('CsvExportService Tests', () {
-    test('generateMembersCsv produces correct header and row count', () {
+    test('generateMembersCsv with empty list produces only header', () {
+      final csv = service.generateMembersCsv([]);
+      final lines = const LineSplitter().convert(csv).where((l) => l.isNotEmpty).toList();
+
+      expect(lines.length, 1); // Only Header
+      expect(lines[0], 'Member ID,Name,Phone,Join Date,Plan Name,Expiry Date,Total Paid (₹),Status,Last Check-In,Archived');
+    });
+
+    test('generateMembersCsv handles null optional fields with fallbacks', () {
+      final members = [
+        MemberSnapshot(
+          memberId: 'M_NULL',
+          name: 'Null Test',
+          joinDate: DateTime(2024, 1, 1),
+          phone: null,
+          planName: null,
+          expiryDate: null,
+          lastCheckIn: null,
+          totalPaid: 0,
+          archived: false,
+        ),
+      ];
+
+      final csv = service.generateMembersCsv(members);
+      final lines = const LineSplitter().convert(csv).where((l) => l.isNotEmpty).toList();
+      final fields = lines[1].split(',');
+
+      // 'Member ID', 'Name', 'Phone', 'Join Date', 'Plan Name', 'Expiry Date', 'Total Paid (₹)', 'Status', 'Last Check-In', 'Archived'
+      expect(fields[0], 'M_NULL');
+      expect(fields[1], 'Null Test');
+      expect(fields[2], ''); // Phone fallback
+      expect(fields[4], 'None'); // Plan Name fallback
+      expect(fields[5], 'N/A'); // Expiry Date fallback
+      expect(fields[6], '0.00'); // Total Paid
+      expect(fields[8], 'Never'); // Last Check-In fallback
+      expect(fields[9], 'No'); // Archived
+    });
+
+    test('generateMembersCsv formats archived status and currency correctly', () {
+      final members = [
+        MemberSnapshot(
+          memberId: 'M_ARCHIVED',
+          name: 'Archived User',
+          joinDate: DateTime(2024, 1, 1),
+          totalPaid: 123456, // ₹1234.56
+          archived: true,
+        ),
+      ];
+
+      final csv = service.generateMembersCsv(members);
+      final lines = const LineSplitter().convert(csv).where((l) => l.isNotEmpty).toList();
+      final fields = lines[1].split(',');
+
+      expect(fields[6], '1234.56');
+      expect(fields[9], 'Yes');
+    });
+
+    test('generateMembersCsv handles multiple members correctly', () {
+      final members = [
+        MemberSnapshot(memberId: 'M1', name: 'User 1', joinDate: DateTime(2024, 1, 1)),
+        MemberSnapshot(memberId: 'M2', name: 'User 2', joinDate: DateTime(2024, 1, 1)),
+        MemberSnapshot(memberId: 'M3', name: 'User 3', joinDate: DateTime(2024, 1, 1)),
+      ];
+
+      final csv = service.generateMembersCsv(members);
+      final lines = const LineSplitter().convert(csv).where((l) => l.isNotEmpty).toList();
+
+      expect(lines.length, 4); // Header + 3 Rows
+      expect(lines[1], contains('M1,User 1'));
+      expect(lines[2], contains('M2,User 2'));
+      expect(lines[3], contains('M3,User 3'));
+    });
+
+    test('generateMembersCsv produces correct header and row count (original test)', () {
       final members = [
         MemberSnapshot(
           memberId: 'M1',
@@ -131,5 +204,3 @@ void main() {
     });
   });
 }
-
-

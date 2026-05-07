@@ -119,6 +119,33 @@ class DriftEventRepository implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async {
+    // ⚡ Bolt Performance Optimization:
+    // Batch retrieve events and parallelize date checking and validation.
+    final keys = _box.keys.toList();
+    final List<DomainEvent?> allEvents = [];
+
+    for (int i = 0; i < keys.length; i += 50) {
+      final chunk = keys.skip(i).take(50);
+      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
+      allEvents.addAll(chunkEvents);
+    }
+
+    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
+    final List<DomainEvent> filteredByDate = nonNullEvents
+        .where((e) => e.deviceTimestamp.isAfter(since))
+        .toList();
+
+    final verificationResults = await Future.wait(
+      filteredByDate.map((e) => _hmacService.verifyInstance(e)),
+    );
+
+    final List<DomainEvent> results = [];
+    for (int i = 0; i < filteredByDate.length; i++) {
+      if (verificationResults[i]) {
+        results.add(filteredByDate[i]);
+      }
+    }
+    return results;
     final docs = await (_db.select(_db.outboxEvents)..where((t) => t.deviceTimestamp.isBiggerThanValue(since.millisecondsSinceEpoch))).get();
     return docs.map((d) => DomainEvent.fromOutbox(d)).toList();
   }

@@ -64,7 +64,7 @@ void main() {
           syncWorkerProvider.overrideWithValue(mockSync),
           bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
         ],
-        child: const IronBookApp(hiveHealthy: true),
+        child: const IronBookApp(storageHealthy: true),
       ),
     );
     await tester.pumpAndSettle();

@@ -26,18 +26,23 @@ void main() {
         tester,
         const DashboardScreen(),
         overrides: [
-          authProvider.overrideWith((ref) => FakeAuth()),
+          authProvider.overrideWith((ref) => FakeAuth(unlocked: true)),
           membersProvider.overrideWith((ref) => mockNotifier),
         ],
       );
 
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Active Members'), findsOneWidget);
+      expect(find.byType(DashboardScreen), findsOneWidget);
+      expect(find.byType(Scaffold), findsOneWidget);
+
+      // Verify stats are visible
+      expect(find.textContaining('TOTAL MEMBERS'), findsOneWidget);
+      expect(find.textContaining('ACTIVE'), findsOneWidget);
+      
       // Stats should reflect 1 active member
-      expect(find.text('1'), findsWidgets); 
+      // There might be multiple '1's (Total, Active)
+      expect(find.text('1'), findsAtLeast(2)); 
     });
   });
 }
-
-

@@ -77,7 +77,7 @@ class HmacService {
 
   String _wrapKey(String rawKey, String uid) {
     // Audit Hardening 2.7: KDF uses Identity + Environment Secret
-    final hmacKey = _config?.hmacSecret ?? 'default-internal-salt';
+    final hmacKey = _config!.hmacSecret;
     final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid + hmacKey));
     final wrapperKeyBytes = kdf.convert(utf8.encode(uid)).bytes;
     
@@ -96,7 +96,7 @@ class HmacService {
     final iv = enc.IV.fromBase64(parts[0]);
     final encrypted = enc.Encrypted.fromBase64(parts[1]);
     
-    final hmacKey = _config?.hmacSecret ?? 'default-internal-salt';
+    final hmacKey = _config!.hmacSecret;
     final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid + hmacKey));
     final wrapperKeyBytes = kdf.convert(utf8.encode(uid)).bytes;
     
