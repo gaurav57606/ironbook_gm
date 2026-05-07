@@ -30,6 +30,7 @@ import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sale_repository.dart';
+import 'package:ironbook_gm/core/providers/payment_provider.dart';
 import 'package:ironbook_gm/core/theme/app_theme.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
@@ -321,6 +322,4 @@ class FakeClock extends IClock {
 }
 
 class MockPaymentNotifier extends Mock implements PaymentNotifier {}
-class MockSyncWorker extends Mock implements SyncWorker {}
-class MockConfigService extends Mock implements ConfigService {}
 

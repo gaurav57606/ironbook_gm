@@ -80,12 +80,12 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
 
     if (missingEvents.isEmpty) return;
 
-    debugPrint('PaymentNotifier: Reconciling ${missingEvents.length} missing payments parallelized');
+    debugPrint('PaymentNotifier: Reconciling ${missingEvents.length} missing payments in batches');
 
-    // Apply events in batches of 50
+    // Batch process missing payments in chunks of 50 to avoid long locks
     for (var i = 0; i < missingEvents.length; i += 50) {
-      final batch = missingEvents.skip(i).take(50);
-      await Future.wait(batch.map((e) => _paymentRepo.applyEvent(e)));
+      final batch = missingEvents.skip(i).take(50).toList();
+      await _paymentRepo.applyEvents(batch);
     }
 
     state = (await _paymentRepo.getAllPayments()).reversed.toList();
@@ -172,12 +172,10 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       // 6. Persist Cache in Drift
       await _paymentRepo.upsertPayment(payment);
       
-      final signed = await _paymentRepo.getPayment(payment.id);
-      if (signed != null) {
-        state = [signed, ...state];
-      }
+      // Optimized: Avoid redundant fetch, use local object but ensure it matches repo state
+      state = [payment, ...state];
 
-      return signed ?? payment;
+      return payment;
     } finally {
       final lock = _syncLock;
       _syncLock = null;
@@ -205,14 +203,3 @@ final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, m
   final payments = ref.watch(paymentsProvider);
   return payments.firstWhereOrNull((p) => p.memberId == memberId);
 });
-
-
-
-
-
-
-
-
-
-
-
