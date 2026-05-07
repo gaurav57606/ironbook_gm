@@ -151,7 +151,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
       for (final res in results) {
         if (res != null) {
-          validSnapshots.add(res as MemberSnapshot);
+          validSnapshots.add(res);
         }
       }
     }
@@ -182,23 +182,35 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     }
 
     bool updatedAny = false;
-    for (final entityId in eventsByEntity.keys) {
-      final snap = await box.get(entityId);
-      final latestEventTime = eventsByEntity[entityId]!
-          .map((e) => e.deviceTimestamp)
-          .reduce((a, b) => a.isAfter(b) ? a : b);
+    final entityIds = eventsByEntity.keys.toList();
+    const batchSize = 50;
 
-      if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-        debugPrint('MemberNotifier: Lagging snapshot for $entityId. Rebuilding from checkpoint events...');
-        // Rebuild from ALL entity events for correctness (only triggered when needed)
-        final fullHistory = await _repo.getByEntityId(entityId);
-        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
-        if (rebuilt != null) {
-          final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
-          final signed = rebuilt.copyWith(hmacSignature: signature);
-          await box.put(entityId, signed);
-          updatedAny = true;
+    for (int i = 0; i < entityIds.length; i += batchSize) {
+      final batch = entityIds.skip(i).take(batchSize).toList();
+
+      final results = await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
+        final latestEventTime = eventsByEntity[entityId]!
+            .map((e) => e.deviceTimestamp)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+
+        if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+          debugPrint('MemberNotifier: Lagging snapshot for $entityId. Rebuilding from checkpoint events...');
+          // Rebuild from ALL entity events for correctness (only triggered when needed)
+          final fullHistory = await _repo.getByEntityId(entityId);
+          final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+          if (rebuilt != null) {
+            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
+            final signed = rebuilt.copyWith(hmacSignature: signature);
+            await box.put(entityId, signed);
+            return true;
+          }
         }
+        return false;
+      }));
+
+      if (results.contains(true)) {
+        updatedAny = true;
       }
     }
 
