@@ -111,11 +111,119 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       }
     });
 
-    // 2. Load all members from Drift
-    state = await _memberRepo.getAllMembers();
+    // 2. Load all members with integrity checks
+    state = await _loadAllSnapshots();
 
-    // 3. Reconcile
+    // 3. Reconcile lagging state
     await _reconcileSnapshots();
+  }
+
+  Future<List<MemberSnapshot>> _loadAllSnapshots() async {
+    final allMembers = await _memberRepo.getAllMembers();
+    final List<MemberSnapshot> validSnapshots = [];
+    final List<String> repairRequiredIds = [];
+
+    // Batch process HMAC verification in chunks of 50
+    for (int i = 0; i < allMembers.length; i += 50) {
+      final chunk = allMembers.skip(i).take(50).toList();
+      final results = await Future.wait(chunk.map((snap) async {
+        if (snap.hmacSignature == null) return MapEntry(snap.memberId, false);
+        final isValid = await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
+        return MapEntry(snap.memberId, isValid);
+      }));
+
+      for (int j = 0; j < chunk.length; j++) {
+        final snap = chunk[j];
+        final isValid = results[j].value;
+        if (isValid) {
+          validSnapshots.add(snap);
+        } else {
+          debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Repair required.');
+          repairRequiredIds.add(snap.memberId);
+        }
+      }
+    }
+
+    if (repairRequiredIds.isNotEmpty) {
+      final histories = await _eventRepo.getByEntityIds(repairRequiredIds);
+      final List<MemberSnapshot> repairedSnapshots = [];
+
+      for (final entityId in repairRequiredIds) {
+        final history = histories[entityId] ?? [];
+        final rebuilt = SnapshotBuilder.rebuild(history);
+        if (rebuilt != null) {
+          repairedSnapshots.add(rebuilt);
+        }
+      }
+
+      if (repairedSnapshots.isNotEmpty) {
+        await _memberRepo.upsertMembers(repairedSnapshots);
+        validSnapshots.addAll(repairedSnapshots);
+      }
+  Future<List<MemberSnapshot>> _loadAllSnapshots(LazyBox<MemberSnapshot> box) async {
+    final keys = box.keys.toList();
+    final List<MemberSnapshot> validSnapshots = [];
+    final Map<String, MemberSnapshot> repairs = {};
+
+    // Audit 6.2: Parallelize loading and verification in batches
+    for (int i = 0; i < keys.length; i += 50) {
+      final batch = keys.skip(i).take(50);
+      final batchResults = await Future.wait(batch.map((key) async {
+    const batchSize = 50;
+    
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final batch = keys.skip(i).take(batchSize).toList();
+      final Map<String, MemberSnapshot> repairedInBatch = {};
+
+      final results = await Future.wait(batch.map((key) async {
+        final snap = await box.get(key);
+        if (snap == null) return null;
+
+        // Integrity Check
+        final isValid = snap.hmacSignature != null &&
+            await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
+
+        if (isValid) {
+          return snap;
+        } else {
+          debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Triggering automatic repair...');
+          // Repair from Event Log (Write-Ahead Log)
+          final history = await _repo.getByEntityId(snap.memberId);
+          final repaired = SnapshotBuilder.rebuild(history);
+          if (repaired != null) {
+            final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
+            final signed = repaired.copyWith(hmacSignature: signature);
+            return MapEntry(key.toString(), signed);
+            repairedInBatch[snap.memberId] = signed;
+            return signed;
+          }
+        }
+        return null;
+      }));
+
+      for (final result in batchResults) {
+        if (result is MemberSnapshot) {
+          validSnapshots.add(result);
+        } else if (result is MapEntry<String, MemberSnapshot>) {
+          repairs[result.key] = result.value;
+          validSnapshots.add(result.value);
+      if (repairedInBatch.isNotEmpty) {
+        // ⚡ Bolt: Batch write repaired snapshots
+        await box.putAll(repairedInBatch);
+      }
+
+      for (final res in results) {
+        if (res != null) {
+          validSnapshots.add(res);
+        }
+      }
+    }
+
+    if (repairs.isNotEmpty) {
+      await box.putAll(repairs);
+    }
+
+    return validSnapshots;
   }
 
   Future<void> _reconcileSnapshots() async {
@@ -135,6 +243,38 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       eventsByEntity.putIfAbsent(e.entityId, () => []).add(e);
     }
 
+    final List<String> entityIdsToCheck = eventsByEntity.keys.toList();
+    final existingSnaps = await _memberRepo.getMembers(entityIdsToCheck);
+    final snapMap = {for (final s in existingSnaps) s.memberId: s};
+
+    final List<String> laggingIds = [];
+    for (final entityId in entityIdsToCheck) {
+      final snap = snapMap[entityId];
+    final entityIds = latestByEntity.keys.toList();
+    final updates = <String, MemberSnapshot>{};
+
+    // Audit 6.2: Parallelize reconciliation in batches to avoid Await-in-Loop bottleneck
+    for (int i = 0; i < entityIds.length; i += 50) {
+      final batch = entityIds.skip(i).take(50);
+      final batchResults = await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
+        if (snap == null || snap.lastUpdated.isBefore(latestByEntity[entityId]!)) {
+          debugPrint('MemberNotifier: Lagging snapshot detected for $entityId. Rebuilding...');
+          final history = await _repo.getByEntityId(entityId);
+          final rebuilt = SnapshotBuilder.rebuild(history);
+          return rebuilt != null ? MapEntry(entityId, rebuilt) : null;
+        }
+        return null;
+      }));
+
+      for (final entry in batchResults) {
+        if (entry != null) updates[entry.key] = entry.value;
+      }
+    }
+
+    if (updates.isNotEmpty) {
+      await box.putAll(updates);
+      state = await _loadAllSnapshots(box);
     bool updatedAny = false;
     final entityIds = eventsByEntity.keys.toList();
     const batchSize = 50;
@@ -155,6 +295,47 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
             await _memberRepo.upsertMember(rebuilt);
             updatedAny = true;
           }
+    for (final entityId in eventsByEntity.keys) {
+      final snap = await _memberRepo.getMember(entityId);
+      final latestEventTime = eventsByEntity[entityId]!
+          .map((e) => e.deviceTimestamp)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+
+      if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+        laggingIds.add(entityId);
+      }
+    }
+
+    if (laggingIds.isNotEmpty) {
+      debugPrint('MemberNotifier: Found ${laggingIds.length} lagging members. Rebuilding in batch...');
+      final histories = await _eventRepo.getByEntityIds(laggingIds);
+      final List<MemberSnapshot> rebuiltSnapshots = [];
+
+      for (final entityId in laggingIds) {
+        final history = histories[entityId] ?? [];
+        final rebuilt = SnapshotBuilder.rebuild(history);
+        if (rebuilt != null) {
+          rebuiltSnapshots.add(rebuilt);
+        }
+      }));
+
+      if (updates.isNotEmpty) {
+        // ⚡ Bolt: Batch write updated snapshots
+        await box.putAll(updates);
+        updatedAny = true;
+      }
+
+      if (updates.isNotEmpty) {
+        await box.putAll(updates);
+      }
+
+      if (rebuiltSnapshots.isNotEmpty) {
+        await _memberRepo.upsertMembers(rebuiltSnapshots);
+        state = await _loadAllSnapshots();
+      }
+    }
+
+    await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
         }
       }));
     }
