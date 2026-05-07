@@ -57,26 +57,35 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     state = (await _saleRepo.getAllSales()).reversed.toList();
 
     // 3. Reconcile
-    await _reconcileSales();
+    await reconcileSales();
   }
 
-  Future<void> _reconcileSales() async {
+  Future<void> reconcileSales() async {
     final recentEvents = await _eventRepo.getAll();
-    final saleEvents = recentEvents.where((e) => e.eventType == EventType.paymentRecorded && e.payload.containsKey('saleId')).toList();
+    final saleEvents = recentEvents
+        .where((e) => e.eventType == EventType.paymentRecorded && e.payload.containsKey('saleId'))
+        .toList();
     
-    bool updatedAny = false;
+    if (saleEvents.isEmpty) return;
+
+    final existingIds = await _saleRepo.getAllSaleIds();
+    final List<Sale> newSales = [];
+
     for (final event in saleEvents) {
       final saleId = event.payload['saleId'] as String?;
-      if (saleId == null) continue;
+      if (saleId == null || existingIds.contains(saleId)) continue;
 
-      final existing = await _saleRepo.getSale(saleId);
-      if (existing == null) {
-        await _saleRepo.applyEvent(event);
-        updatedAny = true;
-      }
+      final sale = Sale.fromPayload(saleId, event.payload, event.deviceTimestamp);
+
+      // Sign the sale
+      final signature = await _hmac.signSnapshot(sale.id, sale.toFirestore());
+      sale.hmacSignature = signature;
+
+      newSales.add(sale);
     }
 
-    if (updatedAny) {
+    if (newSales.isNotEmpty) {
+      await _saleRepo.upsertSales(newSales);
       state = (await _saleRepo.getAllSales()).reversed.toList();
     }
   }
@@ -172,14 +181,3 @@ final saleProvider = StateNotifierProvider<SaleNotifier, List<Sale>>((ref) {
   
   return SaleNotifier(productRepo, sequenceRepo, eventRepo, saleRepo, clock, hmac);
 });
-
-
-
-
-
-
-
-
-
-
-
