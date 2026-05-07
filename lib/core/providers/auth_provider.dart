@@ -171,9 +171,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       if (kDebugMode && _firebaseAuth.currentUser == null) {
-         // Debug/Test flow - should be overridden in tests via MockFirebaseAuth
+        // Debug/Test flow - should be overridden in tests via MockFirebaseAuth
       }
-      
+
       await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -239,15 +239,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
           deviceId: _deviceId,
           deviceTimestamp: DateTime.now(),
           payload: {
-            EventPayloadKeys.name: gymName, 
+            EventPayloadKeys.name: gymName,
             'ownerName': ownerName ?? '',
             EventPayloadKeys.phone: phone ?? '',
           },
         );
-        
+
         await _eventRepo.persist(event);
         await _ownerRepo.upsertOwner(owner);
-        
+
         _ref.read(syncWorkerProvider).performSync();
 
         state = state.copyWith(
@@ -297,8 +297,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-
-
 final entitlementProvider = Provider<EntitlementGuard>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
   final auth = ref.watch(firebaseAuthProvider);
@@ -308,7 +306,8 @@ final entitlementProvider = Provider<EntitlementGuard>((ref) {
   return EntitlementGuard(storage, auth, firestore, clock);
 });
 
-final entitlementStatusProvider = FutureProvider<EntitlementStatus>((ref) async {
+final entitlementStatusProvider =
+    FutureProvider<EntitlementStatus>((ref) async {
   final guard = ref.watch(entitlementProvider);
   return await guard.checkEntitlement();
 });
@@ -323,17 +322,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final firebaseAuth = ref.watch(firebaseAuthProvider);
   final hmac = ref.watch(hmacServiceProvider);
   final config = ref.watch(configServiceProvider);
-  
-  return AuthNotifier(
-    storage, 
-    pinService, 
-    firebaseAuth, 
-    eventRepo, 
-    ownerRepo, 
-    settingsRepo, 
-    syncWorker, 
-    hmac, 
-    config, 
-    ref
-  );
+
+  return AuthNotifier(storage, pinService, firebaseAuth, eventRepo, ownerRepo,
+      settingsRepo, syncWorker, hmac, config, ref);
 });
