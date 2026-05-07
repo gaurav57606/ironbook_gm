@@ -29,7 +29,7 @@ class FirestoreBackupService {
     for (final snapshot in snapshots) {
       final data = snapshot.toFirestore();
       data['timestamp'] = FieldValue.serverTimestamp();
-      batch.set(snapshotsRef.doc(snapshot.id), data);
+      batch.set(snapshotsRef.doc(snapshot.memberId), data);
       count++;
 
       // Firestore limits batches to 500 operations

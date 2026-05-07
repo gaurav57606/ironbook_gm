@@ -7,16 +7,26 @@ import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide AppSettingsAdapter, MemberSnapshotAdapter;
 import 'dart:io';
 
 class MockEventRepository extends Mock implements IEventRepository {}
 class MockClock extends Mock implements IClock {}
 class MockHmacService extends Mock implements HmacService {}
+class MockMemberRepo extends Mock implements IMemberRepository {}
+class MockPlanRepo extends Mock implements IPlanRepository {}
+class MockPrefRepo extends Mock implements IPreferencesRepository {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
+class FakeMemberSnapshot extends Fake implements MemberSnapshot {}
 
 void main() {
   late MockEventRepository mockRepo;
+  late MockMemberRepo mockMemberRepo;
+  late MockPlanRepo mockPlanRepo;
+  late MockPrefRepo mockPrefRepo;
   late MockClock mockClock;
   late MockHmacService mockHmac;
   late Box<DomainEvent> eventBox;
@@ -24,6 +34,7 @@ void main() {
 
   setUpAll(() async {
     registerFallbackValue(FakeDomainEvent());
+    registerFallbackValue(FakeMemberSnapshot());
     final tempDir = Directory.systemTemp.createTempSync();
     Hive.init(tempDir.path);
     if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(DomainEventAdapter());
@@ -38,6 +49,9 @@ void main() {
     await snapshotBox.clear();
 
     mockRepo = MockEventRepository();
+    mockMemberRepo = MockMemberRepo();
+    mockPlanRepo = MockPlanRepo();
+    mockPrefRepo = MockPrefRepo();
     mockClock = MockClock();
     mockHmac = MockHmacService();
 
@@ -47,6 +61,11 @@ void main() {
     when(() => mockClock.now).thenReturn(DateTime(2026, 1, 1));
     when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
     when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => []);
+    when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => []);
+    when(() => mockPrefRepo.getInt(any())).thenAnswer((_) async => 0);
+    when(() => mockPrefRepo.setInt(any(), any())).thenAnswer((_) async => {});
+    when(() => mockMemberRepo.applyEvent(any())).thenAnswer((_) async => {});
+    when(() => mockMemberRepo.getMember(any())).thenAnswer((_) async => null);
   });
 
   tearDown(() async {
@@ -72,8 +91,20 @@ void main() {
       when(() => mockRepo.getAll()).thenAnswer((_) async => [event]);
       when(() => mockRepo.getByEntityId('M1')).thenAnswer((_) async => [event]);
       when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => [event]);
+      
+      final snapshot = MemberSnapshot(
+        memberId: 'M1',
+        name: 'Ravi Kumar',
+        phone: '12345',
+        joinDate: now,
+        planId: 'P1',
+        expiryDate: now.add(const Duration(days: 30)),
+      );
+      when(() => mockMemberRepo.getMember('M1')).thenAnswer((_) async => null);
+      when(() => mockMemberRepo.upsertMember(any())).thenAnswer((_) async => {});
+      when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => [snapshot]);
 
-      final notifier = MemberNotifier(mockRepo, mockClock, mockHmac);
+      final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac);
       
       // Wait for init/reconcile
       await Future.delayed(const Duration(milliseconds: 100));
@@ -82,17 +113,15 @@ void main() {
       expect(notifier.state.length, 1);
       expect(notifier.state.first.name, 'Ravi Kumar');
 
-      // Verify snapshot box was written
-      final stored = await snapshotBox.get('M1');
-      expect(stored, isNotNull);
-      expect(stored!.name, 'Ravi Kumar');
+      // Verify Drift upsert happened
+      verify(() => mockMemberRepo.upsertMember(any())).called(1);
     });
 
     test('Atomic Write: Notifier updates snapshot box immediately', () async {
        when(() => mockRepo.getAll()).thenAnswer((_) async => []);
        when(() => mockRepo.persist(any())).thenAnswer((_) async {});
        
-       final notifier = MemberNotifier(mockRepo, mockClock, mockHmac);
+       final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac);
        await Future.delayed(const Duration(milliseconds: 50));
        
        // Note: addMember requires 'plans' box

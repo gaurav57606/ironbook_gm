@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:ironbook_gm/app.dart';
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide AppSettingsAdapter, MemberSnapshotAdapter;
+import 'package:drift/native.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide OwnerProfile, Payment, Plan, Sale, Product, InvoiceSequence;
+import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
+
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
@@ -17,6 +21,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/owner_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/settings_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/sale_repository.dart';
 import 'package:ironbook_gm/core/theme/app_theme.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
@@ -31,7 +44,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Re-exports for convenience in tests
@@ -61,6 +73,7 @@ export 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import '../integration_test/mocks/mock_firebase.dart';
 import '../integration_test/mocks/mock_services.dart';
 import '../integration_test/mocks/mock_secure_storage.dart';
+import '../integration_test/mocks/mock_firestore.dart';
 
 export '../integration_test/mocks/mock_firebase.dart';
 export '../integration_test/mocks/mock_services.dart';
@@ -74,8 +87,18 @@ class TestHelper {
     final tempDir = Directory.systemTemp.createTempSync('ironbook_test_${subDir}_');
     Hive.init(tempDir.path);
     if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(AppSettingsAdapter());
+    if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(PaymentAdapter());
+    if (!Hive.isAdapterRegistered(12)) Hive.registerAdapter(InvoiceSequenceAdapter());
+    if (!Hive.isAdapterRegistered(13)) Hive.registerAdapter(PlanComponentSnapshotAdapter());
+    
     await Hive.openBox<AppSettings>('settings');
     await Hive.openBox('meta');
+    await Hive.openLazyBox<MemberSnapshot>('snapshots');
+    await Hive.openLazyBox<DomainEvent>('events');
+  }
+
+  static OutboxDatabase setupDrift() {
+    return OutboxDatabase(NativeDatabase.memory());
   }
 
   static Future<void> cleanHive() async {
@@ -98,6 +121,10 @@ class TestHelper {
     final mockPin = MockPinService();
     final mockSync = MockSyncWorker();
     final mockStorage = MockFlutterSecureStorage();
+    final mockFirestore = MockFirebaseFirestore();
+    final driftDb = setupDrift();
+    
+    addTearDown(() async => await driftDb.close());
     
     // Register fallbacks for Mocktail
     try {
@@ -120,19 +147,17 @@ class TestHelper {
     when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value'))).thenAnswer((_) async {});
 
     GoogleFonts.config.allowRuntimeFetching = false;
-    tester.view.physicalSize = const Size(1200, 1200);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() => tester.view.resetPhysicalSize());
-    addTearDown(() => tester.view.resetDevicePixelRatio());
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           firebaseAuthProvider.overrideWithValue(mockAuth),
-          firestoreProvider.overrideWithValue(null),
+          firestoreProvider.overrideWithValue(mockFirestore),
           pinServiceProvider.overrideWithValue(mockPin),
           syncWorkerProvider.overrideWithValue(mockSync),
           appSecureStorageProvider.overrideWithValue(mockStorage),
+          outboxDatabaseProvider.overrideWithValue(driftDb),
+          outboxRepositoryProvider.overrideWith((ref) => OutboxRepository(driftDb)),
           bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
           tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
           clockProvider.overrideWith((ref) => FakeClock()),
@@ -150,16 +175,11 @@ class TestHelper {
                 theme: AppTheme.darkTheme(),
                 debugShowCheckedModeBanner: false,
                 home: child,
-                builder: (context, child) {
-                   // Ensure fonts and textures are ready
-                   return child!;
-                },
               ),
       ),
     );
     // Extra pumps for surface and state initialization
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
@@ -294,5 +314,3 @@ class FakeClock extends IClock {
     _now = dateTime;
   }
 }
-
-

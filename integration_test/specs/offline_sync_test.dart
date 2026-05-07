@@ -12,6 +12,7 @@ import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import '../mocks/mock_firebase.dart';
 import '../mocks/mock_services.dart';
+import '../mocks/mock_firestore.dart';
 import 'package:ironbook_gm/core/data/local/hive_init.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 
@@ -53,12 +54,12 @@ void main() {
       ProviderScope(
         overrides: [
           firebaseAuthProvider.overrideWithValue(mockAuth),
-          firestoreProvider.overrideWithValue(null),
+          firestoreProvider.overrideWithValue(MockFirebaseFirestore()),
           pinServiceProvider.overrideWithValue(mockPin),
           syncWorkerProvider.overrideWithValue(mockSync),
           bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
         ],
-        child: const IronBookApp(hiveHealthy: true),
+        child: const IronBookApp(storageHealthy: true),
       ),
     );
     await tester.pumpAndSettle();

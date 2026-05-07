@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart' as drift;
 
 import 'backup_encryption_service.dart';
@@ -239,7 +238,7 @@ class BackupCoordinator {
           price: p.totalPrice,
           active: drift.Value(p.active),
           componentsJson: drift.Value(jsonEncode(p.components.map((c) => {'id': c.id, 'name': c.name, 'price': c.price}).toList())),
-          hmacSignature: drift.Value(p.hmacSignature),
+          hmacSignature: drift.Value(p.hmacSignature ?? ''),
         ));
       }
 
@@ -251,7 +250,7 @@ class BackupCoordinator {
           payloadJson: jsonEncode(e.payload),
           deviceTimestamp: e.deviceTimestamp.millisecondsSinceEpoch,
           isSynced: drift.Value(e.synced ? 1 : 0),
-          hmacSignature: drift.Value(e.hmacSignature),
+          hmacSignature: drift.Value(e.hmacSignature ?? ''),
           deviceId: drift.Value(e.deviceId),
         ));
       }
@@ -271,7 +270,7 @@ class BackupCoordinator {
           age: drift.Value(s.age),
           checkInPin: drift.Value(s.checkInPin),
           lastCheckIn: drift.Value(s.lastCheckIn),
-          hmacSignature: drift.Value(s.hmacSignature),
+          hmacSignature: drift.Value(s.hmacSignature ?? ''),
         ));
       }
 
@@ -291,7 +290,7 @@ class BackupCoordinator {
           gstAmount: p.gstAmount,
           gstRate: drift.Value(p.gstRate),
           componentsJson: drift.Value(jsonEncode(p.components.map((c) => {'name': c.name, 'price': c.price}).toList())),
-          hmacSignature: drift.Value(p.hmacSignature),
+          hmacSignature: drift.Value(p.hmacSignature ?? ''),
         ));
       }
 
@@ -321,7 +320,7 @@ class BackupCoordinator {
           paymentMethod: sale.paymentMethod,
           invoiceNumber: sale.invoiceNumber,
           itemsJson: jsonEncode(sale.items.map((i) => {'productId': i.productId, 'productName': i.productName, 'price': i.price, 'quantity': i.quantity}).toList()),
-          hmacSignature: drift.Value(sale.hmacSignature),
+          hmacSignature: drift.Value(sale.hmacSignature ?? ''),
         ));
       }
 
