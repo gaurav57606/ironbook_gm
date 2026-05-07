@@ -4,13 +4,11 @@ import 'package:uuid/uuid.dart';
 import 'package:ironbook_gm/core/data/local/models/product_model.dart';
 import 'package:ironbook_gm/core/data/local/models/sale_model.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sale_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'payment_provider.dart';
 
 import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
@@ -53,8 +51,8 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
       }
     });
 
-    // 2. Load all sales from Drift
-    state = (await _saleRepo.getAllSales()).reversed.toList();
+    // 2. Load all sales
+    await _loadSales();
 
     // 3. Reconcile
     await _reconcileSales();
@@ -62,23 +60,57 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
 
   Future<void> _reconcileSales() async {
     final recentEvents = await _eventRepo.getAll();
-    final saleEvents = recentEvents.where((e) => e.eventType == EventType.paymentRecorded && e.payload.containsKey('saleId')).toList();
+    final saleEvents = recentEvents
+        .where((e) => e.eventType == EventType.paymentRecorded && e.payload.containsKey('saleId'))
+        .toList();
+
+    if (saleEvents.isEmpty) return;
+
+    // Optimization: Fetch all sales once for O(1) lookup
+    final existingSales = await _saleRepo.getAllSales();
+    final existingIds = existingSales.map((s) => s.id).toSet();
     
     bool updatedAny = false;
     for (final event in saleEvents) {
       final saleId = event.payload['saleId'] as String?;
       if (saleId == null) continue;
 
-      final existing = await _saleRepo.getSale(saleId);
-      if (existing == null) {
+      if (!existingIds.contains(saleId)) {
         await _saleRepo.applyEvent(event);
         updatedAny = true;
       }
     }
 
     if (updatedAny) {
-      state = (await _saleRepo.getAllSales()).reversed.toList();
+      await _loadSales();
     }
+  }
+
+  Future<void> _loadSales() async {
+    final sales = await _saleRepo.getAllSales();
+    final verified = <Sale>[];
+
+    // Performance Optimization: Use batching and parallel verification
+    const batchSize = 50;
+    for (int i = 0; i < sales.length; i += batchSize) {
+      final batch = sales.skip(i).take(batchSize);
+      final results = await Future.wait(batch.map((s) async {
+        final isValid = await _hmac.verifySnapshot(s.id, s.toFirestore(), s.hmacSignature ?? '');
+        if (!isValid) {
+          debugPrint('SaleNotifier: Signature mismatch for sale ${s.id}. Integrity compromised.');
+          return null;
+        }
+        return s;
+      }));
+
+      for (final s in results) {
+        if (s != null) {
+          verified.add(s);
+        }
+      }
+    }
+
+    state = verified.reversed.toList();
   }
 
   @visibleForTesting
@@ -172,14 +204,3 @@ final saleProvider = StateNotifierProvider<SaleNotifier, List<Sale>>((ref) {
   
   return SaleNotifier(productRepo, sequenceRepo, eventRepo, saleRepo, clock, hmac);
 });
-
-
-
-
-
-
-
-
-
-
-
