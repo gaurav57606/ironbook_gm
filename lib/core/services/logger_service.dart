@@ -15,11 +15,6 @@ class LoggerService {
       if (error != null) debugPrint('Error: $error');
       if (stackTrace != null) debugPrint('StackTrace: $stackTrace');
     }
-    
-    // In a production app, you would send this to Sentry, Firebase Crashlytics, etc.
-    if (level == LogLevel.critical || level == LogLevel.error) {
-      _reportToCrashlytics(message, error, stackTrace);
-    }
   }
 
   void debug(String message) => log(message, level: LogLevel.debug);
@@ -27,11 +22,6 @@ class LoggerService {
   void warn(String message) => log(message, level: LogLevel.warning);
   void error(String message, [Object? error, StackTrace? stackTrace]) => 
       log(message, level: LogLevel.error, error: error, stackTrace: stackTrace);
-
-  void _reportToCrashlytics(String message, Object? error, StackTrace? stackTrace) {
-    // Stub for Firebase Crashlytics
-    // if (!kIsWeb) FirebaseCrashlytics.instance.recordError(error, stackTrace, reason: message);
-  }
 }
 
 final loggerProvider = Provider<LoggerService>((ref) => LoggerService());
