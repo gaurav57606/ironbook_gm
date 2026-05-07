@@ -28,15 +28,34 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     _eventRepo.watch().listen((event) async {
       if (event.eventType == EventType.plansUpdated) {
         await _planRepo.applyEvent(event);
-        state = await _planRepo.getAllPlans();
+        await _loadPlans();
       }
     });
 
-    // 2. Load all plans from Drift
-    state = await _planRepo.getAllPlans();
+    // 2. Load and verify plans
+    await _loadPlans();
+  }
 
-    // 3. Reconcile
-    await _reconcilePlans();
+  Future<void> _loadPlans() async {
+    final plans = await _planRepo.getAllPlans();
+    bool needsRepair = false;
+
+    // Parallel verification to avoid N+1 query bottleneck
+    final verificationResults = await Future.wait(plans.map((p) async {
+      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature ?? '');
+      if (!isValid) {
+        debugPrint('PlanNotifier: Signature mismatch for plan ${p.id}. Flagging for repair.');
+        needsRepair = true;
+        return null;
+      }
+      return p;
+    }));
+
+    state = verificationResults.whereType<Plan>().toList();
+
+    if (needsRepair) {
+      await _reconcilePlans();
+    }
   }
 
   Future<void> _reconcilePlans() async {
@@ -48,9 +67,11 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     // Get the latest plan update
     final latestEvent = planEvents.reduce((a, b) => a.deviceTimestamp.isAfter(b.deviceTimestamp) ? a : b);
     
-    // We can just use applyEvent here
+    // Re-apply latest event and reload
     await _planRepo.applyEvent(latestEvent);
-    state = await _planRepo.getAllPlans();
+
+    final plans = await _planRepo.getAllPlans();
+    state = plans;
   }
 
   @visibleForTesting
