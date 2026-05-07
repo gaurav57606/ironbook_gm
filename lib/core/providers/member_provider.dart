@@ -50,7 +50,8 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   }
 });
 
-final memberByIdProvider = Provider.family<AsyncValue<MemberSnapshot>, String>((ref, id) {
+// Alias for legacy support if needed
+final memberProvider = Provider.family<AsyncValue<MemberSnapshot>, String>((ref, id) {
   final members = ref.watch(membersProvider);
   final member = members.cast<MemberSnapshot?>().firstWhere((m) => m?.memberId == id, orElse: () => null);
   if (member == null) return const AsyncValue.loading();
@@ -233,7 +234,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     final recentEvents = await _eventRepo.getEventsSince(lastCheckTime);
 
     if (recentEvents.isEmpty) {
-      await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+      await _prefRepo.setInt(prefKey, _clock.now.millisecondsSinceEpoch);
       return;
     }
 
@@ -280,65 +281,19 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     for (int i = 0; i < entityIds.length; i += batchSize) {
       final batch = entityIds.skip(i).take(batchSize).toList();
-      final Map<String, MemberSnapshot> updates = {};
-
-      final results = await Future.wait(batch.map((entityId) async {
-        final snap = await box.get(entityId);
-        final events = eventsByEntity[entityId]!;
-        final latestEventTime = events
-    final keys = eventsByEntity.keys.toList();
-    const batchSize = 50;
-
-    for (int i = 0; i < keys.length; i += batchSize) {
-      final batch = keys.skip(i).take(batchSize).toList();
-      final Map<String, MemberSnapshot> updates = {};
-
+      
       await Future.wait(batch.map((entityId) async {
-        final snap = await box.get(entityId);
-        final latestEventTime = eventsByEntity[entityId]!
-            .map((e) => e.deviceTimestamp)
-            .reduce((a, b) => a.isAfter(b) ? a : b);
+        final snap = await _memberRepo.getMember(entityId);
+        final events = eventsByEntity[entityId]!;
+        final latestEventTime = events.map((e) => e.deviceTimestamp).reduce((a, b) => a.isAfter(b) ? a : b);
 
         if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-          debugPrint('MemberNotifier: Lagging snapshot for $entityId. Rebuilding from checkpoint events...');
-
-          MemberSnapshot? rebuilt;
-          if (snap == null) {
-            // New member — rebuild from full history
-            final fullHistory = await _repo.getByEntityId(entityId);
-            rebuilt = SnapshotBuilder.rebuild(fullHistory);
-          } else {
-            // Existing member — incremental apply for speed
-            rebuilt = snap;
-            final sortedEvents = List<DomainEvent>.from(events)
-              ..sort((a, b) => a.deviceTimestamp.compareTo(b.deviceTimestamp));
-            for (final e in sortedEvents) {
-              if (e.deviceTimestamp.isAfter(rebuilt!.lastUpdated)) {
-                rebuilt = SnapshotBuilder.apply(rebuilt, e);
-              }
-            }
-          }
-
-          if (rebuilt != null) {
-            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
-            return rebuilt.copyWith(hmacSignature: signature);
-          }
-        }
-        return null;
-      }));
-
-      for (int j = 0; j < batch.length; j++) {
-        final res = results[j];
-        if (res != null) {
-          updates[batch[j]] = res;
-          debugPrint('MemberNotifier: Lagging snapshot for ${entityId}. Rebuilding from checkpoint events...');
-          // Rebuild from ALL entity events for correctness (only triggered when needed)
-          final fullHistory = await _repo.getByEntityId(entityId);
+          debugPrint('MemberNotifier: Lagging state for $entityId. Rebuilding...');
+          final fullHistory = await _eventRepo.getByEntityId(entityId);
           final rebuilt = SnapshotBuilder.rebuild(fullHistory);
           if (rebuilt != null) {
-            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
-            final signed = rebuilt.copyWith(hmacSignature: signature);
-            updates[entityId] = signed;
+            await _memberRepo.upsertMember(rebuilt);
+            updatedAny = true;
           }
     for (final entityId in eventsByEntity.keys) {
       final snap = await _memberRepo.getMember(entityId);
@@ -381,6 +336,15 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     }
 
     await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+        }
+      }));
+    }
+
+    await _prefRepo.setInt(prefKey, _clock.now.millisecondsSinceEpoch);
+
+    if (updatedAny) {
+      state = await _memberRepo.getAllMembers();
+    }
   }
 
   Future<void> rebuildCache() async {
@@ -430,6 +394,11 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     final snapshot = MemberSnapshot.fromPayload(memberId, memberEvent.payload);
     await _memberRepo.upsertMember(snapshot);
+    
+    // We don't manually update state here because the listener in init() will catch it
+    // Wait, the listener catches it via _eventRepo.watch()
+    // But we also manually added it to state in the old code.
+    // Let's keep the manual update for immediate UI response.
     final signed = await _memberRepo.getMember(memberId);
     if (signed != null) {
       state = [...state, signed];

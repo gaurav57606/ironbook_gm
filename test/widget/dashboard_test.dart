@@ -28,6 +28,9 @@ void main() {
         overrides: [
           authProvider.overrideWith((ref) => FakeAuth(unlocked: true)),
           membersProvider.overrideWith((ref) => mockNotifier),
+          paymentsProvider.overrideWith((ref) => MockPaymentNotifier()),
+          unsyncedCountProvider.overrideWith((ref) => const AsyncValue.data(0)),
+          tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
         ],
       );
 
