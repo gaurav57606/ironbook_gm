@@ -4,12 +4,12 @@ import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 
 class IronBookApp extends ConsumerWidget {
-  final bool hiveHealthy;
+  final bool storageHealthy;
   final bool useGoogleFonts;
   
   const IronBookApp({
     super.key,
-    required this.hiveHealthy,
+    required this.storageHealthy,
     this.useGoogleFonts = true,
   });
 
@@ -18,7 +18,7 @@ class IronBookApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'IronBook GM',
       theme: AppTheme.darkTheme(useGoogleFonts: useGoogleFonts),
-      routerConfig: ref.watch(routerProvider(hiveHealthy)),
+      routerConfig: ref.watch(routerProvider(storageHealthy)),
       debugShowCheckedModeBanner: false,
     );
   }

@@ -31,7 +31,7 @@ class Members extends Table {
   IntColumn get age => integer().nullable()();
   TextColumn get checkInPin => text().nullable()();
   DateTimeColumn get lastCheckIn => dateTime().nullable()();
-  TextColumn get hmacSignature => text().nullable()();
+  TextColumn get hmacSignature => text().withDefault(const Constant(''))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -44,10 +44,15 @@ class Payments extends Table {
   RealColumn get amount => real()();
   TextColumn get method => text()();
   TextColumn get reference => text().nullable()();
+  TextColumn get planId => text().nullable()();
+  TextColumn get planName => text().withDefault(const Constant(''))();
+  IntColumn get durationMonths => integer().withDefault(const Constant(0))();
   TextColumn get invoiceNumber => text()();
   RealColumn get subtotal => real()();
   RealColumn get gstAmount => real()();
-  TextColumn get hmacSignature => text().nullable()();
+  RealColumn get gstRate => real().withDefault(const Constant(0))();
+  TextColumn get componentsJson => text().nullable()();
+  TextColumn get hmacSignature => text().withDefault(const Constant(''))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -60,7 +65,7 @@ class Plans extends Table {
   RealColumn get price => real()();
   BoolColumn get active => boolean().withDefault(const Constant(true))();
   TextColumn get componentsJson => text().nullable()();
-  TextColumn get hmacSignature => text().nullable()();
+  TextColumn get hmacSignature => text().withDefault(const Constant(''))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -74,18 +79,139 @@ class Sales extends Table {
   TextColumn get paymentMethod => text()();
   TextColumn get invoiceNumber => text()();
   TextColumn get itemsJson => text()();
+  TextColumn get hmacSignature => text().withDefault(const Constant(''))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class PinAttempts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get count => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  DateTimeColumn get lockoutUntil => dateTime().nullable()();
+}
+
+class InvoiceSequences extends Table {
+  TextColumn get prefix => text()();
+  IntColumn get nextNumber => integer().withDefault(const Constant(1))();
+
+  @override
+  Set<Column> get primaryKey => {prefix};
+}
+
+class Products extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  RealColumn get price => real()();
+  TextColumn get category => text()();
+  IntColumn get iconCodePoint => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class Preferences extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
+class OwnerProfiles extends Table {
+  TextColumn get gymName => text()();
+  TextColumn get ownerName => text()();
+  TextColumn get phone => text()();
+  TextColumn get address => text()();
+  TextColumn get gstin => text().nullable()();
+  TextColumn get bankName => text().nullable()();
+  TextColumn get accountNumber => text().nullable()();
+  TextColumn get ifsc => text().nullable()();
+  TextColumn get upiId => text().nullable()();
+  TextColumn get logoPath => text().nullable()();
+  IntColumn get level => integer().withDefault(const Constant(1))();
+  IntColumn get exp => integer().withDefault(const Constant(0))();
+  RealColumn get strength => real().withDefault(const Constant(0.5))();
+  RealColumn get endurance => real().withDefault(const Constant(0.5))();
+  RealColumn get dexterity => real().withDefault(const Constant(0.5))();
+  TextColumn get selectedCharacterId => text().withDefault(const Constant('warrior'))();
+  TextColumn get hmacSignature => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {gymName};
+}
+
+class AppSettingsTable extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  RealColumn get gstRate => real().withDefault(const Constant(18.0))();
+  IntColumn get expiryReminderDays => integer().withDefault(const Constant(3))();
+  BoolColumn get whatsappReminders => boolean().withDefault(const Constant(true))();
+  BoolColumn get biometricEnabled => boolean().withDefault(const Constant(false))();
+  BoolColumn get useBiometrics => boolean().withDefault(const Constant(false))();
+  TextColumn get businessType => text().withDefault(const Constant('Gym'))();
+  DateTimeColumn get lastBackupAt => dateTime().nullable()();
+  TextColumn get hmacSignature => text().nullable()();
+}
+
+class NutritionPlans extends Table {
+  TextColumn get id => text()();
+  TextColumn get memberId => text()();
+  TextColumn get planName => text()();
+  IntColumn get dailyCalories => integer()();
+  RealColumn get adherence => real().withDefault(const Constant(0.0))();
+  IntColumn get waterGoalMl => integer().withDefault(const Constant(2000))();
   TextColumn get hmacSignature => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [OutboxEvents, Members, Payments, Plans, Sales])
+class MealItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get memberId => text()();
+  TextColumn get foodName => text()();
+  RealColumn get grams => real()();
+  IntColumn get calories => integer()();
+  DateTimeColumn get timestamp => dateTime()();
+  TextColumn get hmacSignature => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class WaterLogs extends Table {
+  TextColumn get id => text()();
+  TextColumn get memberId => text()();
+  IntColumn get amountMl => integer()();
+  DateTimeColumn get timestamp => dateTime()();
+  TextColumn get hmacSignature => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [
+  OutboxEvents,
+  Members,
+  Payments,
+  Plans,
+  Sales,
+  PinAttempts,
+  InvoiceSequences,
+  Products,
+  Preferences,
+  OwnerProfiles,
+  AppSettingsTable,
+  NutritionPlans,
+  MealItems,
+  WaterLogs
+])
 class OutboxDatabase extends _$OutboxDatabase {
   OutboxDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -99,15 +225,41 @@ class OutboxDatabase extends _$OutboxDatabase {
         await m.createTable(plans);
         await m.createTable(sales);
       }
+      if (from < 3) {
+        await m.createTable(pinAttempts);
+        await m.alterTable(TableMigration(members));
+        await m.alterTable(TableMigration(payments));
+        await m.alterTable(TableMigration(plans));
+        await m.alterTable(TableMigration(sales));
+      }
+      if (from < 4) {
+        await m.createTable(invoiceSequences);
+      }
+      if (from < 5) {
+        await m.createTable(products);
+      }
+      if (from < 6) {
+        await m.createTable(preferences);
+      }
+      if (from < 7) {
+        await m.createTable(ownerProfiles);
+        await m.createTable(appSettingsTable);
+      }
+      if (from < 8) {
+        await m.deleteTable('owner_profiles');
+        await m.deleteTable('app_settings_table');
+        await m.createTable(ownerProfiles);
+        await m.createTable(appSettingsTable);
+      }
+      if (from < 9) {
+        await m.createTable(nutritionPlans);
+        await m.createTable(mealItems);
+        await m.createTable(waterLogs);
+      }
+      if (from < 10) {
+        await m.addColumn(ownerProfiles, ownerProfiles.hmacSignature);
+        await m.addColumn(appSettingsTable, appSettingsTable.hmacSignature);
+      }
     },
   );
 }
-
-
-
-
-
-
-
-
-

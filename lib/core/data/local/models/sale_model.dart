@@ -1,4 +1,6 @@
 import 'package:hive/hive.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 @HiveType(typeId: 15)
 class Sale extends HiveObject {
@@ -69,7 +71,58 @@ class Sale extends HiveObject {
         'price': i.price,
         'quantity': i.quantity,
       }).toList(),
+      'hmacSignature': hmacSignature,
     };
+  }
+
+  factory Sale.fromDrift(dynamic d) {
+    List<SaleItem> items = [];
+    if (d.itemsJson != null) {
+      try {
+        final List<dynamic> decoded = jsonDecode(d.itemsJson);
+        items = decoded.map((i) => SaleItem(
+          productId: i['productId'] ?? '',
+          memberId: d.memberId ?? 'walk-in',
+          productName: i['productName'] ?? '',
+          price: (i['price'] as num?)?.toDouble() ?? 0.0,
+          quantity: i['quantity'] ?? 1,
+        )).toList();
+      } catch (e) {
+        debugPrint('Error decoding sale itemsJson: $e');
+      }
+    }
+
+    return Sale(
+      id: d.id,
+      memberId: d.memberId ?? 'walk-in',
+      date: d.date,
+      totalAmount: d.totalAmount,
+      paymentMethod: d.paymentMethod,
+      invoiceNumber: d.invoiceNumber,
+      items: items,
+      hmacSignature: d.hmacSignature,
+    );
+  }
+
+  factory Sale.fromPayload(String id, Map<String, dynamic> payload, DateTime timestamp) {
+    return Sale(
+      id: id,
+      memberId: payload['memberId'] ?? 'walk-in',
+      date: timestamp,
+      totalAmount: (payload['total'] as num?)?.toDouble() ?? 0.0,
+      paymentMethod: payload['method'] ?? 'Cash',
+      invoiceNumber: payload['invoiceNumber'] ?? 'SAL-0000',
+      items: (payload['items'] as List? ?? []).map((i) {
+          final iMap = Map<String, dynamic>.from(i);
+          return SaleItem(
+            productId: iMap['productId'] ?? '',
+            memberId: payload['memberId'] as String? ?? 'walk-in',
+            productName: iMap['productName'] as String? ?? 'Unknown',
+            price: (iMap['price'] as num?)?.toDouble() ?? 0.0,
+            quantity: iMap['qty'] ?? 1,
+          );
+      }).toList(),
+    );
   }
 }
 

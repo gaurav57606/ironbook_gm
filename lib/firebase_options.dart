@@ -51,19 +51,27 @@ class DefaultFirebaseOptions {
   }
 
   static FirebaseOptions get android => FirebaseOptions(
-    apiKey: dotenv.env['FIREBASE_ANDROID_API_KEY'] ?? '',
-    appId: dotenv.env['FIREBASE_ANDROID_APP_ID'] ?? '',
-    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
-    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
-    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
+    apiKey: _getEnv('FIREBASE_ANDROID_API_KEY'),
+    appId: _getEnv('FIREBASE_ANDROID_APP_ID'),
+    messagingSenderId: _getEnv('FIREBASE_MESSAGING_SENDER_ID'),
+    projectId: _getEnv('FIREBASE_PROJECT_ID'),
+    storageBucket: _getEnv('FIREBASE_STORAGE_BUCKET'),
   );
 
   static FirebaseOptions get ios => FirebaseOptions(
-    apiKey: dotenv.env['FIREBASE_IOS_API_KEY'] ?? '',
-    appId: dotenv.env['FIREBASE_IOS_APP_ID'] ?? '',
-    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
-    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
-    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
+    apiKey: _getEnv('FIREBASE_IOS_API_KEY'),
+    appId: _getEnv('FIREBASE_IOS_APP_ID'),
+    messagingSenderId: _getEnv('FIREBASE_MESSAGING_SENDER_ID'),
+    projectId: _getEnv('FIREBASE_PROJECT_ID'),
+    storageBucket: _getEnv('FIREBASE_STORAGE_BUCKET'),
     iosBundleId: 'com.ironbook.gym',
   );
+
+  static String _getEnv(String key) {
+    final value = dotenv.env[key];
+    if (value == null || value.isEmpty) {
+      throw Exception('MANDATORY ENV VAR MISSING: $key. Check your .env file.');
+    }
+    return value;
+  }
 }

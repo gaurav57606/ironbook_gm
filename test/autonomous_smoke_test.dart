@@ -51,7 +51,7 @@ void main() {
       await TestHelper.pumpIronBookWidget(
         tester,
         const IronBookApp(
-          hiveHealthy: true,
+          storageHealthy: true,
           useGoogleFonts: false,
         ),
         overrides: [
@@ -115,7 +115,7 @@ void main() {
       await TestHelper.pumpIronBookWidget(
         tester,
         const IronBookApp(
-          hiveHealthy: true,
+          storageHealthy: true,
           useGoogleFonts: false,
         ),
         overrides: [

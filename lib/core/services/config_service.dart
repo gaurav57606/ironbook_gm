@@ -10,11 +10,8 @@ class ConfigService {
   String get env => dotenv.get('ENV', fallback: 'development');
   String get hmacSecret {
     final secret = dotenv.maybeGet('HMAC_SECRET');
-    if (secret == null || secret == 'default_secret') {
-      if (env == 'production') {
-        throw StateError('CRITICAL: HMAC_SECRET is missing or insecure in production environment!');
-      }
-      return 'dev_secret_only';
+    if (secret == null || secret.isEmpty || secret == 'default_secret' || secret == 'dev_secret_only') {
+      throw StateError('CRITICAL: HMAC_SECRET is missing or insecure! Please set a strong secret in your .env file.');
     }
     return secret;
   }

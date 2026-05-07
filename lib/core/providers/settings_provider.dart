@@ -1,37 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
+import '../data/local/models/app_settings_model.dart';
+import '../data/repositories/settings_repository.dart';
+import 'base_providers.dart';
+
+final settingsRepositoryProvider = Provider<ISettingsRepository>((ref) {
+  final db = ref.watch(outboxDatabaseProvider);
+  return DriftSettingsRepository(db);
+});
 
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
-  return SettingsNotifier();
+  final repo = ref.watch(settingsRepositoryProvider);
+  return SettingsNotifier(repo);
 });
 
 class SettingsNotifier extends StateNotifier<AppSettings> {
-  SettingsNotifier() : super(AppSettings()) {
-    _init();
+  final ISettingsRepository _repo;
+
+  SettingsNotifier(this._repo) : super(AppSettings()) {
+    _load();
   }
 
-  void _init() {
-    if (!Hive.isBoxOpen('settings')) return;
-    final box = Hive.box<AppSettings>('settings');
-    state = box.get('settings', defaultValue: AppSettings())!;
-    
-    box.listenable().addListener(() {
-      state = box.get('settings', defaultValue: AppSettings())!;
-    });
+  Future<void> _load() async {
+    state = await _repo.getSettings();
   }
 
   Future<void> updateSettings(AppSettings settings) async {
-    final box = Hive.box<AppSettings>('settings');
-    await box.put('settings', settings);
+    await _repo.updateSettings(settings);
+    state = settings;
   }
 }
-
-
-
-
-
-
-
-
-

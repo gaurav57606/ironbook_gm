@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+part 'app_settings_model.g.dart';
 
 @HiveType(typeId: 6)
 class AppSettings extends HiveObject {
@@ -20,6 +21,9 @@ class AppSettings extends HiveObject {
   @HiveField(6)
   final DateTime? lastBackupAt;
 
+  @HiveField(7)
+  final String? hmacSignature;
+
 
   AppSettings({
     this.gstRate = 18.0,
@@ -29,6 +33,7 @@ class AppSettings extends HiveObject {
     this.useBiometrics = false,
     this.businessType = 'Gym',
     this.lastBackupAt,
+    this.hmacSignature,
   });
 
   factory AppSettings.fromFirestore(Map<String, dynamic> data) {
@@ -40,6 +45,20 @@ class AppSettings extends HiveObject {
       useBiometrics: data['useBiometrics'] ?? false,
       businessType: data['businessType'] ?? 'Gym',
       lastBackupAt: data['lastBackupAt'] != null ? DateTime.parse(data['lastBackupAt']) : null,
+      hmacSignature: data['hmacSignature'],
+    );
+  }
+
+  factory AppSettings.fromDrift(dynamic d) {
+    return AppSettings(
+      gstRate: d.gstRate,
+      expiryReminderDays: d.expiryReminderDays,
+      whatsappReminders: d.whatsappReminders,
+      biometricEnabled: d.biometricEnabled,
+      useBiometrics: d.useBiometrics,
+      businessType: d.businessType,
+      lastBackupAt: d.lastBackupAt,
+      hmacSignature: d.hmacSignature,
     );
   }
 
@@ -52,6 +71,7 @@ class AppSettings extends HiveObject {
       'useBiometrics': useBiometrics,
       'businessType': businessType,
       'lastBackupAt': lastBackupAt?.toIso8601String(),
+      'hmacSignature': hmacSignature,
     };
   }
 
@@ -72,6 +92,7 @@ class AppSettings extends HiveObject {
       useBiometrics: useBiometrics ?? this.useBiometrics,
       businessType: businessType ?? this.businessType,
       lastBackupAt: lastBackupAt ?? this.lastBackupAt,
+      hmacSignature: hmacSignature ?? this.hmacSignature,
     );
   }
 }

@@ -7,11 +7,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/owner_provider.dart';
-import '../../../../core/providers/payment_provider.dart';
-import '../../../../core/providers/member_provider.dart';
-import '../../../../core/providers/auth_provider.dart';
-import '../../../../core/data/local/models/payment_model.dart';
+import '../../providers/billing_provider.dart';
+import '../../../members/providers/members_provider.dart';
+import '../../../../core/data/local/drift/outbox_database.dart';
 import '../../../../shared/utils/date_formatter.dart';
+import 'package:collection/collection.dart';
 import '../../services/invoice_pdf_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:printing/printing.dart';
@@ -38,7 +38,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
   Future<void> _shareInvoice(Payment payment, String memberName) async {
     setState(() => _isProcessing = true);
     try {
-      final owner = ref.read(authProvider).owner;
+      final owner = ref.read(ownerProvider);
       if (owner == null) return;
       
       final file = await InvoicePdfService.generateInvoice(
@@ -62,7 +62,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
   Future<void> _printInvoice(Payment payment, String memberName) async {
     setState(() => _isProcessing = true);
     try {
-      final owner = ref.read(authProvider).owner;
+      final owner = ref.read(ownerProvider);
       if (owner == null) return;
       
       final file = await InvoicePdfService.generateInvoice(
@@ -79,14 +79,17 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final payments = ref.watch(paymentsProvider);
+    final paymentsAsync = ref.watch(allPaymentsProvider);
     final memberId = widget.memberId;
     
     Payment? payment;
-    if (memberId != null) {
-      payment = ref.read(paymentsProvider.notifier).getLatestForMember(memberId);
-    } else if (payments.isNotEmpty) {
-      payment = payments.first;
+    if (paymentsAsync is AsyncData<List<Payment>>) {
+      final payments = paymentsAsync.value;
+      if (memberId != null) {
+        payment = payments.where((p) => p.memberId == memberId).firstOrNull;
+      } else if (payments.isNotEmpty) {
+        payment = payments.first;
+      }
     }
 
     return StatusBarWrapper(
@@ -115,8 +118,12 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
                         ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.share, size: 13, color: Colors.white),
                       onPressed: _isProcessing ? null : () {
-                        final members = ref.read(membersProvider);
-                        final memberName = members.where((m) => m.memberId == payment!.memberId).firstOrNull?.name ?? 'Member';
+                        final membersAsync = ref.read(membersProvider);
+                        final memberName = membersAsync.when(
+                          data: (list) => list.firstWhereOrNull((m) => m.id == payment!.memberId)?.name ?? 'Member',
+                          loading: () => 'Member',
+                          error: (_, __) => 'Member',
+                        );
                         _shareInvoice(payment!, memberName);
                       },
                     ),
@@ -165,14 +172,22 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
             ),
           ),
           _buildAppBarIcon(Icons.download_rounded, onTap: payment != null ? () {
-            final members = ref.read(membersProvider);
-            final memberName = members.where((m) => m.memberId == payment!.memberId).firstOrNull?.name ?? 'Member';
+            final membersAsync = ref.read(membersProvider);
+            final memberName = membersAsync.when(
+              data: (list) => list.firstWhereOrNull((m) => m.id == payment!.memberId)?.name ?? 'Member',
+              loading: () => 'Member',
+              error: (_, __) => 'Member',
+            );
             _printInvoice(payment!, memberName); // Printing includes a preview/download option on mobile
           } : null),
           const SizedBox(width: 6),
           _buildAppBarIcon(Icons.print_rounded, onTap: payment != null ? () {
-            final members = ref.read(membersProvider);
-            final memberName = members.where((m) => m.memberId == payment!.memberId).firstOrNull?.name ?? 'Member';
+            final membersAsync = ref.read(membersProvider);
+            final memberName = membersAsync.when(
+              data: (list) => list.firstWhereOrNull((m) => m.id == payment!.memberId)?.name ?? 'Member',
+              loading: () => 'Member',
+              error: (_, __) => 'Member',
+            );
             _printInvoice(payment!, memberName);
           } : null),
         ],
@@ -199,8 +214,12 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
   Widget _buildInvoiceCard(Payment payment) {
     // Fetch member name (we'd ideally have a memberProvider but for now we can infer from snapshot if available)
     // Or just trust the event history. For simplicity, we'll try to get it from members list.
-    final members = ref.read(membersProvider);
-    final memberName = members.where((m) => m.memberId == payment.memberId).firstOrNull?.name ?? 'Member';
+    final membersAsync = ref.watch(membersProvider);
+    final memberName = membersAsync.when(
+      data: (list) => list.firstWhereOrNull((m) => m.id == payment.memberId)?.name ?? 'Member',
+      loading: () => 'Member',
+      error: (_, __) => 'Member',
+    );
 
     final owner = ref.watch(ownerProvider);
 
