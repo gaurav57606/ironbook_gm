@@ -141,20 +141,27 @@ class AppBootstrap {
       final unsyncedInDrift = await outboxRepo.getUnsyncedEvents();
       if (unsyncedInDrift.isNotEmpty) {
         final hiveRepo = container.read(eventRepositoryProvider);
-        int reconciledCount = 0;
-        for (final event in unsyncedInDrift) {
-          final existing = await hiveRepo.getById(event.id);
-          if (existing == null) {
-            await hiveRepo.persistSynced(event); // Copy to Hive
-            reconciledCount++;
+
+        // ⚡ Bolt Performance Optimization:
+        // Parallelize reconciliation checks and persistence using Future.wait.
+        final checkResults = await Future.wait(
+          unsyncedInDrift.map((event) => hiveRepo.getById(event.id)),
+        );
+
+        final missingEvents = <DomainEvent>[];
+        for (int i = 0; i < unsyncedInDrift.length; i++) {
+          if (checkResults[i] == null) {
+            missingEvents.add(unsyncedInDrift[i]);
           }
         }
-        if (reconciledCount > 0) {
-          debugPrint('Bootstrap Tier 2: Reconciled $reconciledCount missing events from Drift to Hive.');
+
+        if (missingEvents.isNotEmpty) {
+          await Future.wait(missingEvents.map((e) => hiveRepo.persistSynced(e)));
+          debugPrint(
+            'Bootstrap Tier 2: Reconciled ${missingEvents.length} missing events from Drift to Hive.',
+          );
         }
       }
-      
-      // 5. Start Sync Worker
       debugPrint('Bootstrap Tier 2: SyncWorker...');
       container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
 
