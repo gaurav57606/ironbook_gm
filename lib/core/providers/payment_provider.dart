@@ -70,21 +70,25 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     final recentEvents = await _eventRepo.getAll();
     final paymentEvents = recentEvents.where((e) => e.eventType == EventType.paymentRecorded).toList();
     
-    bool updatedAny = false;
-    for (final event in paymentEvents) {
-      final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
-      if (paymentId == null) continue;
+    if (paymentEvents.isEmpty) return;
 
-      final existing = await _paymentRepo.getPayment(paymentId);
-      if (existing == null) {
-        await _paymentRepo.applyEvent(event);
-        updatedAny = true;
-      }
+    final existingIds = state.map((p) => p.id).toSet();
+    final missingEvents = paymentEvents.where((e) {
+      final paymentId = e.payload[EventPayloadKeys.paymentId] as String?;
+      return paymentId != null && !existingIds.contains(paymentId);
+    }).toList();
+
+    if (missingEvents.isEmpty) return;
+
+    debugPrint('PaymentNotifier: Reconciling ${missingEvents.length} missing payments parallelized');
+
+    // Apply events in batches of 50
+    for (var i = 0; i < missingEvents.length; i += 50) {
+      final batch = missingEvents.skip(i).take(50);
+      await Future.wait(batch.map((e) => _paymentRepo.applyEvent(e)));
     }
 
-    if (updatedAny) {
-      state = (await _paymentRepo.getAllPayments()).reversed.toList();
-    }
+    state = (await _paymentRepo.getAllPayments()).reversed.toList();
   }
 
   @visibleForTesting
