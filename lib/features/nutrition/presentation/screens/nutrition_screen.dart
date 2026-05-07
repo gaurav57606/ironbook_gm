@@ -36,8 +36,12 @@ class NutritionScreen extends ConsumerWidget {
                 Expanded(
                   child: plansAsync.when(
                     data: (plans) => _buildContent(context, ref, plans),
-                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.orange)),
-                    error: (e, st) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+                    loading: () => const Center(
+                        child:
+                            CircularProgressIndicator(color: AppColors.orange)),
+                    error: (e, st) => Center(
+                        child: Text('Error: $e',
+                            style: const TextStyle(color: Colors.red))),
                   ),
                 ),
               ],
@@ -69,40 +73,52 @@ class NutritionScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.border),
             ),
-            child: const Icon(Icons.restaurant_menu_rounded, color: AppColors.orange, size: 20),
+            child: const Icon(Icons.restaurant_menu_rounded,
+                color: AppColors.orange, size: 20),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, List<NutritionPlan> plans) {
+  Widget _buildContent(
+      BuildContext context, WidgetRef ref, List<NutritionPlan> plans) {
+    // ⚡ Bolt: Read provider outside of the loop to prevent N+1 dependency evaluations
+    final members = ref.watch(membersProvider);
+    final memberMap = {for (var m in members) m.memberId: m};
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
         GestureDetector(
           onTap: () => _showAssignPlanDialog(context, ref),
-          child: _buildQuickAction('Assign New Plan', Icons.add_task_rounded, Colors.blue),
+          child: _buildQuickAction(
+              'Assign New Plan', Icons.add_task_rounded, Colors.blue),
         ),
         const SizedBox(height: 24),
-        const Text('Active Clients', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+        const Text('Active Clients',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600)),
         const SizedBox(height: 16),
         if (plans.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 20),
-            child: Text('No active nutrition plans.', style: TextStyle(color: AppColors.text3, fontSize: 14)),
+            child: Text('No active nutrition plans.',
+                style: TextStyle(color: AppColors.text3, fontSize: 14)),
           )
         else
           ...plans.map((plan) {
-            final memberAsync = ref.watch(memberProvider(plan.memberId));
-            return memberAsync.when(
-              data: (member) => _buildClientCard(member?.name ?? 'Unknown', plan.planName, plan.calories, plan.adherence),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            );
+            final member = memberMap[plan.memberId];
+            return _buildClientCard(member?.name ?? 'Unknown', plan.planName,
+                plan.calories, plan.adherence);
           }),
         const SizedBox(height: 24),
-        const Text('Diet Distribution', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+        const Text('Diet Distribution',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600)),
         const SizedBox(height: 16),
         _buildDietStats(plans),
       ],
@@ -113,7 +129,8 @@ class NutritionScreen extends ConsumerWidget {
     final members = ref.read(membersProvider);
     if (members.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No members found. Please add members first.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('No members found. Please add members first.')));
       }
       return;
     }
@@ -129,16 +146,23 @@ class NutritionScreen extends ConsumerWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           backgroundColor: AppColors.bg2,
-          title: const Text('Assign Nutrition Plan', style: TextStyle(color: Colors.white)),
+          title: const Text('Assign Nutrition Plan',
+              style: TextStyle(color: Colors.white)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButton<String>(
                 value: selectedMemberId,
-                hint: const Text('Select Member', style: TextStyle(color: AppColors.text3)),
+                hint: const Text('Select Member',
+                    style: TextStyle(color: AppColors.text3)),
                 dropdownColor: AppColors.bg2,
                 isExpanded: true,
-                items: members.map((m) => DropdownMenuItem(value: m.memberId, child: Text(m.name, style: const TextStyle(color: Colors.white)))).toList(),
+                items: members
+                    .map((m) => DropdownMenuItem(
+                        value: m.memberId,
+                        child: Text(m.name,
+                            style: const TextStyle(color: Colors.white))))
+                    .toList(),
                 onChanged: (v) => setState(() => selectedMemberId = v),
               ),
               const SizedBox(height: 16),
@@ -146,29 +170,45 @@ class NutritionScreen extends ConsumerWidget {
                 value: selectedPlan,
                 dropdownColor: AppColors.bg2,
                 isExpanded: true,
-                items: ['High Protein', 'Keto Diet', 'Vegan Plan', 'Maintenance'].map((p) => DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(color: Colors.white)))).toList(),
+                items: [
+                  'High Protein',
+                  'Keto Diet',
+                  'Vegan Plan',
+                  'Maintenance'
+                ]
+                    .map((p) => DropdownMenuItem(
+                        value: p,
+                        child: Text(p,
+                            style: const TextStyle(color: Colors.white))))
+                    .toList(),
                 onChanged: (v) => setState(() => selectedPlan = v),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: calorieController,
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Target Calories', labelStyle: TextStyle(color: AppColors.text3)),
+                decoration: const InputDecoration(
+                    labelText: 'Target Calories',
+                    labelStyle: TextStyle(color: AppColors.text3)),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel')),
             ElevatedButton(
-              onPressed: selectedMemberId == null ? null : () async {
-                await ref.read(nutritionRepositoryProvider).assignPlan(
-                  memberId: selectedMemberId!,
-                  planName: selectedPlan!,
-                  calories: calorieController.text,
-                );
-                ref.invalidate(nutritionPlansProvider);
-                if (context.mounted) Navigator.pop(context);
-              },
+              onPressed: selectedMemberId == null
+                  ? null
+                  : () async {
+                      await ref.read(nutritionRepositoryProvider).assignPlan(
+                            memberId: selectedMemberId!,
+                            planName: selectedPlan!,
+                            calories: calorieController.text,
+                          );
+                      ref.invalidate(nutritionPlansProvider);
+                      if (context.mounted) Navigator.pop(context);
+                    },
               child: const Text('Assign'),
             ),
           ],
@@ -196,7 +236,11 @@ class NutritionScreen extends ConsumerWidget {
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 16),
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(title,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
           const Spacer(),
           const Icon(Icons.chevron_right_rounded, color: AppColors.text3),
         ],
@@ -204,7 +248,8 @@ class NutritionScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildClientCard(String name, String plan, String kcal, double progress) {
+  Widget _buildClientCard(
+      String name, String plan, String kcal, double progress) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
@@ -220,19 +265,32 @@ class NutritionScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   backgroundColor: AppColors.orange.withValues(alpha: 0.1),
-                  child: Text(name[0], style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.bold)),
+                  child: Text(name[0],
+                      style: const TextStyle(
+                          color: AppColors.orange,
+                          fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                      Text(plan, style: const TextStyle(color: AppColors.text3, fontSize: 10)),
+                      Text(name,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold)),
+                      Text(plan,
+                          style: const TextStyle(
+                              color: AppColors.text3, fontSize: 10)),
                     ],
                   ),
                 ),
-                Text(kcal, style: const TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text(kcal,
+                    style: const TextStyle(
+                        color: AppColors.orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 12),
@@ -242,7 +300,8 @@ class NutritionScreen extends ConsumerWidget {
                 value: progress == 0 ? 0.05 : progress, // Show a sliver if 0
                 minHeight: 4,
                 backgroundColor: Colors.white.withValues(alpha: 0.05),
-                valueColor: AlwaysStoppedAnimation<Color>(progress > 0.8 ? Colors.green : AppColors.orange),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    progress > 0.8 ? Colors.green : AppColors.orange),
               ),
             ),
           ],
@@ -260,7 +319,8 @@ class NutritionScreen extends ConsumerWidget {
     }
 
     final total = plans.length;
-    final sorted = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -286,17 +346,9 @@ class NutritionScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(name, style: const TextStyle(color: AppColors.text3, fontSize: 10)),
+        Text(name,
+            style: const TextStyle(color: AppColors.text3, fontSize: 10)),
       ],
     );
   }
 }
-
-
-
-
-
-
-
-
-
