@@ -9,6 +9,7 @@ import 'repositories/event_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
+import 'local/models/domain_event_model.dart';
 
 enum SyncWorkerStatus { idle, syncing, failed }
 
@@ -28,7 +29,7 @@ class SyncWorker {
   final OutboxRepository _outboxRepo;
   final SyncCoordinator _coordinator;
   final SharedPreferences _prefs;
-  final Future<void> Function(String collection, String id, Map<String, dynamic> data) _recordPusher;
+  final Future<void> Function(String collection, List<DomainEvent> events) _batchPusher;
   final String? Function() _currentUserId;
   bool _isSyncing = false;
   int _consecutiveFailures = 0;
@@ -39,7 +40,7 @@ class SyncWorker {
   final StateProvider<SyncWorkerState> _statusProvider;
   final Ref _ref;
 
-  SyncWorker(this._repo, this._outboxRepo, this._coordinator, this._prefs, this._recordPusher, this._currentUserId, this._statusProvider, this._ref) {
+  SyncWorker(this._repo, this._outboxRepo, this._coordinator, this._prefs, this._batchPusher, this._currentUserId, this._statusProvider, this._ref) {
     // Subscribe to manual sync requests from the UI or Repositories
     _syncSubscription = _coordinator.onSyncRequested.listen((_) => performSync());
     
@@ -90,11 +91,14 @@ class SyncWorker {
 
       debugPrint('SyncWorker: Starting sync for ${unsynced.length} events');
 
-      for (final event in unsynced) {
-        debugPrint('SyncWorker: Syncing event ${event.id} (${event.eventType})');
-        await _recordPusher('users/$uid/events', event.id, event.toFirestore());
-        // REMOVED: await _repo.markAsSynced(event.id); - Drift is the only authority now
-        await _outboxRepo.markSynced(event.id); // Mark synced in Drift
+      // Batch size for Firestore is 500
+      const batchSize = 500;
+      for (var i = 0; i < unsynced.length; i += batchSize) {
+        final chunk = unsynced.skip(i).take(batchSize).toList();
+        debugPrint('SyncWorker: Syncing chunk of ${chunk.length} events');
+
+        await _batchPusher('users/$uid/events', chunk);
+        await _outboxRepo.markManySynced(chunk.map((e) => e.id).toList());
       }
       
       _consecutiveFailures = 0;
@@ -177,7 +181,15 @@ final syncWorkerProvider = Provider<SyncWorker>((ref) {
     outboxRepo,
     coordinator,
     prefs,
-    (coll, id, data) => FirebaseFirestore.instance.collection(coll).doc(id).set(data), // Create-only/Full overwrite
+    (coll, events) async {
+      final firestore = FirebaseFirestore.instance;
+      final batch = firestore.batch();
+      for (final event in events) {
+        final docRef = firestore.collection(coll).doc(event.id);
+        batch.set(docRef, event.toFirestore());
+      }
+      await batch.commit();
+    },
     () => FirebaseAuth.instance.currentUser?.uid,
     syncWorkerStatusProvider,
     ref,
@@ -191,14 +203,3 @@ final unsyncedCountProvider = StreamProvider<int>((ref) {
   final outboxRepo = ref.watch(outboxRepositoryProvider);
   return outboxRepo.watchUnsyncedCount();
 });
-
-
-
-
-
-
-
-
-
-
-

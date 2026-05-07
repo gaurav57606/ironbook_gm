@@ -41,6 +41,13 @@ class OutboxRepository {
     );
   }
 
+  Future<void> markManySynced(List<String> ids) async {
+    await _db.batch((batch) {
+      batch.update(_db.outboxEvents, const OutboxEventsCompanion(isSynced: Value(1)),
+        where: (t) => t.id.isIn(ids));
+    });
+  }
+
   Future<int> countUnsynced() async {
     final countExp = _db.outboxEvents.id.count();
     final query = _db.selectOnly(_db.outboxEvents)
@@ -117,12 +124,3 @@ class OutboxRepository {
     );
   }
 }
-
-
-
-
-
-
-
-
-
