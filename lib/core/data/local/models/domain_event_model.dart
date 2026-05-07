@@ -62,7 +62,7 @@ class DomainEvent extends HiveObject {
     // Whitelist only essential fields for cloud storage
     final whitelist = {
       'memberId', 'name', 'phone', 'joinDate', 'planId', 
-      'amount', 'paymentId', 'newExpiry', 'archived'
+      'amount', 'paymentId', 'newExpiry', 'archived', 'gender', 'age'
     };
     
     essentialPayload.removeWhere((key, value) => !whitelist.contains(key));

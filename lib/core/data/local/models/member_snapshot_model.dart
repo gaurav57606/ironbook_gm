@@ -218,6 +218,8 @@ class MemberSnapshot extends HiveObject {
       'paymentIds': paymentIds,
       'archived': archived,
       'lastUpdated': lastUpdated.toIso8601String(),
+      'gender': gender,
+      'age': age,
       'checkInPin': checkInPin,
       'lastCheckIn': lastCheckIn?.toIso8601String(),
       'lastCheckInDevice': lastCheckInDevice,

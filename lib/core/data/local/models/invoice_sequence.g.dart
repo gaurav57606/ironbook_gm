@@ -42,12 +42,3 @@ class InvoiceSequenceAdapter extends TypeAdapter<InvoiceSequence> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
-
-
-
-
-
-
-
-
-

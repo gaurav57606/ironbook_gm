@@ -16,6 +16,7 @@ import '../widgets/member_row.dart';
 import '../../../../core/data/sync_worker.dart';
 import '../../../../core/providers/bootstrap_provider.dart';
 import '../../../../core/providers/payment_provider.dart';
+import '../widgets/nutrition_summary_card.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -140,6 +141,7 @@ class DashboardScreen extends ConsumerWidget {
                         const SizedBox(height: 32),
                         _buildSectionHeader(context, 'REVENUE THIS MONTH', null),
                         _buildRevenueCard(currentRevenue.toInt(), trend, dailyRevenue),
+                        const NutritionSummaryCard(),
                         const SizedBox(height: 100), // Space for bottom nav or FAB
                       ],
                     ),

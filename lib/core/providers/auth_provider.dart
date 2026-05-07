@@ -16,6 +16,7 @@ import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
+import 'package:ironbook_gm/core/services/config_service.dart';
 import 'base_providers.dart';
 
 class AuthState {
@@ -73,13 +74,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SyncWorker _syncWorker;
   final IEventRepository _eventRepo;
   final HmacService _hmacService;
+  final ConfigService _config;
   final Ref _ref;
   String _deviceId = 'device-unknown';
 
   StreamSubscription<fb.User?>? _authSubscription;
 
   AuthNotifier(this._storage, this._pinService, this._firebaseAuth,
-      this._eventRepo, this._syncWorker, this._hmacService, this._ref)
+      this._eventRepo, this._syncWorker, this._hmacService, this._config, this._ref)
       : super(AuthState(settings: AppSettings())) {
     _init();
     _syncWorker.startPeriodicSync(const Duration(seconds: 30));
@@ -175,8 +177,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (kIsWeb || _firebaseAuth == null) {
         debugPrint('AuthNotifier: Web/Degraded mode detected. Using Mock Auth.');
         
-        final mockEmail = dotenv.get('MOCK_ADMIN_EMAIL', fallback: 'admin@ironbook.gym');
-        final mockPass = dotenv.get('MOCK_ADMIN_PASSWORD', fallback: 'password123');
+        final mockEmail = _config.appName.toLowerCase().contains('ironbook') 
+            ? dotenv.get('MOCK_ADMIN_EMAIL', fallback: 'admin@ironbook.gym')
+            : 'admin@gym.com';
+        final mockPass = _config.hmacSecret.isNotEmpty 
+            ? dotenv.get('MOCK_ADMIN_PASSWORD', fallback: 'password123')
+            : 'password123';
         
         // 1. Check Admin Account
         bool success = (email == mockEmail && password == mockPass);
@@ -413,7 +419,8 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final syncWorker = ref.watch(syncWorkerProvider);
   final firebaseAuth = ref.watch(firebaseAuthProvider);
   final hmac = ref.watch(hmacServiceProvider);
-  return AuthNotifier(storage, pinService, firebaseAuth, repo, syncWorker, hmac, ref);
+  final config = ref.watch(configServiceProvider);
+  return AuthNotifier(storage, pinService, firebaseAuth, repo, syncWorker, hmac, config, ref);
 });
 
 

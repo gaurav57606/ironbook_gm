@@ -12,20 +12,43 @@ class NutritionPlan extends HiveObject {
   late String planName;
 
   @HiveField(3)
-  late String calories;
+  late int dailyCalories;
 
   @HiveField(4)
-  late double adherence; // 0.0 to 1.0
+  late double adherence;
 
   @HiveField(5)
-  late DateTime assignedAt;
+  late int waterGoalMl;
+
+  @HiveField(6)
+  String? hmacSignature;
 
   NutritionPlan({
     required this.id,
     required this.memberId,
     required this.planName,
-    required this.calories,
+    required this.dailyCalories,
     this.adherence = 0.0,
-    required this.assignedAt,
+    this.waterGoalMl = 2000,
+    this.hmacSignature,
   });
+
+  NutritionPlan copyWith({
+    String? memberId,
+    String? planName,
+    int? dailyCalories,
+    double? adherence,
+    int? waterGoalMl,
+    String? hmacSignature,
+  }) {
+    return NutritionPlan(
+      id: id,
+      memberId: memberId ?? this.memberId,
+      planName: planName ?? this.planName,
+      dailyCalories: dailyCalories ?? this.dailyCalories,
+      adherence: adherence ?? this.adherence,
+      waterGoalMl: waterGoalMl ?? this.waterGoalMl,
+      hmacSignature: hmacSignature ?? this.hmacSignature,
+    );
+  }
 }

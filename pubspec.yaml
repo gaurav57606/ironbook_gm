@@ -63,7 +63,7 @@ dependencies:
 
   # Utilities
   uuid: ^4.3.3
-  intl: ^0.18.1
+  intl: ^0.19.0
   equatable: ^2.0.5
   path_provider: ^2.1.2
   path: ^1.9.0
@@ -99,3 +99,4 @@ flutter:
     - assets/images/onb_3.png
     - assets/images/success.png
     - assets/images/biometric.png
+    - assets/icons/

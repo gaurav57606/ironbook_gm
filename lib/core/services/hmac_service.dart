@@ -24,25 +24,6 @@ class HmacService {
   static String? _testKey;
   static void setKeyForTest(String key) => _testKey = key;
 
-  static Future<void> init() async {
-    const storage = FlutterSecureStorage();
-    // Use try-catch or safe access for web compatibility
-    FirebaseAuth? auth;
-    FirebaseFirestore? firestore;
-    if (!kIsWeb) {
-      try {
-        auth = FirebaseAuth.instance;
-        firestore = FirebaseFirestore.instance;
-      } catch (e) {
-        debugPrint('HmacService Static Init Error: $e');
-      }
-    }
-    // We can't easily get ConfigService here without a container, 
-    // so we skip it for early static init (or better, use the provider)
-    final service = HmacService(storage, auth, firestore);
-    await service._getOrCreateKey();
-  }
-
   Future<String> _getOrCreateKey() async {
     var key = await _storage.read(key: _keyStorageName);
     if (key == null) {
@@ -204,7 +185,6 @@ class HmacService {
       if (version == 2) {
         finalKey = _unwrapKey(rawBlob, user.uid);
       } else {
-        // Migration path for older unencrypted keys
         finalKey = rawBlob;
       }
       
@@ -213,6 +193,47 @@ class HmacService {
     } catch (e) {
       debugPrint('HmacService: Key restoration failed: $e');
       return false;
+    }
+  }
+
+  Future<Map<String, String>> restoreAllUserKeys() async {
+    final auth = _auth;
+    final firestore = _firestore;
+    if (auth == null || firestore == null) return {};
+
+    try {
+      final user = auth.currentUser;
+      if (user == null) return {};
+      
+      final snapshot = await firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('device_keys')
+          .get();
+          
+      final Map<String, String> keyMap = {};
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final deviceId = doc.id;
+        final rawBlob = data['hmac_key'] as String;
+        final version = data['version'] as int? ?? 1;
+
+        try {
+          String finalKey;
+          if (version == 2) {
+            finalKey = _unwrapKey(rawBlob, user.uid);
+          } else {
+            finalKey = rawBlob;
+          }
+          keyMap[deviceId] = finalKey;
+        } catch (e) {
+          debugPrint('HmacService: Failed to unwrap key for device $deviceId: $e');
+        }
+      }
+      return keyMap;
+    } catch (e) {
+      debugPrint('HmacService: Failed to restore all keys: $e');
+      return {};
     }
   }
 }

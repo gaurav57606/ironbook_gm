@@ -17,6 +17,10 @@ class SeedData {
   static const _uuid = Uuid();
 
   static Future<void> seedIfEmpty(ProviderContainer container) async {
+    if (!kDebugMode) {
+      debugPrint('SeedData: Production environment detected. Skipping seeding.');
+      return;
+    }
     final plansBox = Hive.box<Plan>('plans');
     final membersBox = Hive.lazyBox<MemberSnapshot>('snapshots');
     final ownerBox = Hive.box<OwnerProfile>('owner');

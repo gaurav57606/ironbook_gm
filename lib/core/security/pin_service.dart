@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 
-enum AuthResult { success, failure, canceled }
+enum AuthResult { success, failure, canceled, lockedOut }
 
 class PinService {
   final FirebaseAuth? _auth;
@@ -37,7 +37,7 @@ class PinService {
   String _hashWithSalt(String input, String salt, {int iterations = 100000}) {
     var hash = sha256.convert(utf8.encode(input + salt)).toString();
     // Hardened work factor: 100,000 rounds of SHA-256
-    for (int i = 0; i < iterations; i++) {
+    for (int i = 0; i < iterations - 1; i++) {
       hash = sha256.convert(utf8.encode(hash + salt)).toString();
     }
     return hash;
@@ -93,12 +93,11 @@ class PinService {
       await _storage.write(key: _failCountKey, value: count.toString());
 
       if (count >= 10) {
-        // P0: 10 failed attempts -> Force Logout & Nuke PIN
-        await _storage.delete(key: _pinHashKey);
-        await _storage.delete(key: _failCountKey);
-        await _storage.delete(key: _lockoutUntilKey);
-        await _auth?.signOut();
-        return false;
+        // We no longer nuke the PIN or data (User request: "no self-destruct")
+        // Just enforce the long-term lockout if needed, or stick to 30s
+        final lockoutTime = DateTime.now().add(const Duration(minutes: 5));
+        await _storage.write(key: _lockoutUntilKey, value: lockoutTime.toIso8601String());
+        return false; 
       }
 
       if (count >= 5) {

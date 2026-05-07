@@ -45,7 +45,8 @@ class AppBootstrap {
     final logger = container.read(loggerProvider);
     logger.info('Bootstrap Tier 1: Hive Initialization...');
     await HiveInit.openWithCorruptionGuard();
-    await HmacService.init(); // Initialize HMAC key early for signing
+    // Initialize HMAC key via provider to ensure ConfigService is ready
+    await container.read(hmacServiceProvider).getInstallationId();
     final hiveHealthy = Hive.isBoxOpen('events');
     
     // 3. Open Secondary Authorities (Drift/SQLite)

@@ -1,18 +1,29 @@
 import '../test_helper.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
+import 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
 import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
 import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
 
-class MockSyncWorker extends Mock implements SyncWorker {}
-class MockAuth extends Mock implements AuthNotifier {}
+// Removed local MockSyncWorker and MockAuth as they are in test_helper.dart
 
 void main() {
   setUpAll(() async {
     await TestHelper.setupHive('registration_real');
     registerFallbackValue(Plan(id: 'f', name: 'f', durationMonths: 1, components: []));
     registerFallbackValue(DateTime.now());
+  });
+
+  setUp(() async {
+    final planBox = TestHelper.getBox<Plan>();
+    await planBox.clear();
+    await planBox.add(Plan(
+      id: 'plan_1',
+      name: 'Monthly',
+      durationMonths: 1,
+      components: [PlanComponent(id: 'c1', name: 'Gym', price: 1000)],
+    ));
   });
 
   tearDownAll(() async {

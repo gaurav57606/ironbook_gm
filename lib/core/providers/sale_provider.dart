@@ -52,8 +52,10 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
         // Build Sale from payload
         final items = (event.payload['items'] as List? ?? []).map((i) {
           final iMap = Map<String, dynamic>.from(i);
+          final mId = event.payload['memberId'] as String? ?? 'walk-in';
           return SaleItem(
             productId: iMap['productId'] ?? '',
+            memberId: mId,
             productName: iMap['productName'] as String? ?? 'Unknown Product',
             price: (iMap['price'] as num?)?.toDouble() ?? 0.0,
             quantity: iMap['qty'] ?? 1,
@@ -62,6 +64,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
 
         final sale = Sale(
           id: saleId,
+          memberId: event.payload['memberId'] as String? ?? 'walk-in',
           date: event.deviceTimestamp,
           totalAmount: (event.payload['total'] as num?)?.toDouble() ?? 0.0,
           paymentMethod: event.payload['method'] ?? 'Cash',
@@ -120,6 +123,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     required List<SaleItem> items,
     required String method,
     required double total,
+    String memberId = 'walk-in',
   }) async {
     final saleId = const Uuid().v4();
     final now = _clock.now;
@@ -137,6 +141,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
 
     final sale = Sale(
       id: saleId,
+      memberId: memberId,
       date: now,
       totalAmount: total,
       paymentMethod: method,
@@ -152,6 +157,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
       deviceTimestamp: now,
       payload: {
         'saleId': saleId,
+        'memberId': memberId,
         'total': total,
         'method': method,
         'items': items.map((i) => {

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ironbook_gm/features/nutrition/data/repositories/nutrition_repository.dart';
+import 'package:ironbook_gm/features/nutrition/presentation/providers/nutrition_provider.dart';
 import 'package:ironbook_gm/features/nutrition/data/models/nutrition_plan_model.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/constants/app_colors.dart';
 import 'package:ironbook_gm/shared/widgets/status_bar_wrapper.dart';
+import 'package:ironbook_gm/features/nutrition/presentation/screens/meal_logging_screen.dart';
+import 'package:ironbook_gm/features/nutrition/presentation/screens/water_tracking_screen.dart';
 
 class NutritionScreen extends ConsumerWidget {
   const NutritionScreen({super.key});
@@ -96,7 +98,7 @@ class NutritionScreen extends ConsumerWidget {
           ...plans.map((plan) {
             final memberAsync = ref.watch(memberProvider(plan.memberId));
             return memberAsync.when(
-              data: (member) => _buildClientCard(member?.name ?? 'Unknown', plan.planName, plan.calories, plan.adherence),
+              data: (member) => _buildClientCard(context, member?.name ?? 'Unknown', plan.memberId, plan.planName, plan.dailyCalories, plan.adherence),
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
             );
@@ -164,7 +166,7 @@ class NutritionScreen extends ConsumerWidget {
                 await ref.read(nutritionRepositoryProvider).assignPlan(
                   memberId: selectedMemberId!,
                   planName: selectedPlan!,
-                  calories: calorieController.text,
+                  dailyCalories: int.tryParse(calorieController.text) ?? 2000,
                 );
                 ref.invalidate(nutritionPlansProvider);
                 if (context.mounted) Navigator.pop(context);
@@ -204,7 +206,7 @@ class NutritionScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildClientCard(String name, String plan, String kcal, double progress) {
+  Widget _buildClientCard(BuildContext context, String name, String memberId, String plan, int kcal, double progress) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
@@ -232,19 +234,55 @@ class NutritionScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Text(kcal, style: const TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text('$kcal kcal', style: const TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress == 0 ? 0.05 : progress, // Show a sliver if 0
-                minHeight: 4,
-                backgroundColor: Colors.white.withValues(alpha: 0.05),
-                valueColor: AlwaysStoppedAnimation<Color>(progress > 0.8 ? Colors.green : AppColors.orange),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _buildCardAction(
+                  context, 
+                  'LOG MEAL', 
+                  Icons.restaurant_rounded, 
+                  Colors.orange,
+                  () => Navigator.push(context, MaterialPageRoute(
+                    builder: (c) => MealLoggingScreen(memberId: memberId)
+                  ))
+                ),
+                const SizedBox(width: 8),
+                _buildCardAction(
+                  context, 
+                  'WATER', 
+                  Icons.local_drink_rounded, 
+                  Colors.blue,
+                  () => Navigator.push(context, MaterialPageRoute(
+                    builder: (c) => WaterTrackingScreen(memberId: memberId)
+                  ))
+                ),
+              ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardAction(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 14),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
           ],
         ),
       ),

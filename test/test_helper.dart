@@ -18,15 +18,21 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/theme/app_theme.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
-import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
-import 'package:ironbook_gm/core/data/sync_worker.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
+import 'package:ironbook_gm/core/services/config_service.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // Re-exports for convenience in tests
 export 'package:flutter/material.dart';
@@ -99,6 +105,7 @@ class TestHelper {
     await Hive.openBox<InvoiceSequence>('invoice_sequences');
     await Hive.openBox<Product>('products');
     await Hive.openBox<Sale>('sales');
+    await Hive.openBox('meta');
   }
 
   static Future<void> cleanHive() async {
@@ -157,6 +164,7 @@ class TestHelper {
     when(() => mockAuth.idTokenChanges()).thenAnswer((_) => const Stream.empty());
     when(() => mockAuth.userChanges()).thenAnswer((_) => const Stream.empty());
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
+    when(() => mockPin.authenticate(pinFallback: any(named: 'pinFallback'))).thenAnswer((_) async => AuthResult.success);
     when(() => mockSync.startPeriodicSync(any())).thenReturn(null);
     when(() => mockStorage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
     when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value'))).thenAnswer((_) async {});
@@ -176,6 +184,7 @@ class TestHelper {
           syncWorkerProvider.overrideWithValue(mockSync),
           appSecureStorageProvider.overrideWithValue(mockStorage),
           bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
+          tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
           clockProvider.overrideWith((ref) => FakeClock()),
           ...overrides,
         ],
@@ -205,7 +214,12 @@ class TestHelper {
   }
 }
 
-// --- Common Fakes & Mocks ---
+class MockAuth extends Mock implements AuthNotifier {}
+class MockPinService extends Mock implements PinService {}
+class MockSyncWorker extends Mock implements SyncWorker {}
+class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+class MockFirebaseAuth extends Mock implements fb.FirebaseAuth {}
+class MockConfigService extends Mock implements ConfigService {}
 
 class FakeRepo implements IEventRepository {
   @override
@@ -228,12 +242,15 @@ class FakeRepo implements IEventRepository {
   Stream<DomainEvent> watch() => const Stream.empty();
 }
 
+class MockRef extends Mock implements Ref {}
+
 class FakeAuth extends AuthNotifier {
   FakeAuth({
     bool isLoading = false,
     bool isAuthenticated = true,
     bool isFirstLaunch = false,
     bool isPinSetup = true,
+    bool unlocked = false,
   }) : super(
     const FlutterSecureStorage(),
     MockPinService(),
@@ -241,11 +258,12 @@ class FakeAuth extends AuthNotifier {
     FakeRepo(),
     MockSyncWorker(),
     FakeHmacService(),
-    ProviderContainer() as dynamic,
+    MockConfigService(),
+    MockRef(),
   ) {
     state = AuthState(
       isAuthenticated: isAuthenticated,
-      unlocked: true,
+      unlocked: unlocked,
       isPinSetup: isPinSetup,
       isFirstLaunch: isFirstLaunch,
       isLoading: isLoading,
@@ -258,6 +276,9 @@ class FakeAuth extends AuthNotifier {
   
   @override
   Future<bool> verifyPin(String pin) async => true;
+
+  @override
+  Future<bool> authenticate({String? pin}) async => pin != null;
 
   @override
   Future<void> completeOnboarding() async {
@@ -274,6 +295,10 @@ class FakeHmacService extends Fake implements HmacService {
   Future<String> getInstallationId() async => 'test-device';
   @override
   Future<String> signEvent(DomainEvent event) async => 'fake-sig';
+  @override
+  Future<String> signSnapshot(String entityId, Map<String, dynamic> data) async => 'fake-sig';
+  @override
+  Future<bool> verifySnapshot(String entityId, Map<String, dynamic> data, String signature) async => true;
 }
 
 class FakeClock extends IClock {

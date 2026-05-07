@@ -60,7 +60,7 @@ class LoggerService {
 
   Future<void> setUserId(String userId) async {
     if (kIsWeb) return;
-    await FirebaseCrashlytics.instance.setUserId(userId);
+    await FirebaseCrashlytics.instance.setUserIdentifier(userId);
     await _analytics.setUserId(id: userId);
   }
 }

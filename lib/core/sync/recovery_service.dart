@@ -35,13 +35,15 @@ class RecoveryService {
     debugPrint('RecoveryService: Starting event recovery for ${user.uid}');
 
     try {
-      // 1. Mandatory: Restore HMAC Key first or verification will fail
-      final installationId = await _hmac.getInstallationId();
-      final keyRestored = await _hmac.restoreKeyFromFirestore(installationId);
-      if (!keyRestored) {
-        debugPrint('RecoveryService: Could not restore security key for $installationId. Recovery aborted.');
-        throw Exception('Security key restoration failed');
+      // 1. Mandatory: Restore all available HMAC keys to support multi-device recovery
+      final keyMap = await _hmac.restoreAllUserKeys();
+      if (keyMap.isEmpty) {
+        debugPrint('RecoveryService: No security keys found on cloud. Attempting with local key only...');
       }
+
+      // Ensure current device key is in storage (for signing future events)
+      final installationId = await _hmac.getInstallationId();
+      await _hmac.restoreKeyFromFirestore(installationId);
 
       // 2. Fetch all events ordered by time
       final snapshot = await firestore
@@ -66,8 +68,17 @@ class RecoveryService {
         final doc = docs[i];
         final event = DomainEvent.fromFirestore(doc.data());
         
-        // 3. Security Verification
-        final isValid = await _hmac.verifyInstance(event);
+        // 3. Security Verification (Multi-Device Aware)
+        bool isValid = false;
+        final deviceKey = keyMap[event.deviceId];
+        if (deviceKey != null) {
+          final expectedSignature = await HmacService.signStatic(event, deviceKey);
+          isValid = expectedSignature == event.hmacSignature;
+        } else {
+          // Fallback to current device key
+          isValid = await _hmac.verifyInstance(event);
+        }
+
         if (!isValid) {
           debugPrint('RecoveryService: REJECTED event ${event.id} - HMAC mismatch');
           tamperedCount++;

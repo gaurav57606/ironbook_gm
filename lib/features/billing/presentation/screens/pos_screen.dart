@@ -245,6 +245,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         if (product != null) {
           items.add(SaleItem(
             productId: productId,
+            memberId: 'walk-in',
             productName: product.name,
             price: product.price,
             quantity: qty,

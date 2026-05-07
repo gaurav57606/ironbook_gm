@@ -11,6 +11,7 @@ import 'models/invoice_sequence.dart';
 import 'models/product_model.dart';
 import 'models/sale_model.dart';
 import '../../../features/nutrition/data/models/nutrition_plan_model.dart';
+import '../../../features/nutrition/data/models/meal_item_model.dart';
 import 'adapters/manual_adapters.dart';
 
 class HiveInit {
@@ -31,6 +32,8 @@ class HiveInit {
     Hive.registerAdapter(SaleAdapter());
     Hive.registerAdapter(SaleItemAdapter());
     Hive.registerAdapter(NutritionPlanAdapter());
+    Hive.registerAdapter(MealItemAdapter());
+    Hive.registerAdapter(WaterLogAdapter());
   }
 
   static Future<void> openAllBoxes() async {
@@ -46,6 +49,8 @@ class HiveInit {
       'products': Product,
       'sales': Sale,
       'nutrition': NutritionPlan,
+      'meals': MealItem,
+      'water': WaterLog,
     };
 
     for (final entry in boxNames.entries) {
@@ -104,6 +109,10 @@ class HiveInit {
       await Hive.openBox<Sale>(name, encryptionCipher: cipher);
     } else if (type == NutritionPlan) {
       await Hive.openBox<NutritionPlan>(name, encryptionCipher: cipher);
+    } else if (type == MealItem) {
+      await Hive.openBox<MealItem>(name, encryptionCipher: cipher);
+    } else if (type == WaterLog) {
+      await Hive.openBox<WaterLog>(name, encryptionCipher: cipher);
     } else {
       await Hive.openBox(name, encryptionCipher: cipher);
     }

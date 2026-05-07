@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import '../../../../features/nutrition/data/models/nutrition_plan_model.dart';
+import '../../../../features/nutrition/data/models/meal_item_model.dart';
 import '../models/domain_event_model.dart';
 import '../models/member_snapshot_model.dart';
 import '../models/payment_model.dart';
@@ -22,9 +23,10 @@ class NutritionPlanAdapter extends TypeAdapter<NutritionPlan> {
       id: reader.read() as String,
       memberId: reader.read() as String,
       planName: reader.read() as String,
-      calories: reader.read() as String,
+      dailyCalories: (reader.read() as num).toInt(),
       adherence: (reader.read() as num).toDouble(),
-      assignedAt: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+      waterGoalMl: (reader.read() as num).toInt(),
+      hmacSignature: reader.read() as String?,
     );
   }
 
@@ -33,9 +35,10 @@ class NutritionPlanAdapter extends TypeAdapter<NutritionPlan> {
     writer.write(obj.id);
     writer.write(obj.memberId);
     writer.write(obj.planName);
-    writer.write(obj.calories);
+    writer.write(obj.dailyCalories);
     writer.write(obj.adherence);
-    writer.write(obj.assignedAt.millisecondsSinceEpoch);
+    writer.write(obj.waterGoalMl);
+    writer.write(obj.hmacSignature);
   }
 }
 
@@ -392,6 +395,7 @@ class SaleAdapter extends TypeAdapter<Sale> {
   Sale read(BinaryReader reader) {
     return Sale(
       id: reader.read() as String,
+      memberId: reader.read() as String,
       date: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
       totalAmount: (reader.read() as num).toDouble(),
       paymentMethod: reader.read() as String,
@@ -404,6 +408,7 @@ class SaleAdapter extends TypeAdapter<Sale> {
   @override
   void write(BinaryWriter writer, Sale obj) {
     writer.write(obj.id);
+    writer.write(obj.memberId);
     writer.write(obj.date.millisecondsSinceEpoch);
     writer.write(obj.totalAmount);
     writer.write(obj.paymentMethod);
@@ -421,6 +426,7 @@ class SaleItemAdapter extends TypeAdapter<SaleItem> {
   SaleItem read(BinaryReader reader) {
     return SaleItem(
       productId: reader.read() as String,
+      memberId: reader.read() as String,
       productName: reader.read() as String,
       price: (reader.read() as num).toDouble(),
       quantity: (reader.read() as num).toInt(),
@@ -430,17 +436,63 @@ class SaleItemAdapter extends TypeAdapter<SaleItem> {
   @override
   void write(BinaryWriter writer, SaleItem obj) {
     writer.write(obj.productId);
+    writer.write(obj.memberId);
     writer.write(obj.productName);
     writer.write(obj.price);
     writer.write(obj.quantity);
   }
 }
 
+class MealItemAdapter extends TypeAdapter<MealItem> {
+  @override
+  final int typeId = 21;
 
+  @override
+  MealItem read(BinaryReader reader) {
+    return MealItem(
+      id: reader.read() as String,
+      memberId: reader.read() as String,
+      foodName: reader.read() as String,
+      grams: (reader.read() as num).toDouble(),
+      calories: (reader.read() as num).toInt(),
+      timestamp: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+      hmacSignature: reader.read() as String?,
+    );
+  }
 
+  @override
+  void write(BinaryWriter writer, MealItem obj) {
+    writer.write(obj.id);
+    writer.write(obj.memberId);
+    writer.write(obj.foodName);
+    writer.write(obj.grams);
+    writer.write(obj.calories);
+    writer.write(obj.timestamp.millisecondsSinceEpoch);
+    writer.write(obj.hmacSignature);
+  }
+}
 
+class WaterLogAdapter extends TypeAdapter<WaterLog> {
+  @override
+  final int typeId = 22;
 
+  @override
+  WaterLog read(BinaryReader reader) {
+    return WaterLog(
+      id: reader.read() as String,
+      memberId: reader.read() as String,
+      amountMl: (reader.read() as num).toInt(),
+      timestamp: DateTime.fromMillisecondsSinceEpoch((reader.read() as num).toInt()),
+      hmacSignature: reader.read() as String?,
+    );
+  }
 
-
-
-
+  @override
+  void write(BinaryWriter writer, WaterLog obj) {
+    writer.write(obj.id);
+    writer.write(obj.memberId);
+    writer.write(obj.amountMl);
+    writer.write(obj.timestamp.millisecondsSinceEpoch);
+    writer.write(obj.hmacSignature);
+  }
+}

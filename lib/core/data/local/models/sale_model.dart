@@ -23,8 +23,12 @@ class Sale extends HiveObject {
   @HiveField(6)
   String? hmacSignature;
 
+  @HiveField(7)
+  late String memberId;
+
   Sale({
     required this.id,
+    required this.memberId,
     required this.date,
     required this.totalAmount,
     required this.paymentMethod,
@@ -36,12 +40,14 @@ class Sale extends HiveObject {
   factory Sale.fromFirestore(Map<String, dynamic> data) {
     return Sale(
       id: data['id'],
+      memberId: data['memberId'] ?? 'unknown',
       date: DateTime.parse(data['date']).toLocal(),
       totalAmount: (data['totalAmount'] as num).toDouble(),
       paymentMethod: data['paymentMethod'],
       invoiceNumber: data['invoiceNumber'],
       items: (data['items'] as List).map((i) => SaleItem(
         productId: i['productId'],
+        memberId: data['memberId'] ?? 'unknown',
         productName: i['productName'],
         price: (i['price'] as num).toDouble(),
         quantity: i['quantity'],
@@ -52,6 +58,7 @@ class Sale extends HiveObject {
   Map<String, dynamic> toFirestore() {
     return {
       'id': id,
+      'memberId': memberId,
       'date': date.toUtc().toIso8601String(),
       'totalAmount': totalAmount,
       'paymentMethod': paymentMethod,
@@ -76,9 +83,12 @@ class SaleItem extends HiveObject {
   late double price;
   @HiveField(3)
   late int quantity;
+  @HiveField(4)
+  late String memberId;
 
   SaleItem({
     required this.productId,
+    required this.memberId,
     required this.productName,
     required this.price,
     required this.quantity,
