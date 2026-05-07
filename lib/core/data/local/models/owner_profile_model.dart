@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+part 'owner_profile_model.g.dart';
 
 @HiveType(typeId: 4)
 class OwnerProfile extends HiveObject {
@@ -81,6 +82,29 @@ class OwnerProfile extends HiveObject {
       endurance: (data['endurance'] as num?)?.toDouble() ?? 0.5,
       dexterity: (data['dexterity'] as num?)?.toDouble() ?? 0.5,
       selectedCharacterId: data['selectedCharacterId'] ?? 'warrior',
+      hmacSignature: data['hmacSignature'],
+    );
+  }
+
+  factory OwnerProfile.fromDrift(dynamic d) {
+    return OwnerProfile(
+      gymName: d.gymName,
+      ownerName: d.ownerName,
+      phone: d.phone,
+      address: d.address,
+      gstin: d.gstin,
+      bankName: d.bankName,
+      accountNumber: d.accountNumber,
+      ifsc: d.ifsc,
+      upiId: d.upiId,
+      logoPath: d.logoPath,
+      level: d.level,
+      exp: d.exp,
+      strength: d.strength,
+      endurance: d.endurance,
+      dexterity: d.dexterity,
+      selectedCharacterId: d.selectedCharacterId,
+      hmacSignature: d.hmacSignature,
     );
   }
 
@@ -101,6 +125,7 @@ class OwnerProfile extends HiveObject {
       'endurance': endurance,
       'dexterity': dexterity,
       'selectedCharacterId': selectedCharacterId,
+      'hmacSignature': hmacSignature,
     };
   }
 }

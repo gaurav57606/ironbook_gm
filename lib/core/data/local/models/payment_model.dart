@@ -1,4 +1,6 @@
 import 'package:hive/hive.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 @HiveType(typeId: 1)
 class Payment extends HiveObject {
@@ -118,7 +120,41 @@ class Payment extends HiveObject {
       'subtotal': subtotal,
       'gstAmount': gstAmount,
       'gstRate': gstRate,
+      'hmacSignature': hmacSignature,
     };
+  }
+
+  factory Payment.fromDrift(dynamic d) {
+    List<PlanComponentSnapshot> comps = [];
+    if (d.componentsJson != null) {
+      try {
+        final List<dynamic> decoded = jsonDecode(d.componentsJson);
+        comps = decoded.map((c) => PlanComponentSnapshot(
+          name: c['name'] ?? '',
+          price: (c['price'] as num?)?.toDouble() ?? 0.0,
+        )).toList();
+      } catch (e) {
+        debugPrint('Error decoding componentsJson: $e');
+      }
+    }
+
+    return Payment(
+      id: d.id,
+      memberId: d.memberId,
+      date: d.date,
+      amount: d.amount,
+      method: d.method,
+      reference: d.reference,
+      planId: d.planId,
+      planName: d.planName,
+      invoiceNumber: d.invoiceNumber,
+      durationMonths: d.durationMonths,
+      subtotal: d.subtotal,
+      gstAmount: d.gstAmount,
+      gstRate: d.gstRate,
+      components: comps,
+      hmacSignature: d.hmacSignature,
+    );
   }
 }
 

@@ -11,6 +11,7 @@ import '../models/app_settings_model.dart';
 import '../models/join_date_change_model.dart';
 import '../models/product_model.dart';
 import '../models/sale_model.dart';
+import '../../../../features/nutrition/data/models/water_log_model.dart';
 
 
 class NutritionPlanAdapter extends TypeAdapter<NutritionPlan> {

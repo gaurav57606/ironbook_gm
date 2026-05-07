@@ -68,7 +68,14 @@ void main() {
 
       // 2. Initialize Notifier with empty snapshots box
       final hmac = FakeHmacService();
-      final notifier = MemberNotifier(repo, clock, hmac);
+      final notifier = MemberNotifier(
+        repo,
+        MockMemberRepo(),
+        MockPlanRepo(),
+        MockPreferencesRepo(),
+        clock,
+        hmac,
+      );
       
       // Wait for init to complete
       await Future.delayed(Duration.zero);

@@ -5,23 +5,37 @@ import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'base_providers.dart';
 
 class PlanNotifier extends StateNotifier<List<Plan>> {
-  final Box<Plan> _box;
   final IEventRepository _eventRepo;
+  final IPlanRepository _planRepo;
   final SyncWorker _syncWorker;
   final HmacService _hmac;
-  final String _deviceId;
+  String _deviceId = 'device-plan-sync';
 
-  PlanNotifier(this._box, this._eventRepo, this._syncWorker, this._hmac, this._deviceId) : super([]) {
+  PlanNotifier(this._eventRepo, this._planRepo, this._syncWorker, this._hmac) : super([]) {
     _init();
   }
 
   Future<void> _init() async {
-    _loadPlans();
+    _deviceId = await _hmac.getInstallationId();
+
+    // 1. Listen for events
+    _eventRepo.watch().listen((event) async {
+      if (event.eventType == EventType.plansUpdated) {
+        await _planRepo.applyEvent(event);
+        state = await _planRepo.getAllPlans();
+      }
+    });
+
+    // 2. Load all plans from Drift
+    state = await _planRepo.getAllPlans();
+
+    // 3. Reconcile
     await _reconcilePlans();
   }
 
@@ -33,62 +47,19 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
 
     // Get the latest plan update
     final latestEvent = planEvents.reduce((a, b) => a.deviceTimestamp.isAfter(b.deviceTimestamp) ? a : b);
-    final planData = latestEvent.payload['plans'] as List?;
     
-    if (planData != null) {
-      await _box.clear();
-      for (final data in planData) {
-        final planMap = Map<String, dynamic>.from(data);
-        final plan = Plan(
-          id: planMap['id'],
-          name: planMap['name'],
-          durationMonths: planMap['durationMonths'] ?? 1,
-          active: planMap['active'] ?? true,
-          components: (planMap['components'] as List? ?? []).map<PlanComponent>((c) {
-            final cMap = Map<String, dynamic>.from(c);
-            return PlanComponent(
-              id: cMap['id'] ?? '',
-              name: cMap['name'] ?? '',
-              price: (cMap['price'] as num?)?.toDouble() ?? 0.0,
-            );
-          }).toList(),
-        );
-        await _box.put(plan.id, plan);
-      }
-      _loadPlans();
-    }
+    // We can just use applyEvent here
+    await _planRepo.applyEvent(latestEvent);
+    state = await _planRepo.getAllPlans();
   }
 
   @visibleForTesting
   set debugState(List<Plan> plans) => state = plans;
 
-  Future<void> _loadPlans() async {
-    final plans = _box.values.toList();
-    bool needsRepair = false;
-
-    final verified = <Plan>[];
-    for (final p in plans) {
-      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature ?? '');
-      if (!isValid) {
-        debugPrint('PlanNotifier: Signature mismatch for plan ${p.id}. Flagging for repair.');
-        needsRepair = true;
-        continue;
-      }
-      verified.add(p);
-    }
-
-    state = verified;
-
-    if (needsRepair) {
-      debugPrint('PlanNotifier: Triggering auto-repair from event log.');
-      await _reconcilePlans();
-    }
-  }
-
   Future<void> addPlan(Plan plan) async {
     final now = DateTime.now();
     
-    // Emit sync event FIRST (Enforce Outbox-First Rule)
+    // Emit sync event FIRST
     final event = DomainEvent(
       entityId: 'gym-plans',
       eventType: EventType.plansUpdated, 
@@ -103,14 +74,11 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
       }).toList()},
     );
 
-    // Anchor point: Drift Outbox write
     await _eventRepo.persist(event);
 
-    // Persist Cache Locally
-    final signature = await _hmac.signSnapshot(plan.id, plan.toFirestore());
-    final signed = plan..hmacSignature = signature;
-    await _box.add(signed);
-    state = [...state, signed];
+    // Persist Locally in Drift
+    await _planRepo.upsertPlan(plan);
+    state = await _planRepo.getAllPlans();
     
     await _syncWorker.performSync();
   }
@@ -118,7 +86,6 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   Future<void> updatePlan(Plan plan) async {
     final now = DateTime.now();
     
-    // Temporary state to build the payload
     final updatedList = state.map((p) => p.id == plan.id ? plan : p).toList();
 
     final event = DomainEvent(
@@ -135,30 +102,23 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
       }).toList()},
     );
 
-    // Anchor point: Drift Outbox write
     await _eventRepo.persist(event);
 
-    // Persist Cache Locally
-    final signature = await _hmac.signSnapshot(plan.id, plan.toFirestore());
-    final signed = plan..hmacSignature = signature;
-    await signed.save();
-    await _loadPlans();
+    // Persist Locally in Drift
+    await _planRepo.upsertPlan(plan);
+    state = await _planRepo.getAllPlans();
     
     await _syncWorker.performSync();
   }
 }
 
-final planBoxProvider = Provider<Box<Plan>>((ref) => Hive.box<Plan>('plans'));
-
 final planProvider = StateNotifierProvider<PlanNotifier, List<Plan>>((ref) {
-  final box = ref.watch(planBoxProvider);
   final eventRepo = ref.watch(eventRepositoryProvider);
+  final planRepo = ref.watch(planRepositoryProvider);
   final syncWorker = ref.watch(syncWorkerProvider);
   final hmac = ref.watch(hmacServiceProvider);
   
-  const deviceId = 'device-plan-sync'; 
-
-  return PlanNotifier(box, eventRepo, syncWorker, hmac, deviceId);
+  return PlanNotifier(eventRepo, planRepo, syncWorker, hmac);
 });
 
 

@@ -18,21 +18,31 @@ class FirestoreBackupService {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final batch = _firestore.batch();
-    final latestRef = _firestore
+    final snapshotsRef = _firestore
         .collection('users')
         .doc(user.uid)
-        .collection('snapshots')
-        .doc('latest');
+        .collection('snapshots');
 
-    final data = {
-      'timestamp': FieldValue.serverTimestamp(),
-      'memberCount': snapshots.length,
-      'data': snapshots.map((s) => s.toFirestore()).toList(),
-    };
+    int count = 0;
+    WriteBatch batch = _firestore.batch();
+    
+    for (final snapshot in snapshots) {
+      final data = snapshot.toFirestore();
+      data['timestamp'] = FieldValue.serverTimestamp();
+      batch.set(snapshotsRef.doc(snapshot.id), data);
+      count++;
 
-    batch.set(latestRef, data);
-    await batch.commit();
+      // Firestore limits batches to 500 operations
+      if (count == 500) {
+        await batch.commit();
+        batch = _firestore.batch();
+        count = 0;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+    }
   }
 }
 

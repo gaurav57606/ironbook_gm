@@ -8,11 +8,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 
+import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
+
 enum AuthResult { success, failure, canceled, lockedOut }
 
 class PinService {
-  final FirebaseAuth? _auth;
   final FlutterSecureStorage _storage;
+  final OutboxRepository _outboxRepo;
+  
   static const _pinHashKey = 'pin_hash';
   static const _pinSaltKey = 'pin_salt';
   static const _editPwHashKey = 'edit_pw_hash';
@@ -22,23 +25,22 @@ class PinService {
   
   final _localAuth = LocalAuthentication();
 
-  PinService(this._storage, this._auth);
+  PinService(this._storage, this._outboxRepo);
 
   Future<void> savePin(String pin) async {
     final salt = base64Encode(List.generate(16, (_) => Random.secure().nextInt(256)));
-    final hash = _hashWithSalt(pin, salt, iterations: 100000);
+    final hash = await compute(_performHash, PinHashParams(pin, salt, 100000));
     // Prefix with v2| to indicate hardened hashing
     await _storage.write(key: _pinHashKey, value: 'v2|$hash');
     await _storage.write(key: _pinSaltKey, value: salt);
-    await _storage.delete(key: _failCountKey);
-    await _storage.delete(key: _lockoutUntilKey);
+    await _outboxRepo.resetPinAttempts();
   }
 
-  String _hashWithSalt(String input, String salt, {int iterations = 100000}) {
-    var hash = sha256.convert(utf8.encode(input + salt)).toString();
+  static String _performHash(PinHashParams params) {
+    var hash = sha256.convert(utf8.encode(params.input + params.salt)).toString();
     // Hardened work factor: 100,000 rounds of SHA-256
-    for (int i = 0; i < iterations - 1; i++) {
-      hash = sha256.convert(utf8.encode(hash + salt)).toString();
+    for (int i = 0; i < params.iterations - 1; i++) {
+      hash = sha256.convert(utf8.encode(hash + params.salt)).toString();
     }
     return hash;
   }
@@ -46,11 +48,10 @@ class PinService {
   Future<void> setPin(String pin) async => savePin(pin);
 
   Future<bool> verifyPin(String input) async {
-    // 1. Check Lockout
-    final lockoutUntilRaw = await _storage.read(key: _lockoutUntilKey);
-    if (lockoutUntilRaw != null) {
-      final lockoutUntil = DateTime.tryParse(lockoutUntilRaw);
-      if (lockoutUntil != null && lockoutUntil.isAfter(DateTime.now())) {
+    // 1. Check Lockout (Now in Drift)
+    final attempts = await _outboxRepo.getPinAttempts();
+    if (attempts != null && attempts.lockoutUntil != null) {
+      if (attempts.lockoutUntil!.isAfter(DateTime.now())) {
         return false; // Still locked out
       }
     }
@@ -68,11 +69,11 @@ class PinService {
     bool isCorrect = false;
     if (stored.startsWith('v2|')) {
       final actualHash = stored.substring(3);
-      final inputHash = _hashWithSalt(input, salt, iterations: 100000);
+      final inputHash = await compute(_performHash, PinHashParams(input, salt, 100000));
       isCorrect = inputHash == actualHash;
     } else {
       // Legacy v1 hash: 1000 iterations
-      final inputHash = _hashWithSalt(input, salt, iterations: 1000);
+      final inputHash = await compute(_performHash, PinHashParams(input, salt, 1000));
       isCorrect = inputHash == stored;
 
       // Auto-migrate to v2 if successful
@@ -83,46 +84,39 @@ class PinService {
 
     if (isCorrect) {
       // Success: Reset fails
-      await _storage.delete(key: _failCountKey);
-      await _storage.delete(key: _lockoutUntilKey);
+      await _outboxRepo.resetPinAttempts();
       return true;
     } else {
       // Failure: Increment fails
-      final countRaw = await _storage.read(key: _failCountKey);
-      final count = (int.tryParse(countRaw ?? '0') ?? 0) + 1;
-      await _storage.write(key: _failCountKey, value: count.toString());
-
-      if (count >= 10) {
-        // We no longer nuke the PIN or data (User request: "no self-destruct")
-        // Just enforce the long-term lockout if needed, or stick to 30s
-        final lockoutTime = DateTime.now().add(const Duration(minutes: 5));
-        await _storage.write(key: _lockoutUntilKey, value: lockoutTime.toIso8601String());
-        return false; 
+      final currentCount = attempts?.count ?? 0;
+      final newCount = currentCount + 1;
+      
+      DateTime? lockoutUntil;
+      if (newCount >= 10) {
+        lockoutUntil = DateTime.now().add(const Duration(minutes: 5));
+      } else if (newCount >= 5) {
+        lockoutUntil = DateTime.now().add(const Duration(seconds: 30));
       }
-
-      if (count >= 5) {
-        // Lockout for 30 seconds
-        final lockoutTime = DateTime.now().add(const Duration(seconds: 30));
-        await _storage.write(key: _lockoutUntilKey, value: lockoutTime.toIso8601String());
-      }
+      
+      await _outboxRepo.updatePinAttempts(count: newCount, lockoutUntil: lockoutUntil);
       return false;
     }
   }
 
   Future<int> getFailCount() async {
-    final count = await _storage.read(key: _failCountKey);
-    return int.tryParse(count ?? '0') ?? 0;
+    final attempts = await _outboxRepo.getPinAttempts();
+    return attempts?.count ?? 0;
   }
 
   Future<DateTime?> getLockoutUntil() async {
-    final raw = await _storage.read(key: _lockoutUntilKey);
-    return raw != null ? DateTime.tryParse(raw) : null;
+    final attempts = await _outboxRepo.getPinAttempts();
+    return attempts?.lockoutUntil;
   }
 
   Future<void> saveEditPassword(String password) async {
     assert(password.length >= 4, 'Edit password must be at least 4 characters');
     final salt = base64Encode(List.generate(16, (_) => Random.secure().nextInt(256)));
-    final hash = _hashWithSalt(password, salt, iterations: 100000);
+    final hash = await compute(_performHash, PinHashParams(password, salt, 100000));
     await _storage.write(key: _editPwHashKey, value: 'v2|$hash');
     await _storage.write(key: _editPwSaltKey, value: salt);
   }
@@ -134,9 +128,11 @@ class PinService {
 
     if (stored.startsWith('v2|')) {
       final actualHash = stored.substring(3);
-      return _hashWithSalt(input, salt, iterations: 100000) == actualHash;
+      final inputHash = await compute(_performHash, PinHashParams(input, salt, 100000));
+      return inputHash == actualHash;
     } else {
-      final isCorrect = _hashWithSalt(input, salt, iterations: 1000) == stored;
+      final inputHash = await compute(_performHash, PinHashParams(input, salt, 1000));
+      final isCorrect = inputHash == stored;
       if (isCorrect) {
         await saveEditPassword(input);
       }
@@ -185,10 +181,18 @@ class PinService {
   }
 }
 
+class PinHashParams {
+  final String input;
+  final String salt;
+  final int iterations;
+
+  PinHashParams(this.input, this.salt, this.iterations);
+}
+
 final pinServiceProvider = Provider<PinService>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
-  final auth = ref.watch(firebaseAuthProvider);
-  return PinService(storage, auth);
+  final outboxRepo = ref.watch(outboxRepositoryProvider);
+  return PinService(storage, outboxRepo);
 });
 
 
