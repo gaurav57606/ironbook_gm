@@ -90,6 +90,8 @@ class TestHelper {
     if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(PaymentAdapter());
     if (!Hive.isAdapterRegistered(12)) Hive.registerAdapter(InvoiceSequenceAdapter());
     if (!Hive.isAdapterRegistered(13)) Hive.registerAdapter(PlanComponentSnapshotAdapter());
+    if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(PlanAdapter());
+    if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(PlanComponentAdapter());
     
     await Hive.openBox<AppSettings>('settings');
     await Hive.openBox('meta');
@@ -135,6 +137,8 @@ class TestHelper {
       // Already registered
     }
     
+    final mockPayments = MockPaymentNotifier();
+    
     // Default mocks
     when(() => mockAuth.currentUser).thenReturn(null);
     when(() => mockAuth.authStateChanges()).thenAnswer((_) => const Stream.empty());
@@ -142,6 +146,7 @@ class TestHelper {
     when(() => mockAuth.userChanges()).thenAnswer((_) => const Stream.empty());
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
     when(() => mockPin.authenticate(pinFallback: any(named: 'pinFallback'))).thenAnswer((_) async => AuthResult.success);
+    when(() => mockPayments.state).thenReturn([]);
     when(() => mockSync.startPeriodicSync(any())).thenReturn(null);
     when(() => mockStorage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
     when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value'))).thenAnswer((_) async {});
@@ -314,3 +319,8 @@ class FakeClock extends IClock {
     _now = dateTime;
   }
 }
+
+class MockPaymentNotifier extends Mock implements PaymentNotifier {}
+class MockSyncWorker extends Mock implements SyncWorker {}
+class MockConfigService extends Mock implements ConfigService {}
+

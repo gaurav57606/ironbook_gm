@@ -12,14 +12,12 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 abstract class IEventRepository {
   Future<void> persist(DomainEvent event);
   Future<List<DomainEvent>> getAllUnsynced();
-  Future<List<DomainEvent>> getAll(); // Audit 1.5: Support full reconciliation
+  Future<List<DomainEvent>> getAll(); 
   Future<DomainEvent?> getById(String id);
   Future<List<DomainEvent>> getByEntityId(String entityId);
   Future<List<DomainEvent>> getEventsSince(DateTime since);
   Future<void> markAsSynced(String eventId);
-  Future<void> persistSynced(
-    DomainEvent event,
-  ); // Recovery: Persist without Outbox
+  Future<void> persistSynced(DomainEvent event); 
   Stream<DomainEvent> watch();
 }
 
@@ -67,7 +65,6 @@ class DriftEventRepository implements IEventRepository {
     final docs = await _db.select(_db.outboxEvents).get();
     final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
     
-    // HMAC Verification
     final List<DomainEvent> validEvents = [];
     for (final e in events) {
       if (await _hmacService.verifyInstance(e)) {
@@ -82,8 +79,7 @@ class DriftEventRepository implements IEventRepository {
   @override
   Future<List<DomainEvent>> getAllUnsynced() async {
     final docs = await (_db.select(_db.outboxEvents)..where((t) => t.isSynced.equals(0))).get();
-    final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
-    return events;
+    return docs.map((d) => DomainEvent.fromOutbox(d)).toList();
   }
 
   @override
@@ -101,41 +97,21 @@ class DriftEventRepository implements IEventRepository {
   @override
   Future<List<DomainEvent>> getByEntityId(String entityId) async {
     final docs = await (_db.select(_db.outboxEvents)..where((t) => t.entityId.equals(entityId))).get();
-    final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
-    return events;
+    return docs.map((d) => DomainEvent.fromOutbox(d)).toList();
   }
 
   @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async {
-    // ⚡ Bolt Performance Optimization:
-    // Batch retrieve events and parallelize date checking and validation.
-    final keys = _box.keys.toList();
-    final List<DomainEvent?> allEvents = [];
-
-    for (int i = 0; i < keys.length; i += 50) {
-      final chunk = keys.skip(i).take(50);
-      final chunkEvents = await Future.wait(chunk.map((key) => _box.get(key)));
-      allEvents.addAll(chunkEvents);
-    }
-
-    final nonNullEvents = allEvents.whereType<DomainEvent>().toList();
-    final List<DomainEvent> filteredByDate = nonNullEvents
-        .where((e) => e.deviceTimestamp.isAfter(since))
-        .toList();
-
-    final verificationResults = await Future.wait(
-      filteredByDate.map((e) => _hmacService.verifyInstance(e)),
-    );
-
-    final List<DomainEvent> results = [];
-    for (int i = 0; i < filteredByDate.length; i++) {
-      if (verificationResults[i]) {
-        results.add(filteredByDate[i]);
+    final docs = await (_db.select(_db.outboxEvents)..where((t) => t.deviceTimestamp.isBiggerThanValue(since.millisecondsSinceEpoch))).get();
+    final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
+    
+    final List<DomainEvent> validEvents = [];
+    for (final e in events) {
+      if (await _hmacService.verifyInstance(e)) {
+        validEvents.add(e);
       }
     }
-    return results;
-    final docs = await (_db.select(_db.outboxEvents)..where((t) => t.deviceTimestamp.isBiggerThanValue(since.millisecondsSinceEpoch))).get();
-    return docs.map((d) => DomainEvent.fromOutbox(d)).toList();
+    return validEvents;
   }
 
   @override
