@@ -123,6 +123,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     
     for (int i = 0; i < keys.length; i += batchSize) {
       final batch = keys.skip(i).take(batchSize).toList();
+      final Map<String, MemberSnapshot> repairedInBatch = {};
 
       final results = await Future.wait(batch.map((key) async {
         final snap = await box.get(key);
@@ -142,12 +143,17 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
           if (repaired != null) {
             final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
             final signed = repaired.copyWith(hmacSignature: signature);
-            await box.put(snap.memberId, signed);
+            repairedInBatch[snap.memberId] = signed;
             return signed;
           }
         }
         return null;
       }));
+
+      if (repairedInBatch.isNotEmpty) {
+        // ⚡ Bolt: Batch write repaired snapshots
+        await box.putAll(repairedInBatch);
+      }
 
       for (final res in results) {
         if (res != null) {
@@ -182,23 +188,36 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     }
 
     bool updatedAny = false;
-    for (final entityId in eventsByEntity.keys) {
-      final snap = await box.get(entityId);
-      final latestEventTime = eventsByEntity[entityId]!
-          .map((e) => e.deviceTimestamp)
-          .reduce((a, b) => a.isAfter(b) ? a : b);
+    final keys = eventsByEntity.keys.toList();
+    const batchSize = 50;
 
-      if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-        debugPrint('MemberNotifier: Lagging snapshot for $entityId. Rebuilding from checkpoint events...');
-        // Rebuild from ALL entity events for correctness (only triggered when needed)
-        final fullHistory = await _repo.getByEntityId(entityId);
-        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
-        if (rebuilt != null) {
-          final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
-          final signed = rebuilt.copyWith(hmacSignature: signature);
-          await box.put(entityId, signed);
-          updatedAny = true;
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final batch = keys.skip(i).take(batchSize).toList();
+      final Map<String, MemberSnapshot> updates = {};
+
+      await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
+        final latestEventTime = eventsByEntity[entityId]!
+            .map((e) => e.deviceTimestamp)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+
+        if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+          debugPrint('MemberNotifier: Lagging snapshot for ${entityId}. Rebuilding from checkpoint events...');
+          // Rebuild from ALL entity events for correctness (only triggered when needed)
+          final fullHistory = await _repo.getByEntityId(entityId);
+          final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+          if (rebuilt != null) {
+            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
+            final signed = rebuilt.copyWith(hmacSignature: signature);
+            updates[entityId] = signed;
+          }
         }
+      }));
+
+      if (updates.isNotEmpty) {
+        // ⚡ Bolt: Batch write updated snapshots
+        await box.putAll(updates);
+        updatedAny = true;
       }
     }
 
