@@ -26,7 +26,8 @@ class SeedData {
 
   static Future<void> seedIfEmpty(ProviderContainer container) async {
     if (!kDebugMode) {
-      debugPrint('SeedData: Production environment detected. Skipping seeding.');
+      debugPrint(
+          'SeedData: Production environment detected. Skipping seeding.');
       return;
     }
 
@@ -69,7 +70,8 @@ class SeedData {
     await settingsRepo.updateSettings(AppSettings());
 
     // Plans
-    final gymAccess = PlanComponent(id: _uuid.v4(), name: 'Gym Access', price: 800);
+    final gymAccess =
+        PlanComponent(id: _uuid.v4(), name: 'Gym Access', price: 800);
     final locker = PlanComponent(id: _uuid.v4(), name: 'Locker', price: 150);
     final steam = PlanComponent(id: _uuid.v4(), name: 'Steam Room', price: 150);
 
@@ -106,24 +108,51 @@ class SeedData {
     );
 
     final plans = [monthly, quarterly, halfYearly, annual];
-    for (final p in plans) {
-      final signature = await hmac.signSnapshot(p.id, p.toFirestore());
-      p.hmacSignature = signature;
-      await planRepo.upsertPlan(p);
-    }
+    await Future.wait(plans.map((p) async {
+      p.hmacSignature = await hmac.signSnapshot(p.id, p.toFirestore());
+    }));
+    await planRepo.upsertPlans(plans);
 
     // Products
     final products = [
-      Product(id: 'p1', name: 'Whey Protein', price: 120, category: 'Supplements', iconCodePoint: 0xe293),
-      Product(id: 'p2', name: 'BCAA Powder', price: 80, category: 'Supplements', iconCodePoint: 0xe2e3),
-      Product(id: 'p3', name: 'Pre-Workout', price: 95, category: 'Supplements', iconCodePoint: 0xe113),
-      Product(id: 'p4', name: 'Creatine', price: 70, category: 'Supplements', iconCodePoint: 0xe54d),
-      Product(id: 'p5', name: 'IronBook Tee', price: 45, category: 'Merch', iconCodePoint: 0xe170),
-      Product(id: 'p6', name: 'Steel Shaker', price: 25, category: 'Merch', iconCodePoint: 0xe3ab),
+      Product(
+          id: 'p1',
+          name: 'Whey Protein',
+          price: 120,
+          category: 'Supplements',
+          iconCodePoint: 0xe293),
+      Product(
+          id: 'p2',
+          name: 'BCAA Powder',
+          price: 80,
+          category: 'Supplements',
+          iconCodePoint: 0xe2e3),
+      Product(
+          id: 'p3',
+          name: 'Pre-Workout',
+          price: 95,
+          category: 'Supplements',
+          iconCodePoint: 0xe113),
+      Product(
+          id: 'p4',
+          name: 'Creatine',
+          price: 70,
+          category: 'Supplements',
+          iconCodePoint: 0xe54d),
+      Product(
+          id: 'p5',
+          name: 'IronBook Tee',
+          price: 45,
+          category: 'Merch',
+          iconCodePoint: 0xe170),
+      Product(
+          id: 'p6',
+          name: 'Steel Shaker',
+          price: 25,
+          category: 'Merch',
+          iconCodePoint: 0xe3ab),
     ];
-    for (final p in products) {
-      await productRepo.upsertProduct(p);
-    }
+    await productRepo.upsertProducts(products);
 
     // Seed initial event to Drift Outbox
     final seedEvent = DomainEvent(
@@ -140,31 +169,61 @@ class SeedData {
     final now = DateTime.now();
     final members = [
       _makeMember('Karan Sharma', '9876543210', monthly.id, monthly.name,
-        now.subtract(const Duration(days: 60)), now),
-      _makeMember('Pooja Singh', '9876543211', quarterly.id, quarterly.name,
-        now.subtract(const Duration(days: 95)), now.subtract(const Duration(days: 3))),
-      _makeMember('Nitin Verma', '9876543212', monthly.id, monthly.name,
-        now.subtract(const Duration(days: 38)), now.subtract(const Duration(days: 7))),
-      _makeMember('Priya Agarwal', '9876543213', monthly.id, monthly.name,
-        now.subtract(const Duration(days: 27)), now.add(const Duration(days: 3))),
-      _makeMember('Arjun Kapoor', '9876543214', halfYearly.id, halfYearly.name,
-        now.subtract(const Duration(days: 175)), now.add(const Duration(days: 5))),
-      _makeMember('Rohit Mehta', '9876543215', annual.id, annual.name,
-        now.subtract(const Duration(days: 147)), now.add(const Duration(days: 218))),
-      _makeMember('Sneha Nair', '9876543216', monthly.id, monthly.name,
-        now.subtract(const Duration(days: 18)), now.add(const Duration(days: 12))),
+          now.subtract(const Duration(days: 60)), now),
+      _makeMember(
+          'Pooja Singh',
+          '9876543211',
+          quarterly.id,
+          quarterly.name,
+          now.subtract(const Duration(days: 95)),
+          now.subtract(const Duration(days: 3))),
+      _makeMember(
+          'Nitin Verma',
+          '9876543212',
+          monthly.id,
+          monthly.name,
+          now.subtract(const Duration(days: 38)),
+          now.subtract(const Duration(days: 7))),
+      _makeMember(
+          'Priya Agarwal',
+          '9876543213',
+          monthly.id,
+          monthly.name,
+          now.subtract(const Duration(days: 27)),
+          now.add(const Duration(days: 3))),
+      _makeMember(
+          'Arjun Kapoor',
+          '9876543214',
+          halfYearly.id,
+          halfYearly.name,
+          now.subtract(const Duration(days: 175)),
+          now.add(const Duration(days: 5))),
+      _makeMember(
+          'Rohit Mehta',
+          '9876543215',
+          annual.id,
+          annual.name,
+          now.subtract(const Duration(days: 147)),
+          now.add(const Duration(days: 218))),
+      _makeMember(
+          'Sneha Nair',
+          '9876543216',
+          monthly.id,
+          monthly.name,
+          now.subtract(const Duration(days: 18)),
+          now.add(const Duration(days: 12))),
     ];
 
-    for (final m in members) {
+    final signedMembers = await Future.wait(members.map((m) async {
       final signature = await hmac.signSnapshot(m.memberId, m.toFirestore());
-      final signed = m.copyWith(hmacSignature: signature);
-      await memberRepo.upsertMember(signed);
-    }
+      return m.copyWith(hmacSignature: signature);
+    }));
+    await memberRepo.upsertMembers(signedMembers);
     debugPrint('SeedData: Seeding complete.');
   }
 
-  static MemberSnapshot _makeMember(String name, String phone, String planId, String planName,
-    DateTime joinDate, DateTime expiryDate) {
+  static MemberSnapshot _makeMember(String name, String phone, String planId,
+      String planName, DateTime joinDate, DateTime expiryDate) {
     return MemberSnapshot(
       memberId: _uuid.v4(),
       name: name,

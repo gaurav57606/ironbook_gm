@@ -6,10 +6,10 @@ import '../local/models/plan_model.dart' as domain;
 import '../../providers/base_providers.dart';
 
 import '../local/models/domain_event_model.dart';
-import '../../constants/event_payload_keys.dart';
 import '../local/models/plan_component_model.dart';
 
 abstract class IPlanRepository {
+  Future<void> upsertPlans(List<domain.Plan> plans);
   Future<void> upsertPlan(domain.Plan plan);
   Future<domain.Plan?> getPlan(String id);
   Future<List<domain.Plan>> getAllPlans();
@@ -17,6 +17,31 @@ abstract class IPlanRepository {
 }
 
 class DriftPlanRepository implements IPlanRepository {
+  @override
+  Future<void> upsertPlans(List<domain.Plan> plans) async {
+    await _db.batch((batch) {
+      for (final plan in plans) {
+        batch.insertAllOnConflictUpdate(_db.plans, [
+          db.PlansCompanion.insert(
+            id: plan.id,
+            name: plan.name,
+            durationMonths: plan.durationMonths,
+            price: plan.totalPrice,
+            active: Value(plan.active),
+            componentsJson: Value(jsonEncode(plan.components
+                .map((c) => {
+                      'id': c.id,
+                      'name': c.name,
+                      'price': c.price,
+                    })
+                .toList())),
+            hmacSignature: Value(plan.hmacSignature ?? ''),
+          )
+        ]);
+      }
+    });
+  }
+
   final db.OutboxDatabase _db;
 
   DriftPlanRepository(this._db);
@@ -24,20 +49,22 @@ class DriftPlanRepository implements IPlanRepository {
   @override
   Future<void> upsertPlan(domain.Plan plan) async {
     await _db.into(_db.plans).insertOnConflictUpdate(
-      db.PlansCompanion.insert(
-        id: plan.id,
-        name: plan.name,
-        durationMonths: plan.durationMonths,
-        price: plan.totalPrice,
-        active: Value(plan.active),
-        componentsJson: Value(jsonEncode(plan.components.map((c) => {
-          'id': c.id,
-          'name': c.name,
-          'price': c.price,
-        }).toList())),
-        hmacSignature: Value(plan.hmacSignature ?? ''),
-      ),
-    );
+          db.PlansCompanion.insert(
+            id: plan.id,
+            name: plan.name,
+            durationMonths: plan.durationMonths,
+            price: plan.totalPrice,
+            active: Value(plan.active),
+            componentsJson: Value(jsonEncode(plan.components
+                .map((c) => {
+                      'id': c.id,
+                      'name': c.name,
+                      'price': c.price,
+                    })
+                .toList())),
+            hmacSignature: Value(plan.hmacSignature ?? ''),
+          ),
+        );
   }
 
   @override
@@ -66,7 +93,8 @@ class DriftPlanRepository implements IPlanRepository {
             name: planMap['name'],
             durationMonths: planMap['durationMonths'] ?? 1,
             active: planMap['active'] ?? true,
-            components: (planMap['components'] as List? ?? []).map<PlanComponent>((c) {
+            components:
+                (planMap['components'] as List? ?? []).map<PlanComponent>((c) {
               final cMap = Map<String, dynamic>.from(c);
               return PlanComponent(
                 id: cMap['id'] ?? '',
