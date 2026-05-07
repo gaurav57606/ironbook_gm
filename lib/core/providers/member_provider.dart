@@ -231,6 +231,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     for (int i = 0; i < entityIds.length; i += batchSize) {
       final batch = entityIds.skip(i).take(batchSize).toList();
+
+      final results = await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
       final Map<String, MemberSnapshot> updates = {};
 
       final results = await Future.wait(batch.map((entityId) async {
@@ -289,6 +292,15 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
           if (rebuilt != null) {
             final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
             final signed = rebuilt.copyWith(hmacSignature: signature);
+            await box.put(entityId, signed);
+            return true;
+          }
+        }
+        return false;
+      }));
+
+      if (results.contains(true)) {
+        updatedAny = true;
             updates[entityId] = signed;
           }
     for (final entityId in eventsByEntity.keys) {
