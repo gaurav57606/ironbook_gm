@@ -4,40 +4,48 @@ import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' as manual;
 import 'dart:io';
 
 class MockEventRepository extends Mock implements IEventRepository {}
+class MockMemberRepository extends Mock implements IMemberRepository {}
+class MockPlanRepository extends Mock implements IPlanRepository {}
+class MockPreferencesRepository extends Mock implements IPreferencesRepository {}
 class MockClock extends Mock implements IClock {}
 class MockHmacService extends Mock implements HmacService {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
+class FakeMemberSnapshot extends Fake implements MemberSnapshot {}
 
 void main() {
-  late MockEventRepository mockRepo;
+  late MockEventRepository mockEventRepo;
+  late MockMemberRepository mockMemberRepo;
+  late MockPlanRepository mockPlanRepo;
+  late MockPreferencesRepository mockPrefRepo;
   late MockClock mockClock;
   late MockHmacService mockHmac;
-  late Box<DomainEvent> eventBox;
-  late LazyBox<MemberSnapshot> snapshotBox;
 
   setUpAll(() async {
     registerFallbackValue(FakeDomainEvent());
+    registerFallbackValue(FakeMemberSnapshot());
     final tempDir = Directory.systemTemp.createTempSync();
     Hive.init(tempDir.path);
-    if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(DomainEventAdapter());
-    if (!Hive.isAdapterRegistered(11)) Hive.registerAdapter(MemberSnapshotAdapter());
+    if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(manual.DomainEventAdapter());
+    // Use fully qualified name for MemberSnapshotAdapter to avoid ambiguity if it's also in .g.dart
+    // Actually manual_adapters.dart doesn't have MemberSnapshotAdapter based on previous grep
+    // So it must be coming from the .g.dart which is part of the model file.
   });
 
   setUp(() async {
-    eventBox = await Hive.openBox<DomainEvent>('events');
-    snapshotBox = await Hive.openLazyBox<MemberSnapshot>('snapshots');
-    await Hive.openBox('meta'); // Ensure meta box is open for reconciliation
-    await eventBox.clear();
-    await snapshotBox.clear();
-
-    mockRepo = MockEventRepository();
+    mockEventRepo = MockEventRepository();
+    mockMemberRepo = MockMemberRepository();
+    mockPlanRepo = MockPlanRepository();
+    mockPrefRepo = MockPreferencesRepository();
     mockClock = MockClock();
     mockHmac = MockHmacService();
 
@@ -45,16 +53,17 @@ void main() {
     when(() => mockHmac.signSnapshot(any(), any())).thenAnswer((_) async => 'mock-sig');
     when(() => mockHmac.verifySnapshot(any(), any(), any())).thenAnswer((_) async => true);
     when(() => mockClock.now).thenReturn(DateTime(2026, 1, 1));
-    when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
-    when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => []);
-  });
-
-  tearDown(() async {
-    await Hive.close();
+    when(() => mockEventRepo.watch()).thenAnswer((_) => const Stream.empty());
+    when(() => mockEventRepo.getEventsSince(any())).thenAnswer((_) async => []);
+    when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => []);
+    when(() => mockMemberRepo.getMembers(any())).thenAnswer((_) async => []);
+    when(() => mockEventRepo.getEventsForEntities(any())).thenAnswer((_) async => []);
+    when(() => mockPrefRepo.getInt(any())).thenAnswer((_) async => 0);
+    when(() => mockPrefRepo.setInt(any(), any())).thenAnswer((_) async => {});
   });
 
   group('MemberNotifier Integrity Tests', () {
-    test('Recovery: Rebuilds snapshot from events if snapshot box is empty', () async {
+    test('Recovery: Rebuilds snapshots in batch from events', () async {
       final now = DateTime(2026, 1, 1);
       final event = DomainEvent(
         entityId: 'M1',
@@ -69,11 +78,24 @@ void main() {
       );
 
       // Simulate existing events in repo
-      when(() => mockRepo.getAll()).thenAnswer((_) async => [event]);
-      when(() => mockRepo.getByEntityId('M1')).thenAnswer((_) async => [event]);
-      when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => [event]);
+      when(() => mockEventRepo.getEventsSince(any())).thenAnswer((_) async => [event]);
+      when(() => mockMemberRepo.getMembers(any())).thenAnswer((_) async => []);
+      when(() => mockEventRepo.getEventsForEntities(['M1'])).thenAnswer((_) async => [event]);
+      when(() => mockMemberRepo.upsertMembers(any())).thenAnswer((_) async => {});
 
-      final notifier = MemberNotifier(mockRepo, mockClock, mockHmac);
+      // getAllMembers called at end of reconcile
+      when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => [
+        MemberSnapshot.fromPayload('M1', event.payload)
+      ]);
+
+      final notifier = MemberNotifier(
+        mockEventRepo,
+        mockMemberRepo,
+        mockPlanRepo,
+        mockPrefRepo,
+        mockClock,
+        mockHmac
+      );
       
       // Wait for init/reconcile
       await Future.delayed(const Duration(milliseconds: 100));
@@ -82,28 +104,8 @@ void main() {
       expect(notifier.state.length, 1);
       expect(notifier.state.first.name, 'Ravi Kumar');
 
-      // Verify snapshot box was written
-      final stored = await snapshotBox.get('M1');
-      expect(stored, isNotNull);
-      expect(stored!.name, 'Ravi Kumar');
-    });
-
-    test('Atomic Write: Notifier updates snapshot box immediately', () async {
-       when(() => mockRepo.getAll()).thenAnswer((_) async => []);
-       when(() => mockRepo.persist(any())).thenAnswer((_) async {});
-       
-       final notifier = MemberNotifier(mockRepo, mockClock, mockHmac);
-       await Future.delayed(const Duration(milliseconds: 50));
-       
-       // Note: addMember requires 'plans' box
-       await Hive.openBox('plans');
-
-       // Since we didn't mock everything for addMember (like plan retrieval), 
-       // let's verify that even if we call its components, they work.
-       // (Detailed test setup for addMember is omitted for brevity, 
-       // but the Recovery test above already verifies the reconciliation path).
+      // Verify upsertMembers was called
+      verify(() => mockMemberRepo.upsertMembers(any())).called(1);
     });
   });
 }
-
-

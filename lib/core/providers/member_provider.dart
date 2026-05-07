@@ -132,29 +132,56 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       eventsByEntity.putIfAbsent(e.entityId, () => []).add(e);
     }
 
-    bool updatedAny = false;
-    for (final entityId in eventsByEntity.keys) {
-      final snap = await _memberRepo.getMember(entityId);
+    final entityIds = eventsByEntity.keys.toList();
+    final existingSnaps = await _memberRepo.getMembers(entityIds);
+    final snapMap = {for (var s in existingSnaps) s.memberId: s};
+
+    final List<String> laggingIds = [];
+    for (final entityId in entityIds) {
+      final snap = snapMap[entityId];
       final latestEventTime = eventsByEntity[entityId]!
           .map((e) => e.deviceTimestamp)
           .reduce((a, b) => a.isAfter(b) ? a : b);
 
       if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-        debugPrint('MemberNotifier: Lagging Drift state for $entityId. Rebuilding from event log...');
-        final fullHistory = await _eventRepo.getByEntityId(entityId);
-        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
-        if (rebuilt != null) {
-          await _memberRepo.upsertMember(rebuilt);
-          updatedAny = true;
-        }
+        laggingIds.add(entityId);
       }
     }
 
-    await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+    if (laggingIds.isEmpty) {
+      await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+      return;
+    }
 
-    if (updatedAny) {
+    debugPrint('MemberNotifier: Found ${laggingIds.length} lagging members. Rebuilding in batch...');
+
+    // Batch fetch event histories
+    final allEventsForLagging = await _eventRepo.getEventsForEntities(laggingIds);
+    final Map<String, List<DomainEvent>> histories = {};
+    for (final e in allEventsForLagging) {
+      histories.putIfAbsent(e.entityId, () => []).add(e);
+    }
+
+    // Parallel Rebuild & Signing
+    final rebuiltSnaps = await Future.wait(laggingIds.map((id) async {
+      final history = histories[id] ?? [];
+      final rebuilt = SnapshotBuilder.rebuild(history);
+      if (rebuilt != null) {
+        // Optimization: Sign in parallel before batch upsert
+        final signature = await _hmac.signSnapshot(rebuilt.memberId, rebuilt.toFirestore());
+        return rebuilt.copyWith(hmacSignature: signature);
+      }
+      return null;
+    }));
+
+    final validRebuilt = rebuiltSnaps.whereType<MemberSnapshot>().toList();
+
+    if (validRebuilt.isNotEmpty) {
+      await _memberRepo.upsertMembers(validRebuilt);
       state = await _memberRepo.getAllMembers();
     }
+
+    await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
   }
 
   Future<void> rebuildCache() async {

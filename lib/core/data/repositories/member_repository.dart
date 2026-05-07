@@ -10,8 +10,10 @@ import '../../providers/base_providers.dart';
 
 abstract class IMemberRepository {
   Future<void> upsertMember(MemberSnapshot member);
+  Future<void> upsertMembers(List<MemberSnapshot> members);
   Future<void> deleteMember(String id);
   Future<MemberSnapshot?> getMember(String id);
+  Future<List<MemberSnapshot>> getMembers(List<String> ids);
   Future<List<MemberSnapshot>> getAllMembers();
   Stream<List<MemberSnapshot>> watchAllMembers();
   Future<void> applyEvent(DomainEvent event);
@@ -53,6 +55,39 @@ class DriftMemberRepository implements IMemberRepository {
   }
 
   @override
+  Future<void> upsertMembers(List<MemberSnapshot> members) async {
+    await _db.batch((batch) async {
+      for (final member in members) {
+        String signature = member.hmacSignature ?? '';
+        if (signature.isEmpty) {
+          signature = await _hmac.signSnapshot(member.memberId, member.toFirestore());
+        }
+
+        batch.insert(
+          _db.members,
+          MembersCompanion.insert(
+            id: member.memberId,
+            name: member.name,
+            phone: Value(member.phone),
+            joinDate: member.joinDate,
+            planId: Value(member.planId),
+            planName: Value(member.planName),
+            expiryDate: Value(member.expiryDate),
+            totalPaid: Value(member.totalPaid),
+            archived: Value(member.archived),
+            gender: Value(member.gender),
+            age: Value(member.age),
+            checkInPin: Value(member.checkInPin),
+            lastCheckIn: Value(member.lastCheckIn),
+            hmacSignature: Value(signature),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
+  }
+
+  @override
   Future<void> applyEvent(DomainEvent event) async {
     final current = await getMember(event.entityId);
     final updated = SnapshotBuilder.apply(current, event);
@@ -72,6 +107,13 @@ class DriftMemberRepository implements IMemberRepository {
   Future<MemberSnapshot?> getMember(String id) async {
     final doc = await (_db.select(_db.members)..where((t) => t.id.equals(id))).getSingleOrNull();
     return doc != null ? MemberSnapshot.fromDrift(doc) : null;
+  }
+
+  @override
+  Future<List<MemberSnapshot>> getMembers(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final docs = await (_db.select(_db.members)..where((t) => t.id.isIn(ids))).get();
+    return docs.map((d) => MemberSnapshot.fromDrift(d)).toList();
   }
 
   @override

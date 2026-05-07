@@ -15,6 +15,7 @@ abstract class IEventRepository {
   Future<List<DomainEvent>> getAll(); // Audit 1.5: Support full reconciliation
   Future<DomainEvent?> getById(String id);
   Future<List<DomainEvent>> getByEntityId(String entityId);
+  Future<List<DomainEvent>> getEventsForEntities(List<String> entityIds);
   Future<List<DomainEvent>> getEventsSince(DateTime since);
   Future<void> markAsSynced(String eventId);
   Future<void> persistSynced(
@@ -67,13 +68,17 @@ class DriftEventRepository implements IEventRepository {
     final docs = await _db.select(_db.outboxEvents).get();
     final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
     
-    // HMAC Verification
+    // Parallel HMAC Verification
+    final verificationResults = await Future.wait(
+      events.map((e) async => MapEntry(e, await _hmacService.verifyInstance(e)))
+    );
+
     final List<DomainEvent> validEvents = [];
-    for (final e in events) {
-      if (await _hmacService.verifyInstance(e)) {
-        validEvents.add(e);
+    for (final entry in verificationResults) {
+      if (entry.value) {
+        validEvents.add(entry.key);
       } else {
-        debugPrint('DriftEventRepository: TAMPER DETECTED for event ${e.id}. Skipping.');
+        debugPrint('DriftEventRepository: TAMPER DETECTED for event ${entry.key.id}. Skipping.');
       }
     }
     return validEvents;
@@ -103,6 +108,13 @@ class DriftEventRepository implements IEventRepository {
     final docs = await (_db.select(_db.outboxEvents)..where((t) => t.entityId.equals(entityId))).get();
     final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
     return events;
+  }
+
+  @override
+  Future<List<DomainEvent>> getEventsForEntities(List<String> entityIds) async {
+    if (entityIds.isEmpty) return [];
+    final docs = await (_db.select(_db.outboxEvents)..where((t) => t.entityId.isIn(entityIds))).get();
+    return docs.map((d) => DomainEvent.fromOutbox(d)).toList();
   }
 
   @override
