@@ -10,10 +10,12 @@ import '../../constants/event_payload_keys.dart';
 
 abstract class IPaymentRepository {
   Future<void> upsertPayment(domain.Payment payment);
+  Future<void> upsertPayments(List<domain.Payment> payments);
   Future<domain.Payment?> getPayment(String id);
   Future<List<domain.Payment>> getPaymentsByMember(String memberId);
   Future<List<domain.Payment>> getAllPayments();
   Future<void> applyEvent(DomainEvent event);
+  Future<void> applyEvents(List<DomainEvent> events);
 }
 
 class DriftPaymentRepository implements IPaymentRepository {
@@ -24,26 +26,38 @@ class DriftPaymentRepository implements IPaymentRepository {
   @override
   Future<void> upsertPayment(domain.Payment payment) async {
     await _db.into(_db.payments).insertOnConflictUpdate(
-      db.PaymentsCompanion.insert(
-        id: payment.id,
-        memberId: payment.memberId,
-        date: payment.date,
-        amount: payment.amount,
-        method: payment.method,
-        reference: Value(payment.reference),
-        planId: Value(payment.planId),
-        planName: Value(payment.planName),
-        invoiceNumber: payment.invoiceNumber,
-        durationMonths: Value(payment.durationMonths),
-        subtotal: payment.subtotal,
-        gstAmount: payment.gstAmount,
-        gstRate: Value(payment.gstRate),
-        componentsJson: Value(jsonEncode(payment.components.map((c) => {
-          'name': c.name,
-          'price': c.price,
-        }).toList())),
-        hmacSignature: Value(payment.hmacSignature ?? ''),
-      ),
+      _toCompanion(payment),
+    );
+  }
+
+  @override
+  Future<void> upsertPayments(List<domain.Payment> payments) async {
+    final companions = payments.map((p) => _toCompanion(p)).toList();
+    await _db.batch((batch) {
+      batch.insertAllOnConflictUpdate(_db.payments, companions);
+    });
+  }
+
+  db.PaymentsCompanion _toCompanion(domain.Payment payment) {
+    return db.PaymentsCompanion.insert(
+      id: payment.id,
+      memberId: payment.memberId,
+      date: payment.date,
+      amount: payment.amount,
+      method: payment.method,
+      reference: Value(payment.reference),
+      planId: Value(payment.planId),
+      planName: Value(payment.planName),
+      invoiceNumber: payment.invoiceNumber,
+      durationMonths: Value(payment.durationMonths),
+      subtotal: payment.subtotal,
+      gstAmount: payment.gstAmount,
+      gstRate: Value(payment.gstRate),
+      componentsJson: Value(jsonEncode(payment.components.map((c) => {
+        'name': c.name,
+        'price': c.price,
+      }).toList())),
+      hmacSignature: Value(payment.hmacSignature ?? ''),
     );
   }
 
@@ -73,6 +87,22 @@ class DriftPaymentRepository implements IPaymentRepository {
         final payment = domain.Payment.fromPayload(paymentId, event.payload, event.deviceTimestamp);
         await upsertPayment(payment);
       }
+    }
+  }
+
+  @override
+  Future<void> applyEvents(List<DomainEvent> events) async {
+    final payments = <domain.Payment>[];
+    for (final event in events) {
+      if (event.eventType == EventType.paymentRecorded) {
+        final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
+        if (paymentId != null) {
+          payments.add(domain.Payment.fromPayload(paymentId, event.payload, event.deviceTimestamp));
+        }
+      }
+    }
+    if (payments.isNotEmpty) {
+      await upsertPayments(payments);
     }
   }
 }
