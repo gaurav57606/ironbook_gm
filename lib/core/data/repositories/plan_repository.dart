@@ -6,11 +6,11 @@ import '../local/models/plan_model.dart' as domain;
 import '../../providers/base_providers.dart';
 
 import '../local/models/domain_event_model.dart';
-import '../../constants/event_payload_keys.dart';
 import '../local/models/plan_component_model.dart';
 
 abstract class IPlanRepository {
   Future<void> upsertPlan(domain.Plan plan);
+  Future<void> upsertPlans(List<domain.Plan> plans);
   Future<domain.Plan?> getPlan(String id);
   Future<List<domain.Plan>> getAllPlans();
   Future<void> applyEvent(DomainEvent event);
@@ -41,6 +41,31 @@ class DriftPlanRepository implements IPlanRepository {
   }
 
   @override
+  Future<void> upsertPlans(List<domain.Plan> plans) async {
+    await _db.batch((batch) {
+      for (final plan in plans) {
+        batch.insert(
+          _db.plans,
+          db.PlansCompanion.insert(
+            id: plan.id,
+            name: plan.name,
+            durationMonths: plan.durationMonths,
+            price: plan.totalPrice,
+            active: Value(plan.active),
+            componentsJson: Value(jsonEncode(plan.components.map((c) => {
+              'id': c.id,
+              'name': c.name,
+              'price': c.price,
+            }).toList())),
+            hmacSignature: Value(plan.hmacSignature ?? ''),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
+  }
+
+  @override
   Future<domain.Plan?> getPlan(String id) async {
     final query = _db.select(_db.plans)..where((t) => t.id.equals(id));
     final doc = await query.getSingleOrNull();
@@ -58,10 +83,10 @@ class DriftPlanRepository implements IPlanRepository {
     if (event.eventType == EventType.plansUpdated) {
       final planData = event.payload['plans'] as List?;
       if (planData != null) {
-        // Simple strategy: iterate and upsert
+        final List<domain.Plan> plans = [];
         for (final data in planData) {
           final planMap = Map<String, dynamic>.from(data);
-          final plan = domain.Plan(
+          plans.add(domain.Plan(
             id: planMap['id'],
             name: planMap['name'],
             durationMonths: planMap['durationMonths'] ?? 1,
@@ -74,9 +99,9 @@ class DriftPlanRepository implements IPlanRepository {
                 price: (cMap['price'] as num?)?.toDouble() ?? 0.0,
               );
             }).toList(),
-          );
-          await upsertPlan(plan);
+          ));
         }
+        await upsertPlans(plans);
       }
     }
   }

@@ -1,8 +1,6 @@
 import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'package:ironbook_gm/core/providers/plan_provider.dart';
-import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
 import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
@@ -15,10 +13,8 @@ import 'local/models/plan_component_model.dart';
 import 'local/models/owner_profile_model.dart';
 import 'local/models/app_settings_model.dart';
 import 'repositories/event_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/owner_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/settings_repository.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 
 class SeedData {
@@ -106,11 +102,12 @@ class SeedData {
     );
 
     final plans = [monthly, quarterly, halfYearly, annual];
-    for (final p in plans) {
+    final signedPlans = await Future.wait(plans.map((p) async {
       final signature = await hmac.signSnapshot(p.id, p.toFirestore());
       p.hmacSignature = signature;
-      await planRepo.upsertPlan(p);
-    }
+      return p;
+    }));
+    await planRepo.upsertPlans(signedPlans);
 
     // Products
     final products = [
@@ -121,9 +118,7 @@ class SeedData {
       Product(id: 'p5', name: 'IronBook Tee', price: 45, category: 'Merch', iconCodePoint: 0xe170),
       Product(id: 'p6', name: 'Steel Shaker', price: 25, category: 'Merch', iconCodePoint: 0xe3ab),
     ];
-    for (final p in products) {
-      await productRepo.upsertProduct(p);
-    }
+    await productRepo.upsertProducts(products);
 
     // Seed initial event to Drift Outbox
     final seedEvent = DomainEvent(
@@ -155,11 +150,12 @@ class SeedData {
         now.subtract(const Duration(days: 18)), now.add(const Duration(days: 12))),
     ];
 
-    for (final m in members) {
+    final signedMembers = await Future.wait(members.map((m) async {
       final signature = await hmac.signSnapshot(m.memberId, m.toFirestore());
-      final signed = m.copyWith(hmacSignature: signature);
-      await memberRepo.upsertMember(signed);
-    }
+      return m.copyWith(hmacSignature: signature);
+    }));
+    await memberRepo.upsertMembers(signedMembers);
+
     debugPrint('SeedData: Seeding complete.');
   }
 

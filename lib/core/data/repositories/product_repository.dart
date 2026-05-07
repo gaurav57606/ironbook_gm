@@ -7,6 +7,7 @@ import '../../providers/base_providers.dart';
 abstract class IProductRepository {
   Future<List<domain.Product>> getAllProducts();
   Future<void> upsertProduct(domain.Product product);
+  Future<void> upsertProducts(List<domain.Product> products);
 }
 
 class DriftProductRepository implements IProductRepository {
@@ -31,6 +32,25 @@ class DriftProductRepository implements IProductRepository {
         iconCodePoint: product.iconCodePoint,
       ),
     );
+  }
+
+  @override
+  Future<void> upsertProducts(List<domain.Product> products) async {
+    await _db.batch((batch) {
+      for (final product in products) {
+        batch.insert(
+          _db.products,
+          db.ProductsCompanion.insert(
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            category: product.category,
+            iconCodePoint: product.iconCodePoint,
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
   }
 }
 

@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../local/drift/outbox_database.dart';
-import '../local/drift/outbox_repository.dart';
 import '../local/models/member_snapshot_model.dart';
 import '../local/models/domain_event_model.dart';
 import '../local/snapshot_builder.dart';
@@ -10,6 +9,7 @@ import '../../providers/base_providers.dart';
 
 abstract class IMemberRepository {
   Future<void> upsertMember(MemberSnapshot member);
+  Future<void> upsertMembers(List<MemberSnapshot> members);
   Future<void> deleteMember(String id);
   Future<MemberSnapshot?> getMember(String id);
   Future<List<MemberSnapshot>> getAllMembers();
@@ -50,6 +50,35 @@ class DriftMemberRepository implements IMemberRepository {
       ),
       mode: InsertMode.insertOrReplace,
     );
+  }
+
+  @override
+  Future<void> upsertMembers(List<MemberSnapshot> members) async {
+    await _db.batch((batch) {
+      for (final member in members) {
+        final signature = member.hmacSignature ?? '';
+        batch.insert(
+          _db.members,
+          MembersCompanion.insert(
+            id: member.memberId,
+            name: member.name,
+            phone: Value(member.phone),
+            joinDate: member.joinDate,
+            planId: Value(member.planId),
+            planName: Value(member.planName),
+            expiryDate: Value(member.expiryDate),
+            totalPaid: Value(member.totalPaid),
+            archived: Value(member.archived),
+            gender: Value(member.gender),
+            age: Value(member.age),
+            checkInPin: Value(member.checkInPin),
+            lastCheckIn: Value(member.lastCheckIn),
+            hmacSignature: Value(signature),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
   }
 
   @override
