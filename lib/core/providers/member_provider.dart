@@ -93,30 +93,49 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   Future<List<MemberSnapshot>> _loadAllSnapshots(LazyBox<MemberSnapshot> box) async {
     final keys = box.keys.toList();
     final List<MemberSnapshot> validSnapshots = [];
-    
-    for (final key in keys) {
-      final snap = await box.get(key);
-      if (snap == null) continue;
+    final Map<String, MemberSnapshot> repairs = {};
 
-      // Integrity Check
-      final isValid = snap.hmacSignature != null && 
-          await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
-      
-      if (isValid) {
-        validSnapshots.add(snap);
-      } else {
-        debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Triggering automatic repair...');
-        // Repair from Event Log (Write-Ahead Log)
-        final history = await _repo.getByEntityId(snap.memberId);
-        final repaired = SnapshotBuilder.rebuild(history);
-        if (repaired != null) {
-          final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
-          final signed = repaired.copyWith(hmacSignature: signature);
-          await box.put(snap.memberId, signed);
-          validSnapshots.add(signed);
+    // Audit 6.2: Parallelize loading and verification in batches
+    for (int i = 0; i < keys.length; i += 50) {
+      final batch = keys.skip(i).take(50);
+      final batchResults = await Future.wait(batch.map((key) async {
+        final snap = await box.get(key);
+        if (snap == null) return null;
+
+        // Integrity Check
+        final isValid = snap.hmacSignature != null &&
+            await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
+
+        if (isValid) {
+          return snap;
+        } else {
+          debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Triggering automatic repair...');
+          // Repair from Event Log (Write-Ahead Log)
+          final history = await _repo.getByEntityId(snap.memberId);
+          final repaired = SnapshotBuilder.rebuild(history);
+          if (repaired != null) {
+            final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
+            final signed = repaired.copyWith(hmacSignature: signature);
+            return MapEntry(key.toString(), signed);
+          }
+        }
+        return null;
+      }));
+
+      for (final result in batchResults) {
+        if (result is MemberSnapshot) {
+          validSnapshots.add(result);
+        } else if (result is MapEntry<String, MemberSnapshot>) {
+          repairs[result.key] = result.value;
+          validSnapshots.add(result.value);
         }
       }
     }
+
+    if (repairs.isNotEmpty) {
+      await box.putAll(repairs);
+    }
+
     return validSnapshots;
   }
 
@@ -134,21 +153,30 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       }
     }
 
-    bool updatedAny = false;
-    for (final entityId in latestByEntity.keys) {
-      final snap = await box.get(entityId);
-      if (snap == null || snap.lastUpdated.isBefore(latestByEntity[entityId]!)) {
-        debugPrint('MemberNotifier: Lagging snapshot detected for $entityId. Rebuilding...');
-        final history = await _repo.getByEntityId(entityId);
-        final rebuilt = SnapshotBuilder.rebuild(history);
-        if (rebuilt != null) {
-          await box.put(entityId, rebuilt);
-          updatedAny = true;
+    final entityIds = latestByEntity.keys.toList();
+    final updates = <String, MemberSnapshot>{};
+
+    // Audit 6.2: Parallelize reconciliation in batches to avoid Await-in-Loop bottleneck
+    for (int i = 0; i < entityIds.length; i += 50) {
+      final batch = entityIds.skip(i).take(50);
+      final batchResults = await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
+        if (snap == null || snap.lastUpdated.isBefore(latestByEntity[entityId]!)) {
+          debugPrint('MemberNotifier: Lagging snapshot detected for $entityId. Rebuilding...');
+          final history = await _repo.getByEntityId(entityId);
+          final rebuilt = SnapshotBuilder.rebuild(history);
+          return rebuilt != null ? MapEntry(entityId, rebuilt) : null;
         }
+        return null;
+      }));
+
+      for (final entry in batchResults) {
+        if (entry != null) updates[entry.key] = entry.value;
       }
     }
 
-    if (updatedAny) {
+    if (updates.isNotEmpty) {
+      await box.putAll(updates);
       state = await _loadAllSnapshots(box);
     }
   }
