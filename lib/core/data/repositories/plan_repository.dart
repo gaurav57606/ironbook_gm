@@ -58,25 +58,44 @@ class DriftPlanRepository implements IPlanRepository {
     if (event.eventType == EventType.plansUpdated) {
       final planData = event.payload['plans'] as List?;
       if (planData != null) {
-        // Simple strategy: iterate and upsert
-        for (final data in planData) {
-          final planMap = Map<String, dynamic>.from(data);
-          final plan = domain.Plan(
-            id: planMap['id'],
-            name: planMap['name'],
-            durationMonths: planMap['durationMonths'] ?? 1,
-            active: planMap['active'] ?? true,
-            components: (planMap['components'] as List? ?? []).map<PlanComponent>((c) {
-              final cMap = Map<String, dynamic>.from(c);
-              return PlanComponent(
-                id: cMap['id'] ?? '',
-                name: cMap['name'] ?? '',
-                price: (cMap['price'] as num?)?.toDouble() ?? 0.0,
-              );
-            }).toList(),
-          );
-          await upsertPlan(plan);
-        }
+        // Audit Hardening 4.2: Use batch for atomic and high-perf updates
+        await _db.batch((batch) {
+          for (final data in planData) {
+            final planMap = Map<String, dynamic>.from(data);
+            final plan = domain.Plan(
+              id: planMap['id'],
+              name: planMap['name'],
+              durationMonths: planMap['durationMonths'] ?? 1,
+              active: planMap['active'] ?? true,
+              components: (planMap['components'] as List? ?? []).map<PlanComponent>((c) {
+                final cMap = Map<String, dynamic>.from(c);
+                return PlanComponent(
+                  id: cMap['id'] ?? '',
+                  name: cMap['name'] ?? '',
+                  price: (cMap['price'] as num?)?.toDouble() ?? 0.0,
+                );
+              }).toList(),
+            );
+
+            batch.insert(
+              _db.plans,
+              db.PlansCompanion.insert(
+                id: plan.id,
+                name: plan.name,
+                durationMonths: plan.durationMonths,
+                price: plan.totalPrice,
+                active: Value(plan.active),
+                componentsJson: Value(jsonEncode(plan.components.map((c) => {
+                      'id': c.id,
+                      'name': c.name,
+                      'price': c.price,
+                    }).toList())),
+                hmacSignature: Value(plan.hmacSignature ?? ''),
+              ),
+              mode: InsertMode.insertOrReplace,
+            );
+          }
+        });
       }
     }
   }

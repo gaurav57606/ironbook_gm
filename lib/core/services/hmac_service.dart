@@ -16,6 +16,7 @@ class HmacService {
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
   final ConfigService? _config;
+  String? _cachedKey;
   
   static const _keyStorageName = 'hmac_device_key';
   
@@ -25,6 +26,8 @@ class HmacService {
   static void setKeyForTest(String key) => _testKey = key;
 
   Future<String> _getOrCreateKey() async {
+    if (_cachedKey != null) return _cachedKey!;
+
     var key = await _storage.read(key: _keyStorageName);
     if (key == null) {
       final bytes = List.generate(32, (_) => Random.secure().nextInt(256));
@@ -36,6 +39,7 @@ class HmacService {
         await _backupKeyToFirestore(key);
       }
     }
+    _cachedKey = key;
     return key;
   }
 
