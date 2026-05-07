@@ -5,9 +5,15 @@ import 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
 import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
 
 // Mocks for Notifiers
-class MockMemberNotifier extends Mock implements MemberNotifier {}
-class MockPaymentNotifier extends Mock implements PaymentNotifier {}
-class MockPlanNotifier extends Mock implements PlanNotifier {}
+class MockMemberNotifier extends StateNotifier<List<MemberSnapshot>> with Mock implements MemberNotifier {
+  MockMemberNotifier([List<MemberSnapshot> state = const []]) : super(state);
+}
+class MockPaymentNotifier extends StateNotifier<List<Payment>> with Mock implements PaymentNotifier {
+  MockPaymentNotifier([List<Payment> state = const []]) : super(state);
+}
+class MockPlanNotifier extends StateNotifier<List<Plan>> with Mock implements PlanNotifier {
+  MockPlanNotifier([List<Plan> state = const []]) : super(state);
+}
 
 class PlanFake extends Fake implements Plan {}
 
@@ -36,10 +42,10 @@ void main() {
       ],
     );
     
-    // Stub state
-    when(() => mockPlanNotifier.state).thenReturn([testPlan]);
-    when(() => mockMemberNotifier.state).thenReturn([]);
-    when(() => mockPaymentNotifier.state).thenReturn([]);
+    // Set state directly
+    mockPlanNotifier.state = [testPlan];
+    mockMemberNotifier.state = [];
+    mockPaymentNotifier.state = [];
 
     // Success behaviors
     when(() => mockMemberNotifier.addMember(
@@ -47,6 +53,8 @@ void main() {
       phone: any(named: 'phone'),
       planId: any(named: 'planId'),
       joinDate: any(named: 'joinDate'),
+      gender: any(named: 'gender'),
+      age: any(named: 'age'),
     )).thenAnswer((_) async => 'test-member-id');
 
     when(() => mockPaymentNotifier.recordMemberPayment(
@@ -116,6 +124,8 @@ void main() {
         phone: '1234567890',
         planId: any(named: 'planId'),
         joinDate: any(named: 'joinDate'),
+        gender: any(named: 'gender'),
+        age: any(named: 'age'),
       )).called(1);
 
       expect(find.text('Invoice Page'), findsOneWidget);

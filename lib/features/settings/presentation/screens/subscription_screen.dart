@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/services/payment_service.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
-import 'package:go_router/go_router.dart';
+import '../../../../core/security/entitlement_guard.dart';
+import '../../../../shared/widgets/status_bar_wrapper.dart';
 
-class SubscriptionScreen extends StatelessWidget {
+class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return StatusBarWrapper(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -26,8 +30,10 @@ class SubscriptionScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildPlanCard(),
+                const SizedBox(height: 32),
+                _buildRenewButton(context, ref),
                 const SizedBox(height: 48),
-                _buildStatusSection(),
+                _buildStatusSection(ref),
               ],
             ),
           ),
@@ -109,7 +115,105 @@ class SubscriptionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusSection() {
+  Widget _buildRenewButton(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () => _handleRenewal(context, ref),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 8,
+          shadowColor: AppColors.primary.withValues(alpha: 0.4),
+        ),
+        child: const Text('Renew / Extend Lease (₹2,999/yr)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      ),
+    );
+  }
+
+  void _handleRenewal(BuildContext context, WidgetRef ref) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bg2,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Confirm Subscription', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('You are subscribing to the Pro Plan for 12 months. This will update your cloud lease.', style: TextStyle(color: AppColors.text3), textAlign: TextAlign.center),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context); // Close sheet
+                  _showProcessingDialog(context);
+                  
+                  final success = await ref.read(paymentServiceProvider).processSubscription(
+                    planId: 'pro_annual',
+                    months: 12,
+                  );
+                  
+                  if (context.mounted) {
+                    Navigator.pop(context); // Close processing
+                    if (success) {
+                      _showSuccessDialog(context);
+                      ref.invalidate(entitlementStatusProvider);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment Failed. Please try again.')));
+                    }
+                  }
+                },
+                child: const Text('Pay Now'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProcessingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        backgroundColor: AppColors.bg2,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: AppColors.orange),
+            SizedBox(height: 24),
+            Text('Processing Payment...', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.bg2,
+        title: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 64),
+        content: const Text('Subscription extended successfully! Your lease has been updated.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Great!')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusSection(WidgetRef ref) {
+    final status = ref.watch(entitlementStatusProvider).valueOrNull ?? EntitlementStatus.valid;
+    final isExpired = status == EntitlementStatus.expired;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -129,17 +233,21 @@ class SubscriptionScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.elevation1,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: isExpired ? AppColors.expired : AppColors.border),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.1),
+                  color: (isExpired ? AppColors.expired : AppColors.success).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.bolt_rounded, color: AppColors.success, size: 24),
+                child: Icon(
+                  isExpired ? Icons.lock_rounded : Icons.bolt_rounded, 
+                  color: isExpired ? AppColors.expired : AppColors.success, 
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -147,12 +255,12 @@ class SubscriptionScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Live Sync Active',
-                      style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+                      isExpired ? 'Lease Expired' : 'Active Subscription',
+                      style: AppTextStyles.cardTitle.copyWith(fontSize: 16, color: isExpired ? AppColors.expired : AppColors.textPrimary),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Last synced: Just now',
+                      isExpired ? 'Renew to continue using gym features' : 'Your gym operations are fully synced',
                       style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
                     ),
                   ],

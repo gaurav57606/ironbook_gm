@@ -36,6 +36,16 @@ class AppTheme {
         labelStyle: const TextStyle(color: AppColors.text2, fontSize: 11),
         hintStyle: const TextStyle(color: AppColors.text3, fontSize: 11),
       ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.bg,
+        foregroundColor: AppColors.text,
+        elevation: 0,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: AppColors.bg2,
+        selectedItemColor: AppColors.orange,
+        unselectedItemColor: AppColors.text3,
+      ),
     );
 
     if (!useGoogleFonts) return baseTheme;

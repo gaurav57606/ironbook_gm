@@ -35,7 +35,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   }
 
   Future<void> _verifyPin() async {
-    final success = await ref.read(authProvider.notifier).verifyPin(_pin);
+    final success = await ref.read(authProvider.notifier).authenticate(pin: _pin);
     if (!mounted) return;
     if (success) {
       context.go('/');
@@ -48,7 +48,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   }
 
   Future<void> _handleBiometric() async {
-    final success = await ref.read(authProvider.notifier).loginWithBiometrics();
+    final success = await ref.read(authProvider.notifier).authenticate();
     if (success && mounted) {
       context.go('/');
     }

@@ -42,6 +42,11 @@ class FakeEventRepository implements IEventRepository {
   Future<List<DomainEvent>> getAll() async => List.from(_events);
 
   @override
+  Future<List<DomainEvent>> getEventsSince(DateTime since) async {
+    return _events.where((e) => e.deviceTimestamp.isAfter(since)).toList();
+  }
+
+  @override
   Future<void> markAsSynced(String eventId) async {
     final idx = _events.indexWhere((e) => e.id == eventId);
     if (idx != -1) {

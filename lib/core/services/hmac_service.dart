@@ -9,35 +9,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/shared/utils/canonical_json.dart';
+import 'package:ironbook_gm/core/services/config_service.dart';
 
 class HmacService {
   final FlutterSecureStorage _storage;
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
+  final ConfigService? _config;
   
   static const _keyStorageName = 'hmac_device_key';
   
-  HmacService(this._storage, this._auth, this._firestore);
+  HmacService(this._storage, this._auth, this._firestore, [this._config]);
   
   static String? _testKey;
   static void setKeyForTest(String key) => _testKey = key;
-
-  static Future<void> init() async {
-    const storage = FlutterSecureStorage();
-    // Use try-catch or safe access for web compatibility
-    FirebaseAuth? auth;
-    FirebaseFirestore? firestore;
-    if (!kIsWeb) {
-      try {
-        auth = FirebaseAuth.instance;
-        firestore = FirebaseFirestore.instance;
-      } catch (e) {
-        debugPrint('HmacService Static Init Error: $e');
-      }
-    }
-    final service = HmacService(storage, auth, firestore);
-    await service._getOrCreateKey();
-  }
 
   Future<String> _getOrCreateKey() async {
     var key = await _storage.read(key: _keyStorageName);
@@ -91,10 +76,10 @@ class HmacService {
   }
 
   String _wrapKey(String rawKey, String uid) {
-    // Basic KDF for wrapping: UID + internal salt
-    final salt = crypto.sha256.convert(utf8.encode('ironbook-hmac-salt')).bytes;
-    final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid));
-    final wrapperKeyBytes = kdf.convert(salt).bytes;
+    // Audit Hardening 2.7: KDF uses Identity + Environment Secret
+    final hmacKey = _config!.hmacSecret;
+    final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid + hmacKey));
+    final wrapperKeyBytes = kdf.convert(utf8.encode(uid)).bytes;
     
     final key = enc.Key(Uint8List.fromList(wrapperKeyBytes));
     final iv = enc.IV.fromLength(16);
@@ -111,9 +96,9 @@ class HmacService {
     final iv = enc.IV.fromBase64(parts[0]);
     final encrypted = enc.Encrypted.fromBase64(parts[1]);
     
-    final salt = crypto.sha256.convert(utf8.encode('ironbook-hmac-salt')).bytes;
-    final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid));
-    final wrapperKeyBytes = kdf.convert(salt).bytes;
+    final hmacKey = _config!.hmacSecret;
+    final kdf = crypto.Hmac(crypto.sha256, utf8.encode(uid + hmacKey));
+    final wrapperKeyBytes = kdf.convert(utf8.encode(uid)).bytes;
     
     final key = enc.Key(Uint8List.fromList(wrapperKeyBytes));
     final encrypter = enc.Encrypter(enc.AES(key));
@@ -200,7 +185,6 @@ class HmacService {
       if (version == 2) {
         finalKey = _unwrapKey(rawBlob, user.uid);
       } else {
-        // Migration path for older unencrypted keys
         finalKey = rawBlob;
       }
       
@@ -209,6 +193,47 @@ class HmacService {
     } catch (e) {
       debugPrint('HmacService: Key restoration failed: $e');
       return false;
+    }
+  }
+
+  Future<Map<String, String>> restoreAllUserKeys() async {
+    final auth = _auth;
+    final firestore = _firestore;
+    if (auth == null || firestore == null) return {};
+
+    try {
+      final user = auth.currentUser;
+      if (user == null) return {};
+      
+      final snapshot = await firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('device_keys')
+          .get();
+          
+      final Map<String, String> keyMap = {};
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final deviceId = doc.id;
+        final rawBlob = data['hmac_key'] as String;
+        final version = data['version'] as int? ?? 1;
+
+        try {
+          String finalKey;
+          if (version == 2) {
+            finalKey = _unwrapKey(rawBlob, user.uid);
+          } else {
+            finalKey = rawBlob;
+          }
+          keyMap[deviceId] = finalKey;
+        } catch (e) {
+          debugPrint('HmacService: Failed to unwrap key for device $deviceId: $e');
+        }
+      }
+      return keyMap;
+    } catch (e) {
+      debugPrint('HmacService: Failed to restore all keys: $e');
+      return {};
     }
   }
 }

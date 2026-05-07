@@ -26,6 +26,10 @@ class MockRepo implements IEventRepository {
 
   @override
   Future<List<DomainEvent>> getAll() async => List.from(events);
+  @override
+  Future<List<DomainEvent>> getEventsSince(DateTime since) async {
+    return events.where((e) => e.deviceTimestamp.isAfter(since)).toList();
+  }
 
   @override
   Future<void> markAsSynced(String eventId) async {}
@@ -64,7 +68,14 @@ void main() {
 
       // 2. Initialize Notifier with empty snapshots box
       final hmac = FakeHmacService();
-      final notifier = MemberNotifier(repo, clock, hmac);
+      final notifier = MemberNotifier(
+        repo,
+        MockMemberRepo(),
+        MockPlanRepo(),
+        MockPreferencesRepo(),
+        clock,
+        hmac,
+      );
       
       // Wait for init to complete
       await Future.delayed(Duration.zero);

@@ -52,7 +52,7 @@ void main() {
 
       // Manually create a v1 hash (1000 iterations)
       var hash = sha256.convert(utf8.encode(pin + salt)).toString();
-      for (int i = 0; i < 1000; i++) {
+      for (int i = 0; i < 999; i++) {
         hash = sha256.convert(utf8.encode(hash + salt)).toString();
       }
 

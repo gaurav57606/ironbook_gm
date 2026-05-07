@@ -1,27 +1,76 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // 1. Authenticated User Sandbox
-    // All user-specific data is stored under /users/{userId}
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // ── EVENTS: True Append-Only Log ─────────────────────────────────────────
+    // Events are the immutable audit trail. Once written, they can never be
+    // overwritten or deleted by any client — ever. This is enforced at the
+    // database level, not just in app code.
+    match /users/{userId}/events/{eventId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Only allow create if this document does not already exist.
+      // The event's own 'id' field must match the document ID (prevents spoofing).
+      // Required fields must be present.
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && !exists(/databases/$(database)/documents/users/$(userId)/events/$(eventId))
+                    && request.resource.data.keys().hasAll([
+                         'id', 'entityId', 'eventType',
+                         'deviceTimestamp', 'hmacSignature', 'deviceId'
+                       ])
+                    && request.resource.data.id == eventId;
+
+      // No updates, no deletes — ever.
+      allow update: if false;
+      allow delete: if false;
     }
 
-    // 2. Entitlements (Read-Only for Client)
-    // Entitlements are updated via Cloud Functions / Admin SDK only
+    // ── SNAPSHOTS: Latest State Cache ────────────────────────────────────────
+    // Snapshots represent the current computed state of a member or entity.
+    // The app can create or update them, but NEVER delete them.
+    // An archived member's snapshot stays in cloud with archived: true.
+    match /users/{userId}/snapshots/{entityId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // PERMANENT — archived members stay in cloud
+    }
+    
+    // ── DEVICE KEYS: Security Key Backup ──────────────────────────────────────
+    // Encrypted security keys for HMAC verification and device identity.
+    // Each device has its own key, wrapped with a KDF derived from user UID.
+    match /users/{userId}/device_keys/{deviceId} {
+      allow read, create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // ── SALES: Retail Transaction Log ────────────────────────────────────────
+    // POS sales are also append-only. Once a sale is recorded it cannot be
+    // deleted. If a refund occurs, a new refund event is created.
+    match /users/{userId}/sales/{saleId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && !exists(/databases/$(database)/documents/users/$(userId)/sales/$(saleId));
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ── ENTITLEMENTS: Admin SDK Only ─────────────────────────────────────────
+    // Entitlements (subscription tier, feature flags) are written only by
+    // Cloud Functions / Admin SDK. The client app can read but never write.
     match /entitlements/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if false; 
+      allow write: if false;
     }
 
-    // 3. Global Configuration (Read-Only)
+    // ── GLOBAL CONFIG: Read-Only ─────────────────────────────────────────────
     match /config/{document=**} {
       allow read: if request.auth != null;
       allow write: if false;
     }
 
-    // 4. Fallback: Deny all
+    // ── FALLBACK: Deny Everything Else ───────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }

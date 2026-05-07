@@ -41,12 +41,15 @@ class SnapshotBuilder {
     }
 
     if (type == EventType.joinDateEdited) {
+      final newJoinDateStr = payload[EventPayloadKeys.joinDate] as String?;
+      final newJoinDate = newJoinDateStr != null ? DateTime.parse(newJoinDateStr) : null;
+      final newExpiryStr = payload[EventPayloadKeys.newExpiry] as String?;
+      final newExpiry = newExpiryStr != null ? DateTime.parse(newExpiryStr) : null;
       return current.copyWith(
+        joinDate: newJoinDate ?? current.joinDate,
+        expiryDate: newExpiry ?? current.expiryDate,
         lastUpdated: event.deviceTimestamp,
       );
-      // NOTE: joinDate is typically final in the snapshot, but if edited, 
-      // we'd need to update it. MemberSnapshot doesn't have joinDate in copyWith yet.
-      // For now, we update lastUpdated to trigger a re-render.
     }
 
     if (type == EventType.checkInRecorded) {

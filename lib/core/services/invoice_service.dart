@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
+import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 
 abstract class IInvoiceService {
@@ -10,35 +9,22 @@ abstract class IInvoiceService {
 }
 
 class InvoiceService implements IInvoiceService {
-  final Box<InvoiceSequence> _box;
+  final ISequenceRepository _sequenceRepo;
   final IClock _clock;
 
-  InvoiceService(this._box, this._clock);
+  InvoiceService(this._sequenceRepo, this._clock);
 
   @override
   Future<String> next() async {
     final now = _clock.now;
-    final year = now.year;
-    
-    // 1. Transactional Read-Update-Write
-    var seq = _box.get('active_seq');
-    
-    // Auto-create if none exists
-    seq ??= InvoiceSequence(prefix: 'INV-$year-', nextNumber: 1);
-
-
-    final currentNumber = seq.nextNumber;
-    seq.nextNumber++;
-    
-    // 2. Persist BEFORE returning
-    await _box.put('active_seq', seq);
-    
-    return '${seq.prefix}${currentNumber.toString().padLeft(4, '0')}';
+    final prefix = 'INV-${now.year}-';
+    return await _sequenceRepo.getNextInvoiceNumber(prefix);
   }
 
   @override
   Future<void> reset(int year) async {
-    await _box.put('active_seq', InvoiceSequence(prefix: 'INV-$year-', nextNumber: 1));
+    final prefix = 'INV-$year-';
+    await _sequenceRepo.reset(prefix);
   }
 
   static Future<void> generateAndShare({
@@ -54,9 +40,9 @@ class InvoiceService implements IInvoiceService {
 }
 
 final invoiceServiceProvider = Provider<IInvoiceService>((ref) {
-  final box = Hive.box<InvoiceSequence>('invoice_sequences');
+  final sequenceRepo = ref.watch(sequenceRepositoryProvider);
   final clock = ref.watch(clockProvider);
-  return InvoiceService(box, clock);
+  return InvoiceService(sequenceRepo, clock);
 });
 
 

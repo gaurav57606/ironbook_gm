@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/providers/auth_provider.dart';
 
 class PinSetupScreen extends ConsumerStatefulWidget {
   const PinSetupScreen({super.key});
@@ -20,7 +21,7 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
         _pin += digit;
       });
       if (_pin.length == 6) {
-        // In a real app, verify and save PIN.
+        ref.read(authProvider.notifier).setPin(_pin);
         context.go('/');
       }
     }

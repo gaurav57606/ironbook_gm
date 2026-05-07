@@ -148,6 +148,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ]),
                   _buildSettingsGroup('Support', [
                     _buildSettingsRow(Icons.help_outline_rounded, 'Help Center', null, onTap: () => context.push('/settings/help')),
+                    _buildSettingsRow(Icons.policy_outlined, 'Privacy Policy', null, onTap: () => context.push('/settings/privacy')),
+                    _buildSettingsRow(Icons.description_outlined, 'Terms of Service', null, onTap: () => context.push('/settings/terms')),
                     _buildSettingsRow(Icons.info_outline_rounded, 'About IronBook GM', 'v2.4.0', onTap: () => context.push('/settings/about')),
                   ]),
                   _buildSettingsGroup('Troubleshooting', [

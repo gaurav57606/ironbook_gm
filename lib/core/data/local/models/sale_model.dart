@@ -1,4 +1,6 @@
 import 'package:hive/hive.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 @HiveType(typeId: 15)
 class Sale extends HiveObject {
@@ -23,8 +25,12 @@ class Sale extends HiveObject {
   @HiveField(6)
   String? hmacSignature;
 
+  @HiveField(7)
+  late String memberId;
+
   Sale({
     required this.id,
+    required this.memberId,
     required this.date,
     required this.totalAmount,
     required this.paymentMethod,
@@ -36,12 +42,14 @@ class Sale extends HiveObject {
   factory Sale.fromFirestore(Map<String, dynamic> data) {
     return Sale(
       id: data['id'],
+      memberId: data['memberId'] ?? 'unknown',
       date: DateTime.parse(data['date']).toLocal(),
       totalAmount: (data['totalAmount'] as num).toDouble(),
       paymentMethod: data['paymentMethod'],
       invoiceNumber: data['invoiceNumber'],
       items: (data['items'] as List).map((i) => SaleItem(
         productId: i['productId'],
+        memberId: data['memberId'] ?? 'unknown',
         productName: i['productName'],
         price: (i['price'] as num).toDouble(),
         quantity: i['quantity'],
@@ -52,6 +60,7 @@ class Sale extends HiveObject {
   Map<String, dynamic> toFirestore() {
     return {
       'id': id,
+      'memberId': memberId,
       'date': date.toUtc().toIso8601String(),
       'totalAmount': totalAmount,
       'paymentMethod': paymentMethod,
@@ -62,7 +71,58 @@ class Sale extends HiveObject {
         'price': i.price,
         'quantity': i.quantity,
       }).toList(),
+      'hmacSignature': hmacSignature,
     };
+  }
+
+  factory Sale.fromDrift(dynamic d) {
+    List<SaleItem> items = [];
+    if (d.itemsJson != null) {
+      try {
+        final List<dynamic> decoded = jsonDecode(d.itemsJson);
+        items = decoded.map((i) => SaleItem(
+          productId: i['productId'] ?? '',
+          memberId: d.memberId ?? 'walk-in',
+          productName: i['productName'] ?? '',
+          price: (i['price'] as num?)?.toDouble() ?? 0.0,
+          quantity: i['quantity'] ?? 1,
+        )).toList();
+      } catch (e) {
+        debugPrint('Error decoding sale itemsJson: $e');
+      }
+    }
+
+    return Sale(
+      id: d.id,
+      memberId: d.memberId ?? 'walk-in',
+      date: d.date,
+      totalAmount: d.totalAmount,
+      paymentMethod: d.paymentMethod,
+      invoiceNumber: d.invoiceNumber,
+      items: items,
+      hmacSignature: d.hmacSignature,
+    );
+  }
+
+  factory Sale.fromPayload(String id, Map<String, dynamic> payload, DateTime timestamp) {
+    return Sale(
+      id: id,
+      memberId: payload['memberId'] ?? 'walk-in',
+      date: timestamp,
+      totalAmount: (payload['total'] as num?)?.toDouble() ?? 0.0,
+      paymentMethod: payload['method'] ?? 'Cash',
+      invoiceNumber: payload['invoiceNumber'] ?? 'SAL-0000',
+      items: (payload['items'] as List? ?? []).map((i) {
+          final iMap = Map<String, dynamic>.from(i);
+          return SaleItem(
+            productId: iMap['productId'] ?? '',
+            memberId: payload['memberId'] as String? ?? 'walk-in',
+            productName: iMap['productName'] as String? ?? 'Unknown',
+            price: (iMap['price'] as num?)?.toDouble() ?? 0.0,
+            quantity: iMap['qty'] ?? 1,
+          );
+      }).toList(),
+    );
   }
 }
 
@@ -76,9 +136,12 @@ class SaleItem extends HiveObject {
   late double price;
   @HiveField(3)
   late int quantity;
+  @HiveField(4)
+  late String memberId;
 
   SaleItem({
     required this.productId,
+    required this.memberId,
     required this.productName,
     required this.price,
     required this.quantity,

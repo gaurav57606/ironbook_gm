@@ -8,6 +8,8 @@ import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
@@ -16,10 +18,13 @@ import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'dart:async';
 
+import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
+
 class PaymentNotifier extends StateNotifier<List<Payment>> {
-  final Box<Payment> _paymentBox;
-  final Box<InvoiceSequence> _sequenceBox;
+  final ISequenceRepository _sequenceRepo;
   final IEventRepository _eventRepo;
+  final IPaymentRepository _paymentRepo;
+  final IMemberRepository _memberRepo;
   final IClock _clock;
   final HmacService _hmac;
   String _deviceId = 'device-loading';
@@ -27,9 +32,10 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   Completer<void>? _syncLock;
  
   PaymentNotifier(
-    this._paymentBox,
-    this._sequenceBox,
+    this._sequenceRepo,
     this._eventRepo,
+    this._paymentRepo,
+    this._memberRepo,
     this._clock,
     this._hmac,
   ) : super([]) {
@@ -38,57 +44,51 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
 
   Future<void> _init() async {
     _deviceId = await _hmac.getInstallationId();
-    _loadPayments();
+
+    // 1. Listen for payment events
+    _eventRepo.watch().listen((event) async {
+      if (event.eventType == EventType.paymentRecorded) {
+        await _paymentRepo.applyEvent(event);
+        final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
+        if (paymentId != null) {
+          final payment = await _paymentRepo.getPayment(paymentId);
+          if (payment != null) {
+            state = [payment, ...state];
+          }
+        }
+      }
+    });
+
+    // 2. Load all payments from Drift
+    state = (await _paymentRepo.getAllPayments()).reversed.toList();
+
+    // 3. Reconcile
     await _reconcilePayments();
   }
 
   Future<void> _reconcilePayments() async {
-    final allEvents = await _eventRepo.getAll();
-    final paymentEvents = allEvents.where((e) => e.eventType == EventType.paymentRecorded).toList();
+    final recentEvents = await _eventRepo.getAll();
+    final paymentEvents = recentEvents.where((e) => e.eventType == EventType.paymentRecorded).toList();
     
     bool updatedAny = false;
     for (final event in paymentEvents) {
       final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
       if (paymentId == null) continue;
 
-      if (!_paymentBox.containsKey(paymentId)) {
-        final payment = Payment.fromPayload(paymentId, event.payload, event.deviceTimestamp);
-        await _paymentBox.put(paymentId, payment);
+      final existing = await _paymentRepo.getPayment(paymentId);
+      if (existing == null) {
+        await _paymentRepo.applyEvent(event);
         updatedAny = true;
       }
     }
 
     if (updatedAny) {
-      await _loadPayments();
+      state = (await _paymentRepo.getAllPayments()).reversed.toList();
     }
   }
-
 
   @visibleForTesting
   set debugState(List<Payment> payments) => state = payments;
-
-  Future<void> _loadPayments() async {
-    final payments = _paymentBox.values.toList();
-    bool needsRepair = false;
-
-    final verified = <Payment>[];
-    for (final p in payments) {
-      final isValid = await _hmac.verifySnapshot(p.id, p.toFirestore(), p.hmacSignature ?? '');
-      if (!isValid) {
-        debugPrint('PaymentNotifier: Signature mismatch for payment ${p.id}. Flagging for repair.');
-        needsRepair = true;
-        continue;
-      }
-      verified.add(p);
-    }
-
-    state = verified.reversed.toList();
-
-    if (needsRepair) {
-      debugPrint('PaymentNotifier: Triggering auto-repair from event log.');
-      await _reconcilePayments();
-    }
-  }
 
   Future<Payment> recordMemberPayment({
     required String memberId,
@@ -105,15 +105,9 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     try {
       final now = _clock.now;
       
-      // 1. Get/Create Invoice Sequence
-      var sequence = _sequenceBox.get('default');
-      sequence ??= InvoiceSequence(prefix: 'INV-${now.year}-');
-
-      final invoiceNumber = sequence.nextInvoiceId;
-      
-      // 2. Increment Sequence
-      sequence.nextNumber++;
-      await _sequenceBox.put('default', sequence);
+      // 1. Get Next Invoice Number via Drift
+      final prefix = 'INV-${now.year}-';
+      final invoiceNumber = await _sequenceRepo.getNextInvoiceNumber(prefix);
 
       // 3. Calculate GST (Assume 18% inclusive)
       final total = plan.totalPrice;
@@ -122,8 +116,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       final gstAmount = total - subtotal;
 
       // 4. Create Payment Record (Deterministic UTC)
-      final snapshotsBox = Hive.lazyBox<MemberSnapshot>('snapshots');
-      final member = await snapshotsBox.get(memberId);
+      final member = await _memberRepo.getMember(memberId);
       
       // Calculate new expiry
       DateTime baseDate = member?.expiryDate ?? now;
@@ -150,9 +143,9 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
         )).toList(),
       );
 
-      // 5. Emit Domain Event FIRST (Enforce Outbox-First Rule)
+      // 5. Emit Domain Event FIRST
       final event = DomainEvent(
-        entityId: memberId, // Target is the member for state updates
+        entityId: memberId, 
         eventType: EventType.paymentRecorded,
         deviceId: _deviceId,
         deviceTimestamp: now,
@@ -170,17 +163,17 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
         },
       );
       
-      // This will throw if the Drift Outbox write fails, preventing local Hive corruption
       await _eventRepo.persist(event);
 
-      // 6. Persist Cache Locally
-      final signature = await _hmac.signSnapshot(payment.id, payment.toFirestore());
-      final signed = payment..hmacSignature = signature;
+      // 6. Persist Cache in Drift
+      await _paymentRepo.upsertPayment(payment);
       
-      await _paymentBox.put(payment.id, signed);
-      state = [signed, ...state];
+      final signed = await _paymentRepo.getPayment(payment.id);
+      if (signed != null) {
+        state = [signed, ...state];
+      }
 
-      return signed;
+      return signed ?? payment;
     } finally {
       final lock = _syncLock;
       _syncLock = null;
@@ -193,17 +186,15 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   }
 }
 
-final paymentBoxProvider = Provider<Box<Payment>>((ref) => Hive.box<Payment>('payments'));
-final sequenceBoxProvider = Provider<Box<InvoiceSequence>>((ref) => Hive.box<InvoiceSequence>('invoice_sequences'));
-
 final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((ref) {
-  final paymentBox = ref.watch(paymentBoxProvider);
-  final sequenceBox = ref.watch(sequenceBoxProvider);
+  final sequenceRepo = ref.watch(sequenceRepositoryProvider);
   final eventRepo = ref.watch(eventRepositoryProvider);
+  final paymentRepo = ref.watch(paymentRepositoryProvider);
+  final memberRepo = ref.watch(memberRepositoryProvider);
   final clock = ref.watch(clockProvider);
   final hmac = ref.watch(hmacServiceProvider);
   
-  return PaymentNotifier(paymentBox, sequenceBox, eventRepo, clock, hmac);
+  return PaymentNotifier(sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac);
 });
 
 final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, memberId) {

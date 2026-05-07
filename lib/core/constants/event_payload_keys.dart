@@ -4,6 +4,8 @@ class EventPayloadKeys {
   static const String name = 'name';
   static const String phone = 'phone';
   static const String joinDate = 'joinDate';
+  static const String gender = 'gender';
+  static const String age = 'age';
   static const String profileImageUrl = 'profileImageUrl';
   
   // Plans & Billing
@@ -28,6 +30,7 @@ class EventPayloadKeys {
   // Metadata
   static const String notes = 'notes';
   static const String updatedAt = 'updatedAt';
+  static const String saleId = 'saleId';
 }
 
 

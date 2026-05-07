@@ -18,15 +18,21 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/theme/app_theme.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
-import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
-import 'package:ironbook_gm/core/data/sync_worker.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
+import 'package:ironbook_gm/core/data/sync_worker.dart';
+import 'package:ironbook_gm/core/services/config_service.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // Re-exports for convenience in tests
 export 'package:flutter/material.dart';
@@ -67,62 +73,13 @@ class TestHelper {
   static Future<void> setupHive([String subDir = 'default']) async {
     final tempDir = Directory.systemTemp.createTempSync('ironbook_test_${subDir}_');
     Hive.init(tempDir.path);
-    
-    _registerAdapters();
-    await _openBoxes();
-  }
-
-  static void _registerAdapters() {
-    if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(DomainEventAdapter());
-    if (!Hive.isAdapterRegistered(11)) Hive.registerAdapter(MemberSnapshotAdapter());
-    if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(PaymentAdapter());
-    if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(PlanAdapter());
-    if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(PlanComponentAdapter());
-    if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(OwnerProfileAdapter());
     if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(AppSettingsAdapter());
-    if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(JoinDateChangeAdapter());
-    if (!Hive.isAdapterRegistered(13)) Hive.registerAdapter(PlanComponentSnapshotAdapter());
-    if (!Hive.isAdapterRegistered(12)) Hive.registerAdapter(InvoiceSequenceAdapter());
-    if (!Hive.isAdapterRegistered(14)) Hive.registerAdapter(ProductAdapter());
-    if (!Hive.isAdapterRegistered(15)) Hive.registerAdapter(SaleAdapter());
-    if (!Hive.isAdapterRegistered(16)) Hive.registerAdapter(SaleItemAdapter());
-  }
-
-  static Future<void> _openBoxes() async {
-    await Hive.close();
-    await Hive.openLazyBox<DomainEvent>('events');
-    await Hive.openLazyBox<MemberSnapshot>('snapshots');
-    await Hive.openBox<Payment>('payments');
-    await Hive.openBox<Plan>('plans');
-    await Hive.openBox<OwnerProfile>('owner');
     await Hive.openBox<AppSettings>('settings');
-    await Hive.openBox<InvoiceSequence>('invoice_sequences');
-    await Hive.openBox<Product>('products');
-    await Hive.openBox<Sale>('sales');
+    await Hive.openBox('meta');
   }
 
   static Future<void> cleanHive() async {
     await Hive.deleteFromDisk();
-  }
-
-  static Box<T> getBox<T>() {
-    final boxName = _getBoxNameForType<T>();
-    return Hive.box<T>(boxName);
-  }
-
-  static String _getBoxNameForType<T>() {
-    switch (T) {
-      case const (DomainEvent): return 'events';
-      case const (MemberSnapshot): return 'snapshots';
-      case const (Payment): return 'payments';
-      case const (Plan): return 'plans';
-      case const (OwnerProfile): return 'owner';
-      case const (AppSettings): return 'settings';
-      case const (InvoiceSequence): return 'invoice_sequences';
-      case const (Product): return 'products';
-      case const (Sale): return 'sales';
-      default: throw Exception('Unknown Box Type: $T');
-    }
   }
 
   static Future<void> pumpIronBookWidget(
@@ -157,6 +114,7 @@ class TestHelper {
     when(() => mockAuth.idTokenChanges()).thenAnswer((_) => const Stream.empty());
     when(() => mockAuth.userChanges()).thenAnswer((_) => const Stream.empty());
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
+    when(() => mockPin.authenticate(pinFallback: any(named: 'pinFallback'))).thenAnswer((_) async => AuthResult.success);
     when(() => mockSync.startPeriodicSync(any())).thenReturn(null);
     when(() => mockStorage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
     when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value'))).thenAnswer((_) async {});
@@ -176,6 +134,7 @@ class TestHelper {
           syncWorkerProvider.overrideWithValue(mockSync),
           appSecureStorageProvider.overrideWithValue(mockStorage),
           bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
+          tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
           clockProvider.overrideWith((ref) => FakeClock()),
           ...overrides,
         ],
@@ -205,26 +164,52 @@ class TestHelper {
   }
 }
 
-// --- Common Fakes & Mocks ---
+class MockAuth extends Mock implements AuthNotifier {}
+class MockPinService extends Mock implements PinService {}
+class MockSyncWorker extends Mock implements SyncWorker {}
+class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+class MockFirebaseAuth extends Mock implements fb.FirebaseAuth {}
+class MockConfigService extends Mock implements ConfigService {}
 
-class FakeRepo implements IEventRepository {
+class FakeDriftEventRepository implements IEventRepository {
+  final List<DomainEvent> _events = [];
+
   @override
-  Future<void> persist(DomainEvent event) async {}
+  Future<void> persist(DomainEvent event) async {
+    _events.add(event);
+  }
   @override
-  Future<List<DomainEvent>> getAllUnsynced() async => [];
+  Future<List<DomainEvent>> getAllUnsynced() async => _events.where((e) => !e.synced).toList();
   @override
-  Future<DomainEvent?> getById(String id) async => null;
+  Future<DomainEvent?> getById(String id) async {
+    try {
+      return _events.firstWhere((e) => e.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
   @override
-  Future<List<DomainEvent>> getByEntityId(String entityId) async => [];
+  Future<List<DomainEvent>> getByEntityId(String entityId) async => _events.where((e) => e.entityId == entityId).toList();
   @override
-  Future<List<DomainEvent>> getAll() async => [];
+  Future<List<DomainEvent>> getAll() async => List.unmodifiable(_events);
   @override
-  Future<void> markAsSynced(String eventId) async {}
+  Future<List<DomainEvent>> getEventsSince(DateTime since) async => _events.where((e) => e.deviceTimestamp.isAfter(since)).toList();
   @override
-  Future<void> persistSynced(DomainEvent event) async {}
+  Future<void> markAsSynced(String eventId) async {
+    final idx = _events.indexWhere((e) => e.id == eventId);
+    if (idx != -1) {
+      _events[idx] = _events[idx].copyWith(synced: true);
+    }
+  }
+  @override
+  Future<void> persistSynced(DomainEvent event) async {
+    _events.add(event.copyWith(synced: true));
+  }
   @override
   Stream<DomainEvent> watch() => const Stream.empty();
 }
+
+class MockRef extends Mock implements Ref {}
 
 class FakeAuth extends AuthNotifier {
   FakeAuth({
@@ -232,18 +217,22 @@ class FakeAuth extends AuthNotifier {
     bool isAuthenticated = true,
     bool isFirstLaunch = false,
     bool isPinSetup = true,
+    bool unlocked = false,
   }) : super(
     const FlutterSecureStorage(),
     MockPinService(),
     MockFirebaseAuth(),
-    FakeRepo(),
+    FakeDriftEventRepository(),
+    MockOwnerRepo(),
+    MockSettingsRepo(),
     MockSyncWorker(),
     FakeHmacService(),
-    ProviderContainer() as dynamic,
+    MockConfigService(),
+    MockRef(),
   ) {
     state = AuthState(
       isAuthenticated: isAuthenticated,
-      unlocked: true,
+      unlocked: unlocked,
       isPinSetup: isPinSetup,
       isFirstLaunch: isFirstLaunch,
       isLoading: isLoading,
@@ -256,6 +245,9 @@ class FakeAuth extends AuthNotifier {
   
   @override
   Future<bool> verifyPin(String pin) async => true;
+
+  @override
+  Future<bool> authenticate({String? pin}) async => pin != null;
 
   @override
   Future<void> completeOnboarding() async {
@@ -272,7 +264,21 @@ class FakeHmacService extends Fake implements HmacService {
   Future<String> getInstallationId() async => 'test-device';
   @override
   Future<String> signEvent(DomainEvent event) async => 'fake-sig';
+  @override
+  Future<String> signSnapshot(String entityId, Map<String, dynamic> data) async => 'fake-sig';
+  @override
+  Future<bool> verifySnapshot(String entityId, Map<String, dynamic> data, String signature) async => true;
 }
+
+class MockOwnerRepo extends Mock implements IOwnerRepository {}
+class MockSettingsRepo extends Mock implements ISettingsRepository {}
+class MockMemberRepo extends Mock implements IMemberRepository {}
+class MockPlanRepo extends Mock implements IPlanRepository {}
+class MockPaymentRepo extends Mock implements IPaymentRepository {}
+class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
+class MockProductRepo extends Mock implements IProductRepository {}
+class MockSequenceRepo extends Mock implements ISequenceRepository {}
+class MockSaleRepo extends Mock implements ISaleRepository {}
 
 class FakeClock extends IClock {
   DateTime _now = DateTime(2025, 1, 1, 12, 0, 0);

@@ -1,5 +1,14 @@
 {
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "IronBook GM",
+        "supportEmail": "gauravsharma57606@gmail.com"
+      }
+    }
   }
 }

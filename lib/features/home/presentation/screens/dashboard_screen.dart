@@ -15,6 +15,8 @@ import '../widgets/alert_banner.dart';
 import '../widgets/member_row.dart';
 import '../../../../core/data/sync_worker.dart';
 import '../../../../core/providers/bootstrap_provider.dart';
+import '../../../../core/providers/payment_provider.dart';
+import '../widgets/nutrition_summary_card.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -28,16 +30,22 @@ class DashboardScreen extends ConsumerWidget {
     final tier2Status = ref.watch(tier2StatusProvider);
     final syncState = ref.watch(syncWorkerStatusProvider);
     
-    // ⚡ Bolt: Consolidated 5 list traversals into a single O(N) loop to compute member stats.
-    // This significantly reduces redundant calculations of `getStatus(now)`.
+    // ⚡ Bolt: Consolidated 5 list traversals into a single O(N) loop
     int activeCount = 0;
     int expiringCount = 0;
     int expiredCount = 0;
     final expiredMemberNames = <String>[];
     final expiringMemberNames = <String>[];
+    final dueMembers = <MemberSnapshot>[];
 
     for (final m in members) {
       final status = m.getStatus(now);
+      final days = m.getDaysRemaining(now);
+      
+      if (days >= 0 && days <= 3) {
+        dueMembers.add(m);
+      }
+
       switch (status) {
         case MemberStatus.active:
           activeCount++;
@@ -51,9 +59,35 @@ class DashboardScreen extends ConsumerWidget {
           if (expiredMemberNames.length < 3) expiredMemberNames.add(m.name);
           break;
         case MemberStatus.pending:
-          break; // Optional: handle pending members if needed
+          break;
       }
     }
+
+    // Revenue & Analytics
+    final payments = ref.watch(paymentsProvider);
+    final currentMonth = now.month;
+    final currentYear = now.year;
+    final lastMonth = now.month == 1 ? 12 : now.month - 1;
+    final lastMonthYear = now.month == 1 ? now.year - 1 : now.year;
+
+    double currentRevenue = 0;
+    double lastRevenue = 0;
+    final dailyRevenue = List.filled(7, 0.0);
+
+    for (final p in payments) {
+      if (p.date.month == currentMonth && p.date.year == currentYear) {
+        currentRevenue += p.amount;
+      } else if (p.date.month == lastMonth && p.date.year == lastMonthYear) {
+        lastRevenue += p.amount;
+      }
+
+      final diffDays = now.difference(p.date).inDays;
+      if (diffDays >= 0 && diffDays < 7) {
+        dailyRevenue[6 - diffDays] += p.amount;
+      }
+    }
+
+    final double trend = lastRevenue > 0 ? ((currentRevenue - lastRevenue) / lastRevenue) * 100 : 0;
     
     final expiredMembers = expiredMemberNames.join(', ');
     final expiringMembers = expiringMemberNames.join(', ');
@@ -67,7 +101,7 @@ class DashboardScreen extends ConsumerWidget {
         child: StatusBarWrapper(
           child: RefreshIndicator(
             onRefresh: () async {
-              // Future: cloud sync
+              await ref.read(syncWorkerProvider).performSync();
             },
             child: CustomScrollView(
               slivers: [
@@ -103,10 +137,11 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                           ),
                         _buildSectionHeader(context, 'DUE TODAY', 'Show all'),
-                        _buildDueList(members, now),
+                        _buildDueList(dueMembers, now),
                         const SizedBox(height: 32),
                         _buildSectionHeader(context, 'REVENUE THIS MONTH', null),
-                        _buildRevenueCard(members),
+                        _buildRevenueCard(currentRevenue.toInt(), trend, dailyRevenue),
+                        const NutritionSummaryCard(),
                         const SizedBox(height: 100), // Space for bottom nav or FAB
                       ],
                     ),
@@ -295,12 +330,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDueList(List<MemberSnapshot> members, DateTime now) {
-    final due = members.where((m) {
-      final days = m.getDaysRemaining(now);
-      return days >= 0 && days <= 3;
-    }).toList();
-
+  Widget _buildDueList(List<MemberSnapshot> due, DateTime now) {
     if (due.isEmpty) {
       return Container(
         height: 80,
@@ -340,69 +370,71 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRevenueCard(List<MemberSnapshot> members) {
-    final totalRevenue = members.fold<int>(0, (sum, m) => sum + m.totalPaid);
-    
+  Widget _buildRevenueCard(int totalRevenue, double trend, List<double> dailyRevenue) {
+    final isPositive = trend >= 0;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.elevation2,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ESTIMATED REVENUE'.toUpperCase(),
-                style: AppTextStyles.sectionTitle.copyWith(fontSize: 8, letterSpacing: 1.5, color: AppColors.textMuted),
+                'COLLECTED REVENUE'.toUpperCase(),
+                style: AppTextStyles.sectionTitle.copyWith(fontSize: 8, color: AppColors.textMuted),
               ),
               const SizedBox(height: 6),
               Text(
-                '₹${(totalRevenue / 1).toInt()}', // Assuming totalPaid is already scaled or handles division properly
-                style: AppTextStyles.cardTitle.copyWith(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.primary),
+                '₹$totalRevenue',
+                style: AppTextStyles.cardTitle.copyWith(fontSize: 24, color: AppColors.primary),
               ),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.trending_up_rounded, size: 12, color: AppColors.active),
+                  Icon(
+                    isPositive ? Icons.trending_up_rounded : Icons.trending_down_rounded, 
+                    size: 12, 
+                    color: isPositive ? AppColors.green : AppColors.red,
+                  ),
                   const SizedBox(width: 4),
                   Text(
-                    '12% increase from last month',
-                    style: AppTextStyles.bodySmall.copyWith(fontSize: 9, color: AppColors.active, fontWeight: FontWeight.w600),
+                    '${trend.abs().toStringAsFixed(1)}% ${isPositive ? "increase" : "decrease"}',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: 9, 
+                      color: isPositive ? AppColors.green : AppColors.red, 
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
-          _buildMiniBars(),
+          _buildMiniBars(dailyRevenue),
         ],
       ),
     );
   }
 
-  Widget _buildMiniBars() {
-    final heights = [0.55, 0.65, 0.45, 0.8, 0.6, 0.85, 1.0];
+  Widget _buildMiniBars(List<double> dailyRevenue) {
+    final maxRev = dailyRevenue.reduce((a, b) => a > b ? a : b);
+    final normalized = dailyRevenue.map((r) => maxRev > 0 ? (r / maxRev).clamp(0.1, 1.0) : 0.1).toList();
+
     return SizedBox(
       height: 36,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(heights.length, (index) {
-          final isLast = index == heights.length - 1;
+        children: List.generate(normalized.length, (index) {
+          final isLast = index == normalized.length - 1;
           return Container(
             width: 6,
-            height: 36 * heights[index],
+            height: 36 * normalized[index],
             margin: const EdgeInsets.only(left: 3),
             decoration: BoxDecoration(
               color: isLast ? AppColors.orange : AppColors.bg4,

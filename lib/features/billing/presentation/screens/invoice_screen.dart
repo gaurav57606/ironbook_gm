@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_bottom_nav.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/providers/payment_provider.dart';
-import '../../../../core/providers/member_provider.dart';
-import '../../../../core/data/local/models/payment_model.dart';
+import '../../../../core/providers/owner_provider.dart';
+import '../../providers/billing_provider.dart';
+import '../../../members/providers/members_provider.dart';
+import '../../../../core/data/local/drift/outbox_database.dart';
 import '../../../../shared/utils/date_formatter.dart';
+import 'package:collection/collection.dart';
+import '../../services/invoice_pdf_service.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:printing/printing.dart';
+import 'dart:io';
 
 class InvoiceScreen extends ConsumerStatefulWidget {
   final String? memberId;
@@ -21,21 +27,75 @@ class InvoiceScreen extends ConsumerStatefulWidget {
 
 class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Maintain device hygiene by cleaning up old temporary invoices
+    InvoicePdfService.cleanup();
+  }
+
+  bool _isProcessing = false;
+
+  Future<void> _shareInvoice(Payment payment, String memberName) async {
+    setState(() => _isProcessing = true);
+    try {
+      final owner = ref.read(ownerProvider);
+      if (owner == null) return;
+      
+      final file = await InvoicePdfService.generateInvoice(
+        payment: payment,
+        owner: owner,
+        memberName: memberName,
+      );
+      
+      await Share.shareXFiles([XFile(file.path)], text: 'Invoice from ${owner.gymName}');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sharing invoice: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _printInvoice(Payment payment, String memberName) async {
+    setState(() => _isProcessing = true);
+    try {
+      final owner = ref.read(ownerProvider);
+      if (owner == null) return;
+      
+      final file = await InvoicePdfService.generateInvoice(
+        payment: payment,
+        owner: owner,
+        memberName: memberName,
+      );
+      
+      await Printing.layoutPdf(onLayout: (_) => file.readAsBytes());
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final payments = ref.watch(paymentsProvider);
+    final paymentsAsync = ref.watch(allPaymentsProvider);
     final memberId = widget.memberId;
     
     Payment? payment;
-    if (memberId != null) {
-      payment = ref.read(paymentsProvider.notifier).getLatestForMember(memberId);
-    } else if (payments.isNotEmpty) {
-      payment = payments.first;
+    if (paymentsAsync is AsyncData<List<Payment>>) {
+      final payments = paymentsAsync.value;
+      if (memberId != null) {
+        payment = payments.where((p) => p.memberId == memberId).firstOrNull;
+      } else if (payments.isNotEmpty) {
+        payment = payments.first;
+      }
     }
 
     return StatusBarWrapper(
       child: Column(
         children: [
-          _buildAppBar(context),
+          _buildAppBar(context, payment),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.only(bottom: 20),
@@ -53,9 +113,19 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
                   Padding(
                     padding: const EdgeInsets.all(14),
                     child: AppButton(
-                      text: 'Share via WhatsApp',
-                      icon: const Icon(Icons.share, size: 13, color: Colors.white),
-                      onPressed: () {},
+                      text: _isProcessing ? 'Processing...' : 'Share via WhatsApp',
+                      icon: _isProcessing 
+                        ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.share, size: 13, color: Colors.white),
+                      onPressed: _isProcessing ? null : () {
+                        final membersAsync = ref.read(membersProvider);
+                        final memberName = membersAsync.when(
+                          data: (list) => list.firstWhereOrNull((m) => m.id == payment!.memberId)?.name ?? 'Member',
+                          loading: () => 'Member',
+                          error: (_, __) => 'Member',
+                        );
+                        _shareInvoice(payment!, memberName);
+                      },
                     ),
                   ),
                 ],
@@ -76,7 +146,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, Payment? payment) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
@@ -101,32 +171,57 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
             ),
           ),
-          _buildAppBarIcon(Icons.download_rounded),
+          _buildAppBarIcon(Icons.download_rounded, onTap: payment != null ? () {
+            final membersAsync = ref.read(membersProvider);
+            final memberName = membersAsync.when(
+              data: (list) => list.firstWhereOrNull((m) => m.id == payment!.memberId)?.name ?? 'Member',
+              loading: () => 'Member',
+              error: (_, __) => 'Member',
+            );
+            _printInvoice(payment!, memberName); // Printing includes a preview/download option on mobile
+          } : null),
           const SizedBox(width: 6),
-          _buildAppBarIcon(Icons.print_rounded),
+          _buildAppBarIcon(Icons.print_rounded, onTap: payment != null ? () {
+            final membersAsync = ref.read(membersProvider);
+            final memberName = membersAsync.when(
+              data: (list) => list.firstWhereOrNull((m) => m.id == payment!.memberId)?.name ?? 'Member',
+              loading: () => 'Member',
+              error: (_, __) => 'Member',
+            );
+            _printInvoice(payment!, memberName);
+          } : null),
         ],
       ),
     );
   }
 
-  Widget _buildAppBarIcon(IconData icon) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
+  Widget _buildAppBarIcon(IconData icon, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: AppColors.bg3,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Icon(icon, size: 14, color: onTap != null ? AppColors.text : AppColors.text2),
       ),
-      child: Icon(icon, size: 14, color: AppColors.text),
     );
   }
 
   Widget _buildInvoiceCard(Payment payment) {
     // Fetch member name (we'd ideally have a memberProvider but for now we can infer from snapshot if available)
     // Or just trust the event history. For simplicity, we'll try to get it from members list.
-    final members = ref.read(membersProvider);
-    final memberName = members.where((m) => m.memberId == payment.memberId).firstOrNull?.name ?? 'Member';
+    final membersAsync = ref.watch(membersProvider);
+    final memberName = membersAsync.when(
+      data: (list) => list.firstWhereOrNull((m) => m.id == payment.memberId)?.name ?? 'Member',
+      loading: () => 'Member',
+      error: (_, __) => 'Member',
+    );
+
+    final owner = ref.watch(ownerProvider);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -146,12 +241,15 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Raj\'s Fitness', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.orange)),
-                  SizedBox(height: 2),
-                  Text('Sector 14, Gurugram · GSTIN 07ABC...', style: TextStyle(fontSize: 9, color: AppColors.text2)),
+                  Text(owner?.gymName ?? 'IRONBOOK GM', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.orange)),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${owner?.address ?? "Update address in settings"}${owner?.gstin != null ? " · GSTIN ${owner!.gstin}" : ""}', 
+                    style: const TextStyle(fontSize: 9, color: AppColors.text2),
+                  ),
                 ],
               ),
               Column(
@@ -174,11 +272,13 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
           _buildInvoiceRow('Subtotal', '₹${payment.subtotal.toStringAsFixed(2)}'),
           _buildInvoiceRow('GST @ ${(payment.gstRate * 100).toInt()}%', '₹${payment.gstAmount.toStringAsFixed(2)}'),
           _buildTotalRow('Total Paid', '₹${payment.amount.toInt()}'),
-          const Divider(height: 20, color: AppColors.border),
-          const Text(
-            'HDFC · A/C 1234567890 · IFSC HDFC0001234',
-            style: TextStyle(fontSize: 9, color: AppColors.text2),
-          ),
+          if (owner?.bankName != null) ...[
+            const Divider(height: 20, color: AppColors.border),
+            Text(
+              '${owner!.bankName} · A/C ${owner.accountNumber} · IFSC ${owner.ifsc}',
+              style: const TextStyle(fontSize: 9, color: AppColors.text2),
+            ),
+          ],
         ],
       ),
     );

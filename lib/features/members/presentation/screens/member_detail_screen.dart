@@ -5,12 +5,11 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
-import '../../../../core/providers/member_provider.dart';
-import '../../../../core/data/local/models/member_snapshot_model.dart';
+import '../../providers/members_provider.dart';
+import '../../../billing/providers/billing_provider.dart';
+import '../../../../core/data/local/drift/outbox_database.dart';
 import '../../../../shared/utils/date_formatter.dart';
 import '../../../../shared/utils/currency_formatter.dart';
-import '../../../../core/data/repositories/event_repository.dart';
-import '../../../../core/data/local/models/domain_event_model.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/utils/clock.dart';
 
@@ -23,35 +22,16 @@ class MemberDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
-  List<DomainEvent> _history = [];
-  bool _isLoadingHistory = true;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
-  }
-
-  Future<void> _loadHistory() async {
-    try {
-      final repo = ref.read(eventRepositoryProvider);
-      final events = await repo.getByEntityId(widget.memberId);
-      if (mounted) {
-        setState(() {
-          _history = events.reversed.toList();
-          _isLoadingHistory = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingHistory = false);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final members = ref.watch(membersProvider);
-    
-    final member = members.firstWhereOrNull((m) => m.memberId == widget.memberId);
+    final memberAsync = ref.watch(memberProvider(widget.memberId));
+    final member = memberAsync.value;
 
     if (member == null) {
       return Scaffold(
@@ -102,7 +82,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                       _buildSectionHeader('FINANCIALS'),
                       _buildFinancialsCard(member),
                       _buildSectionHeader('HISTORY'),
-                      _buildPaymentHistory(),
+                      _buildPaymentHistory(member.id),
                     ],
                   ),
                 ),
@@ -114,7 +94,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildHeaderAvatar(MemberSnapshot member, Color statusColor, String statusMsg) {
+  Widget _buildHeaderAvatar(Member member, Color statusColor, String statusMsg) {
     return Center(
       child: Column(
         children: [
@@ -171,7 +151,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, MemberSnapshot member, Color color, String status) {
+  Widget _buildAppBar(BuildContext context, Member member, Color color, String status) {
     return Padding(
       padding: const EdgeInsets.only(left: 14, right: 14, top: 12, bottom: 8),
       child: Row(
@@ -210,7 +190,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, MemberSnapshot member) {
+  Widget _buildQuickActions(BuildContext context, Member member) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Column(
@@ -221,7 +201,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                 flex: 2,
                 child: AppButton(
                   text: 'Generate Invoice',
-                  onPressed: () => context.push('/gym/member-details/${member.memberId}/invoice'),
+                  onPressed: () => context.push('/gym/member-details/${member.id}/invoice'),
                 ),
               ),
               const SizedBox(width: 6),
@@ -243,7 +223,9 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                 child: AppButton(
                   text: 'Check In',
                   style: AppButtonStyle.secondary,
-                  onPressed: () => ref.read(membersProvider.notifier).recordAttendance(member.memberId),
+                  onPressed: () {
+                    // Logic for attendance
+                  },
                 ),
               ),
               const SizedBox(width: 6),
@@ -271,7 +253,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, MemberSnapshot member) {
+  void _showDeleteConfirmation(BuildContext context, Member member) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -283,7 +265,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary))),
           TextButton(
             onPressed: () {
-              ref.read(membersProvider.notifier).deleteMember(member.memberId);
+              ref.read(membersNotifierProvider).deleteMember(member.id);
               Navigator.pop(ctx);
               context.pop();
             },
@@ -304,7 +286,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildSubscriptionCard(MemberSnapshot member, Color color, String status) {
+  Widget _buildSubscriptionCard(Member member, Color color, String status) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.all(16),
@@ -336,7 +318,11 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildFinancialsCard(MemberSnapshot member) {
+  Widget _buildFinancialsCard(Member member) {
+    final paymentsAsync = ref.watch(paymentsProvider(member.id));
+    final payments = paymentsAsync.value ?? [];
+    final totalPaid = payments.fold(0.0, (sum, p) => sum + p.amount);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.all(16),
@@ -349,7 +335,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
         children: [
           _buildInfoRow(
             'Total Contribution', 
-            CurrencyFormatter.format(member.totalPaid / 100.0), 
+            CurrencyFormatter.format(totalPaid), 
             valueColor: AppColors.primary, 
             valueSize: 20, 
             valueWeight: FontWeight.w800,
@@ -359,7 +345,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Divider(color: AppColors.border, height: 1),
           ),
-          _buildInfoRow('Payments Count', member.paymentIds.length.toString(), valueWeight: FontWeight.w600),
+          _buildInfoRow('Payments Count', payments.length.toString(), valueWeight: FontWeight.w600),
         ],
       ),
     );
@@ -380,54 +366,45 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildPaymentHistory() {
-    if (_isLoadingHistory) {
-      return const Center(child: Padding(
-        padding: EdgeInsets.all(40),
-        child: CircularProgressIndicator(),
-      ));
-    }
+  Widget _buildPaymentHistory(String memberId) {
+    final paymentsAsync = ref.watch(paymentsProvider(memberId));
+    
+    return paymentsAsync.when(
+      loading: () => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
+      error: (e, s) => Center(child: Text('Error loading history')),
+      data: (payments) {
+        if (payments.isEmpty) {
+          return Center(child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              children: [
+                Icon(Icons.history_rounded, size: 40, color: AppColors.textMuted.withValues(alpha: 0.3)),
+                const SizedBox(height: 12),
+                const Text('No history recorded yet', style: TextStyle(color: AppColors.textMuted)),
+              ],
+            ),
+          ));
+        }
 
-    if (_history.isEmpty) {
-      return Center(child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          children: [
-            Icon(Icons.history_rounded, size: 40, color: AppColors.textMuted.withValues(alpha: 0.3)),
-            const SizedBox(height: 12),
-            Text('No history recorded yet', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
-          ],
-        ),
-      ));
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Column(
-        children: List.generate(_history.length, (index) {
-          final event = _history[index];
-          final isLast = index == _history.length - 1;
-          
-          final eventTypeStr = event.eventType.name.toUpperCase();
-          String title = eventTypeStr.replaceAll('_', ' ');
-          String amountSpan = '';
-          if (event.payload['amount'] != null) {
-            amountSpan = CurrencyFormatter.format((event.payload['amount'] as int) / 100.0);
-          }
-
-          final bool isPayment = eventTypeStr.contains('PAYMENT');
-          final bool isCreation = eventTypeStr.contains('CREATED');
-
-          return _buildTimelineItem(
-            title,
-            '${DateFormatter.format(event.deviceTimestamp)} · ${isPayment ? "Confirmed" : "System Notification"}',
-            amountSpan,
-            icon: isPayment ? Icons.payments_rounded : (isCreation ? Icons.person_add_rounded : Icons.info_outline_rounded),
-            color: isPayment ? AppColors.primary : (isCreation ? AppColors.green : AppColors.textMuted),
-            isLast: isLast,
-          );
-        }),
-      ),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Column(
+            children: List.generate(payments.length, (index) {
+              final payment = payments[index];
+              final isLast = index == payments.length - 1;
+              
+              return _buildTimelineItem(
+                'PAYMENT RECEIVED',
+                '${DateFormatter.format(payment.date)} · Confirmed',
+                CurrencyFormatter.format(payment.amount),
+                icon: Icons.payments_rounded,
+                color: AppColors.primary,
+                isLast: isLast,
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 
@@ -513,7 +490,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     }
   }
 
-  String _getStatusMessage(MemberSnapshot m) {
+  String _getStatusMessage(Member m) {
     final now = ref.watch(clockProvider).now;
     final days = m.getDaysRemaining(now);
     if (days < 0) return 'Membership Expired';

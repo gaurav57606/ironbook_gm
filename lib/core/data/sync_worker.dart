@@ -3,8 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'local/drift/outbox_repository.dart';
 import 'repositories/event_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 
@@ -25,6 +27,7 @@ class SyncWorker {
   final IEventRepository _repo;
   final OutboxRepository _outboxRepo;
   final SyncCoordinator _coordinator;
+  final SharedPreferences _prefs;
   final Future<void> Function(String collection, String id, Map<String, dynamic> data) _recordPusher;
   final String? Function() _currentUserId;
   bool _isSyncing = false;
@@ -36,9 +39,12 @@ class SyncWorker {
   final StateProvider<SyncWorkerState> _statusProvider;
   final Ref _ref;
 
-  SyncWorker(this._repo, this._outboxRepo, this._coordinator, this._recordPusher, this._currentUserId, this._statusProvider, this._ref) {
+  SyncWorker(this._repo, this._outboxRepo, this._coordinator, this._prefs, this._recordPusher, this._currentUserId, this._statusProvider, this._ref) {
     // Subscribe to manual sync requests from the UI or Repositories
     _syncSubscription = _coordinator.onSyncRequested.listen((_) => performSync());
+    
+    // Load persisted failure count
+    _consecutiveFailures = _prefs.getInt('sync_consecutive_failures') ?? 0;
   }
 
   void dispose() {
@@ -63,6 +69,13 @@ class SyncWorker {
       return;
     }
 
+    // Connectivity guard: prevent unneeded attempts while offline
+    if (!await _checkConnectivity()) {
+      debugPrint('SyncWorker: Device offline, skipping sync.');
+      await _coordinator.releaseLock(holderId);
+      return;
+    }
+
     _isSyncing = true;
     _ref.read(_statusProvider.notifier).state = SyncWorkerState(status: SyncWorkerStatus.syncing);
 
@@ -71,6 +84,7 @@ class SyncWorker {
       debugPrint('SyncWorker: Found ${unsynced.length} unsynced events in Drift Outbox for user $uid');
       if (unsynced.isEmpty) {
          _consecutiveFailures = 0; // Reset on "success" (even if empty)
+         await _prefs.setInt('sync_consecutive_failures', 0);
          return;
       }
 
@@ -79,14 +93,17 @@ class SyncWorker {
       for (final event in unsynced) {
         debugPrint('SyncWorker: Syncing event ${event.id} (${event.eventType})');
         await _recordPusher('users/$uid/events', event.id, event.toFirestore());
-        await _repo.markAsSynced(event.id);
-        await _outboxRepo.markSynced(event.id); // Also sync in Drift
+        // REMOVED: await _repo.markAsSynced(event.id); - Drift is the only authority now
+        await _outboxRepo.markSynced(event.id); // Mark synced in Drift
       }
       
       _consecutiveFailures = 0;
+      await _prefs.setInt('sync_consecutive_failures', 0);
+      _lastSuccessAt = DateTime.now();
       debugPrint('SyncWorker: Sync completed successfully');
     } catch (e) {
       _consecutiveFailures++;
+      await _prefs.setInt('sync_consecutive_failures', _consecutiveFailures);
       _lastErrorAt = DateTime.now();
       _lastErrorMessage = e.toString();
       debugPrint('SyncWorker Error: $e (Failure count: $_consecutiveFailures)');
@@ -140,6 +157,11 @@ class SyncWorker {
       errorMessage: error,
     );
   }
+
+  Future<bool> _checkConnectivity() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    return !connectivityResult.contains(ConnectivityResult.none);
+  }
 }
 
 final syncWorkerStatusProvider = StateProvider<SyncWorkerState>((ref) => SyncWorkerState(status: SyncWorkerStatus.idle));
@@ -148,12 +170,14 @@ final syncWorkerProvider = Provider<SyncWorker>((ref) {
   final repo = ref.watch(eventRepositoryProvider);
   final outboxRepo = ref.watch(outboxRepositoryProvider);
   final coordinator = ref.watch(syncCoordinatorProvider);
+  final prefs = ref.watch(sharedPreferencesProvider);
   
   final worker = SyncWorker(
     repo,
     outboxRepo,
     coordinator,
-    (coll, id, data) => FirebaseFirestore.instance.collection(coll).doc(id).set(data, SetOptions(merge: true)),
+    prefs,
+    (coll, id, data) => FirebaseFirestore.instance.collection(coll).doc(id).set(data), // Create-only/Full overwrite
     () => FirebaseAuth.instance.currentUser?.uid,
     syncWorkerStatusProvider,
     ref,

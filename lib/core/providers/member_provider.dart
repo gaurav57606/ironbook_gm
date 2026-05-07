@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/data/local/snapshot_builder.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
@@ -14,10 +16,13 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 
 final membersProvider = StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
-  final repo = ref.watch(eventRepositoryProvider);
+  final eventRepo = ref.watch(eventRepositoryProvider);
+  final memberRepo = ref.watch(memberRepositoryProvider);
+  final planRepo = ref.watch(planRepositoryProvider);
+  final prefRepo = ref.watch(preferencesRepositoryProvider);
   final clock = ref.watch(clockProvider);
   final hmac = ref.watch(hmacServiceProvider);
-  return MemberNotifier(repo, clock, hmac);
+  return MemberNotifier(eventRepo, memberRepo, planRepo, prefRepo, clock, hmac);
 });
 
 final memberSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -44,13 +49,29 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   }).toList();
 });
 
+final memberProvider = Provider.family<AsyncValue<MemberSnapshot?>, String>((ref, id) {
+  final members = ref.watch(membersProvider);
+  final member = members.where((m) => m.memberId == id).firstOrNull;
+  return AsyncValue.data(member);
+});
+
 class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
-  final IEventRepository _repo;
+  final IEventRepository _eventRepo;
+  final IMemberRepository _memberRepo;
+  final IPlanRepository _planRepo;
+  final IPreferencesRepository _prefRepo;
   final IClock _clock;
   final HmacService _hmac;
   String _deviceId = 'device-unknown';
 
-  MemberNotifier(this._repo, this._clock, this._hmac) : super([]) {
+  MemberNotifier(
+    this._eventRepo,
+    this._memberRepo,
+    this._planRepo,
+    this._prefRepo,
+    this._clock,
+    this._hmac,
+  ) : super([]) {
     init();
   }
 
@@ -59,35 +80,39 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
   Future<void> init() async {
     _deviceId = await _hmac.getInstallationId();
-    if (!Hive.isBoxOpen('snapshots')) return;
-    final box = Hive.lazyBox<MemberSnapshot>('snapshots');
-    state = await _loadAllSnapshots(box);
 
-    // 1. Recovery & Integrity: Reconcile lagging snapshots with event log
-    await _reconcileSnapshots();
-    
-    // 2. Real-time updates via Event Bus
-    _repo.watch().listen((event) async {
-      final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
-      final current = await snapshotBox.get(event.entityId);
-      
-      // Audit 1.4: Skip if snapshot is already up-to-date (Near-atomic write handled it)
-      if (current != null && current.lastUpdated.isAtSameMomentAs(event.deviceTimestamp)) {
+    // 1. Real-time updates via Event Bus
+    _eventRepo.watch().listen((event) async {
+      if (![
+        EventType.memberCreated,
+        EventType.memberUpdated,
+        EventType.memberArchived,
+        EventType.checkInRecorded,
+        EventType.paymentRecorded
+      ].contains(event.eventType)) {
         return;
       }
 
-      final updated = SnapshotBuilder.apply(current, event);
-      if (updated != null) {
-        // Sign before saving
-        final signature = await _hmac.signSnapshot(event.entityId, updated.toFirestore());
-        final signed = updated.copyWith(hmacSignature: signature);
-        await snapshotBox.put(event.entityId, signed);
-        state = await _loadAllSnapshots(snapshotBox);
+      await _memberRepo.applyEvent(event);
+      
+      final updatedMember = await _memberRepo.getMember(event.entityId);
+      if (updatedMember != null) {
+        final index = state.indexWhere((m) => m.memberId == event.entityId);
+        if (index != -1) {
+          state = [...state]..[index] = updatedMember;
+        } else {
+          state = [...state, updatedMember];
+        }
       } else if (event.eventType == EventType.memberArchived) {
-        await snapshotBox.delete(event.entityId);
-        state = await _loadAllSnapshots(snapshotBox);
+        state = state.where((m) => m.memberId != event.entityId).toList();
       }
     });
+
+    // 2. Load all members from Drift
+    state = await _memberRepo.getAllMembers();
+
+    // 3. Reconcile
+    await _reconcileSnapshots();
   }
 
   Future<List<MemberSnapshot>> _loadAllSnapshots(LazyBox<MemberSnapshot> box) async {
@@ -99,6 +124,13 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     for (int i = 0; i < keys.length; i += 50) {
       final batch = keys.skip(i).take(50);
       final batchResults = await Future.wait(batch.map((key) async {
+    const batchSize = 50;
+    
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final batch = keys.skip(i).take(batchSize).toList();
+      final Map<String, MemberSnapshot> repairedInBatch = {};
+
+      final results = await Future.wait(batch.map((key) async {
         final snap = await box.get(key);
         if (snap == null) return null;
 
@@ -117,6 +149,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
             final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
             final signed = repaired.copyWith(hmacSignature: signature);
             return MapEntry(key.toString(), signed);
+            repairedInBatch[snap.memberId] = signed;
+            return signed;
           }
         }
         return null;
@@ -128,6 +162,14 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         } else if (result is MapEntry<String, MemberSnapshot>) {
           repairs[result.key] = result.value;
           validSnapshots.add(result.value);
+      if (repairedInBatch.isNotEmpty) {
+        // ⚡ Bolt: Batch write repaired snapshots
+        await box.putAll(repairedInBatch);
+      }
+
+      for (final res in results) {
+        if (res != null) {
+          validSnapshots.add(res as MemberSnapshot);
         }
       }
     }
@@ -140,17 +182,20 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   }
 
   Future<void> _reconcileSnapshots() async {
-    final box = Hive.lazyBox<MemberSnapshot>('snapshots');
-    final allEvents = await _repo.getAll(); 
-    
-    if (allEvents.isEmpty) return;
+    const prefKey = 'member_reconcile_ts';
+    final lastCheckMs = await _prefRepo.getInt(prefKey) ?? 0;
+    final lastCheckTime = DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
 
-    // Audit 1.5 Fix: Reconcile from ALL local events to catch app-kill gaps
-    final latestByEntity = <String, DateTime>{};
-    for (final e in allEvents) {
-      if (latestByEntity[e.entityId] == null || e.deviceTimestamp.isAfter(latestByEntity[e.entityId]!)) {
-        latestByEntity[e.entityId] = e.deviceTimestamp;
-      }
+    final recentEvents = await _eventRepo.getEventsSince(lastCheckTime);
+
+    if (recentEvents.isEmpty) {
+      await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+      return;
+    }
+
+    final Map<String, List<DomainEvent>> eventsByEntity = {};
+    for (final e in recentEvents) {
+      eventsByEntity.putIfAbsent(e.entityId, () => []).add(e);
     }
 
     final entityIds = latestByEntity.keys.toList();
@@ -178,30 +223,81 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     if (updates.isNotEmpty) {
       await box.putAll(updates);
       state = await _loadAllSnapshots(box);
+    bool updatedAny = false;
+    final keys = eventsByEntity.keys.toList();
+    const batchSize = 50;
+
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final batch = keys.skip(i).take(batchSize).toList();
+      final Map<String, MemberSnapshot> updates = {};
+
+      await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
+        final latestEventTime = eventsByEntity[entityId]!
+            .map((e) => e.deviceTimestamp)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+
+        if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+          debugPrint('MemberNotifier: Lagging snapshot for ${entityId}. Rebuilding from checkpoint events...');
+          // Rebuild from ALL entity events for correctness (only triggered when needed)
+          final fullHistory = await _repo.getByEntityId(entityId);
+          final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+          if (rebuilt != null) {
+            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
+            final signed = rebuilt.copyWith(hmacSignature: signature);
+            updates[entityId] = signed;
+          }
+    for (final entityId in eventsByEntity.keys) {
+      final snap = await _memberRepo.getMember(entityId);
+      final latestEventTime = eventsByEntity[entityId]!
+          .map((e) => e.deviceTimestamp)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+
+      if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+        debugPrint('MemberNotifier: Lagging Drift state for $entityId. Rebuilding from event log...');
+        final fullHistory = await _eventRepo.getByEntityId(entityId);
+        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+        if (rebuilt != null) {
+          await _memberRepo.upsertMember(rebuilt);
+          updatedAny = true;
+        }
+      }));
+
+      if (updates.isNotEmpty) {
+        // ⚡ Bolt: Batch write updated snapshots
+        await box.putAll(updates);
+        updatedAny = true;
+      }
+    }
+
+    await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+
+    if (updatedAny) {
+      state = await _memberRepo.getAllMembers();
     }
   }
 
   Future<void> rebuildCache() async {
-    debugPrint('MemberNotifier: Manual cache rebuild triggered.');
-    final box = Hive.lazyBox<MemberSnapshot>('snapshots');
-    await box.clear();
+    debugPrint('MemberNotifier: Manual Drift state rebuild triggered.');
+    final members = await _memberRepo.getAllMembers();
+    for (final m in members) {
+      await _memberRepo.deleteMember(m.memberId);
+    }
     await _reconcileSnapshots();
   }
-
-
 
   Future<String> addMember({
     required String name,
     required String phone,
     required String planId,
     required DateTime joinDate,
+    String? gender,
+    int? age,
   }) async {
     final memberId = const Uuid().v4();
     final now = _clock.now;
     
-    final plansBox = Hive.box<Plan>('plans');
-    final plan = plansBox.get(planId);
-    
+    final plan = await _planRepo.getPlan(planId);
     if (plan == null) throw Exception('Plan not found');
 
     final expiryDate = AppDateUtils.addMonths(joinDate, plan.durationMonths);
@@ -219,25 +315,22 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         EventPayloadKeys.planName: plan.name,
         EventPayloadKeys.joinDate: joinDate.toUtc().toIso8601String(),
         EventPayloadKeys.newExpiry: expiryDate.toUtc().toIso8601String(),
+        if (gender != null) EventPayloadKeys.gender: gender,
+        if (age != null) EventPayloadKeys.age: age,
       },
     );
 
-    await _repo.persist(memberEvent);
+    await _eventRepo.persist(memberEvent);
 
-    // Audit 1.4: Near-atomic snapshot update
-    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
     final snapshot = MemberSnapshot.fromPayload(memberId, memberEvent.payload);
-    
-    // Sign before saving
-    final signature = await _hmac.signSnapshot(memberId, snapshot.toFirestore());
-    final signed = snapshot.copyWith(hmacSignature: signature);
-    
-    await snapshotBox.put(memberId, signed);
-    state = [...state, signed];
+    await _memberRepo.upsertMember(snapshot);
+    final signed = await _memberRepo.getMember(memberId);
+    if (signed != null) {
+      state = [...state, signed];
+    }
 
     return memberId;
   }
-
 
   Future<void> deleteMember(String memberId) async {
     final deleteEvent = DomainEvent(
@@ -248,11 +341,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       payload: {'memberId': memberId},
     );
 
-    await _repo.persist(deleteEvent);
-
-    // Audit 1.4: Near-atomic snapshot update
-    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
-    await snapshotBox.delete(memberId);
+    await _eventRepo.persist(deleteEvent);
+    await _memberRepo.deleteMember(memberId);
     state = state.where((m) => m.memberId != memberId).toList();
   }
 
@@ -272,18 +362,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         EventPayloadKeys.phone: phone,
       },
     );
-    await _repo.persist(updateEvent);
-
-    // Audit 1.4: Near-atomic snapshot update
-    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
-    final current = await snapshotBox.get(memberId);
-    final updated = SnapshotBuilder.apply(current, updateEvent);
-    if (updated != null) {
-      final signature = await _hmac.signSnapshot(memberId, updated.toFirestore());
-      final signed = updated.copyWith(hmacSignature: signature);
-      await snapshotBox.put(memberId, signed);
-      state = await _loadAllSnapshots(snapshotBox);
-    }
+    await _eventRepo.persist(updateEvent);
   }
 
   Future<void> recordAttendance(String memberId) async {
@@ -299,28 +378,6 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       },
     );
 
-    await _repo.persist(checkInEvent);
-
-    // Audit 1.4: Near-atomic snapshot update
-    final snapshotBox = Hive.lazyBox<MemberSnapshot>('snapshots');
-    final current = await snapshotBox.get(memberId);
-    final updated = SnapshotBuilder.apply(current, checkInEvent);
-    if (updated != null) {
-      final signature = await _hmac.signSnapshot(memberId, updated.toFirestore());
-      final signed = updated.copyWith(hmacSignature: signature);
-      await snapshotBox.put(memberId, signed);
-      state = await _loadAllSnapshots(snapshotBox);
-    }
+    await _eventRepo.persist(checkInEvent);
   }
 }
-
-
-
-
-
-
-
-
-
-
-

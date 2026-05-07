@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironbook_gm/core/constants/app_colors.dart';
+import 'package:ironbook_gm/shared/widgets/status_bar_wrapper.dart';
+import '../../data/repositories/analytics_repository.dart';
+import '../../data/models/analytics_summary.dart';
+import 'package:intl/intl.dart';
 
-class AnalyticsScreen extends StatelessWidget {
+class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(analyticsSummaryProvider);
+
     return StatusBarWrapper(
       child: Scaffold(
         backgroundColor: AppColors.bg,
@@ -26,53 +32,12 @@ class AnalyticsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Gym Analytics',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.bg2,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: const Row(
-                          children: [
-                            Text('March 2026', style: TextStyle(color: AppColors.text3, fontSize: 10, fontWeight: FontWeight.bold)),
-                            SizedBox(width: 4),
-                            Icon(Icons.calendar_today_rounded, color: AppColors.orange, size: 10),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildHeader(),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(24),
-                    children: [
-                      _buildMainStats(),
-                      const SizedBox(height: 24),
-                      _buildGraphPlaceholder('Revenue Trends'),
-                      const SizedBox(height: 16),
-                      _buildGraphPlaceholder('Member Attendance'),
-                      const SizedBox(height: 24),
-                      const Text('Top Performing Plans', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 16),
-                      _buildPlanRank('Elite Coaching', 0.8),
-                      _buildPlanRank('Standard Gym', 0.6),
-                      _buildPlanRank('Yoga Specialized', 0.3),
-                    ],
+                  child: summaryAsync.when(
+                    data: (summary) => _buildContent(summary),
+                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.orange)),
+                    error: (e, st) => Center(child: Text('Error loading analytics: $e', style: const TextStyle(color: Colors.red))),
                   ),
                 ),
               ],
@@ -83,12 +48,65 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMainStats() {
-    return Row(
+  Widget _buildHeader() {
+    final monthYear = DateFormat('MMMM yyyy').format(DateTime.now());
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Gym Analytics',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.bg2,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Text(monthYear, style: const TextStyle(color: AppColors.text3, fontSize: 10, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 4),
+                const Icon(Icons.calendar_today_rounded, color: AppColors.orange, size: 10),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(AnalyticsSummary summary) {
+    final currencyFormat = NumberFormat.compactCurrency(symbol: '₹', decimalDigits: 0);
+    
+    return ListView(
+      padding: const EdgeInsets.all(24),
       children: [
-        Expanded(child: _buildStatCard('Total Members', '1,248', '+12%', Icons.people_rounded)),
-        const SizedBox(width: 16),
-        Expanded(child: _buildStatCard('Total Revenue', r'$142k', '+8%', Icons.account_balance_wallet_rounded)),
+        Row(
+          children: [
+            Expanded(child: _buildStatCard('Total Members', summary.totalMembers.toString(), '+${summary.growthPercent}%', Icons.people_rounded)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildStatCard('Total Revenue', currencyFormat.format(summary.totalRevenue), '+${summary.revenueGrowthPercent}%', Icons.account_balance_wallet_rounded)),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _buildRevenueGraph('Revenue Trends (7d)', summary.weeklyRevenue),
+        const SizedBox(height: 16),
+        _buildAttendanceGraph('Check-ins (7d)', summary.weeklyAttendance),
+        const SizedBox(height: 24),
+        const Text('Top Performing Plans', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 16),
+        if (summary.topPlans.isEmpty)
+          const Text('No plan data yet.', style: TextStyle(color: AppColors.text3, fontSize: 12))
+        else
+          ...summary.topPlans.map((plan) => _buildPlanRank(plan.name, plan.percentage)),
       ],
     );
   }
@@ -119,7 +137,17 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGraphPlaceholder(String title) {
+  Widget _buildRevenueGraph(String title, List<double> data) {
+    return _buildGraph(title, data, isCurrency: true);
+  }
+
+  Widget _buildAttendanceGraph(String title, List<double> data) {
+    return _buildGraph(title, data, isCurrency: false);
+  }
+
+  Widget _buildGraph(String title, List<double> data, {bool isCurrency = false}) {
+    final maxVal = data.isEmpty ? 1.0 : data.reduce((a, b) => a > b ? a : b);
+    
     return Container(
       height: 160,
       padding: const EdgeInsets.all(20),
@@ -136,15 +164,27 @@ class AnalyticsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(7, (index) {
-              final height = 40.0 + (index * 10) % 60;
-              return Container(
-                width: 12,
-                height: height,
-                decoration: BoxDecoration(
-                  color: AppColors.orange.withValues(alpha: 0.3 + (index * 0.1)),
-                  borderRadius: BorderRadius.circular(4),
-                ),
+            children: List.generate(data.length, (index) {
+              final val = data[index];
+              final height = maxVal == 0 ? 2.0 : (val / maxVal) * 80.0 + 2.0;
+              return Column(
+                children: [
+                  Container(
+                    width: 14,
+                    height: height,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          AppColors.orange.withValues(alpha: 0.1),
+                          AppColors.orange.withValues(alpha: 0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
               );
             }),
           ),

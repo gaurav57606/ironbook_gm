@@ -21,6 +21,11 @@ class MockEventRepo extends Mock implements IEventRepository {}
 class MockSyncWorker extends Mock implements SyncWorker {}
 class MockBox<T> extends Mock implements Box<T> {}
 class MockHmacService extends Mock implements HmacService {}
+class MockMemberRepo extends Mock implements IMemberRepository {}
+class MockPlanRepo extends Mock implements IPlanRepository {}
+class MockPaymentRepo extends Mock implements IPaymentRepository {}
+class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
+class MockSequenceRepo extends Mock implements ISequenceRepository {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 
 void main() {
@@ -67,27 +72,35 @@ void main() {
         clockProvider.overrideWithValue(FrozenClock(DateTime(2024, 1, 1))),
         // Mock Notifiers
         planProvider.overrideWith((ref) {
-          final box = MockBox<Plan>();
-          when(() => box.values).thenReturn([]);
-          final notifier = PlanNotifier(box, mockRepo, mockSyncWorker, mockHmac, 'dev');
+          final notifier = PlanNotifier(mockRepo, MockPlanRepo(), mockSyncWorker, mockHmac);
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = testPlans;
           return notifier;
         }),
         membersProvider.overrideWith((ref) {
-          final notifier = MemberNotifier(mockRepo, FrozenClock(DateTime(2024, 1, 1)), mockHmac as HmacService);
+          final notifier = MemberNotifier(
+            mockRepo, 
+            MockMemberRepo(), 
+            MockPlanRepo(), 
+            MockPreferencesRepo(),
+            FrozenClock(DateTime(2024, 1, 1)), 
+            mockHmac as HmacService
+          );
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = [];
           return notifier;
         }),
         paymentsProvider.overrideWith((ref) {
-          final pBox = MockBox<Payment>();
-          when(() => pBox.values).thenReturn([]);
-          final sBox = MockBox<InvoiceSequence>();
-          when(() => sBox.get(any())).thenReturn(null);
           final clock = FrozenClock(DateTime(2024, 1, 1));
           // ignore: invalid_use_of_visible_for_testing_member
-          return PaymentNotifier(pBox, sBox, mockRepo, clock, mockHmac as HmacService)..debugState = [];
+          return PaymentNotifier(
+            MockSequenceRepo(), 
+            mockRepo, 
+            MockPaymentRepo(), 
+            MockMemberRepo(),
+            clock, 
+            mockHmac as HmacService
+          )..debugState = [];
         }),
       ],
       child: MaterialApp(
