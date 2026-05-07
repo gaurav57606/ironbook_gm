@@ -34,24 +34,26 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final tabIndex = ref.watch(memberTabProvider);
   final now = ref.watch(clockProvider).now;
 
-  return members.where((m) {
-    final matchesSearch = m.name.toLowerCase().contains(query) ||
-        (m.phone?.contains(query) ?? false);
-    
-    if (!matchesSearch) return false;
+  final searched = query.isEmpty
+      ? members
+      : members.where((m) => m.name.toLowerCase().contains(query)).toList();
 
-    if (tabIndex == 0) return true; // All
-    final status = m.getStatus(now);
-    if (tabIndex == 1) return status == MemberStatus.active;
-    if (tabIndex == 2) return status == MemberStatus.expiring;
-    if (tabIndex == 3) return status == MemberStatus.expired;
-    return true;
-  }).toList();
+  switch (tabIndex) {
+    case 1: // Active
+      return searched.where((m) => m.getStatus(now) == MemberStatus.active).toList();
+    case 2: // Expiring (next 7 days)
+      return searched.where((m) => m.getStatus(now) == MemberStatus.expiring).toList();
+    case 3: // Expired
+      return searched.where((m) => m.getStatus(now) == MemberStatus.expired).toList();
+    default:
+      return searched;
+  }
 });
 
-final memberProvider = Provider.family<AsyncValue<MemberSnapshot?>, String>((ref, id) {
+final memberByIdProvider = Provider.family<AsyncValue<MemberSnapshot>, String>((ref, id) {
   final members = ref.watch(membersProvider);
-  final member = members.where((m) => m.memberId == id).firstOrNull;
+  final member = members.cast<MemberSnapshot?>().firstWhere((m) => m?.memberId == id, orElse: () => null);
+  if (member == null) return const AsyncValue.loading();
   return AsyncValue.data(member);
 });
 
@@ -169,7 +171,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
       for (final res in results) {
         if (res != null) {
-          validSnapshots.add(res as MemberSnapshot);
+          validSnapshots.add(res);
         }
       }
     }
@@ -224,6 +226,17 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       await box.putAll(updates);
       state = await _loadAllSnapshots(box);
     bool updatedAny = false;
+    final entityIds = eventsByEntity.keys.toList();
+    const batchSize = 50;
+
+    for (int i = 0; i < entityIds.length; i += batchSize) {
+      final batch = entityIds.skip(i).take(batchSize).toList();
+      final Map<String, MemberSnapshot> updates = {};
+
+      final results = await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
+        final events = eventsByEntity[entityId]!;
+        final latestEventTime = events
     final keys = eventsByEntity.keys.toList();
     const batchSize = 50;
 
@@ -238,6 +251,37 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
             .reduce((a, b) => a.isAfter(b) ? a : b);
 
         if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+          debugPrint('MemberNotifier: Lagging snapshot for $entityId. Rebuilding from checkpoint events...');
+
+          MemberSnapshot? rebuilt;
+          if (snap == null) {
+            // New member — rebuild from full history
+            final fullHistory = await _repo.getByEntityId(entityId);
+            rebuilt = SnapshotBuilder.rebuild(fullHistory);
+          } else {
+            // Existing member — incremental apply for speed
+            rebuilt = snap;
+            final sortedEvents = List<DomainEvent>.from(events)
+              ..sort((a, b) => a.deviceTimestamp.compareTo(b.deviceTimestamp));
+            for (final e in sortedEvents) {
+              if (e.deviceTimestamp.isAfter(rebuilt!.lastUpdated)) {
+                rebuilt = SnapshotBuilder.apply(rebuilt, e);
+              }
+            }
+          }
+
+          if (rebuilt != null) {
+            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
+            return rebuilt.copyWith(hmacSignature: signature);
+          }
+        }
+        return null;
+      }));
+
+      for (int j = 0; j < batch.length; j++) {
+        final res = results[j];
+        if (res != null) {
+          updates[batch[j]] = res;
           debugPrint('MemberNotifier: Lagging snapshot for ${entityId}. Rebuilding from checkpoint events...');
           // Rebuild from ALL entity events for correctness (only triggered when needed)
           final fullHistory = await _repo.getByEntityId(entityId);
@@ -267,6 +311,10 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         // ⚡ Bolt: Batch write updated snapshots
         await box.putAll(updates);
         updatedAny = true;
+      }
+
+      if (updates.isNotEmpty) {
+        await box.putAll(updates);
       }
     }
 
