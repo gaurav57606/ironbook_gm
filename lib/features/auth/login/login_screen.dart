@@ -26,6 +26,117 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Image.asset('assets/images/logo.png', width: 52, height: 52),
+        const SizedBox(height: 32),
+        Text('Welcome Back',
+            style: AppTextStyles.heroNumber.copyWith(fontSize: 32)),
+        const SizedBox(height: 8),
+        Text('Log in to manage your gym membership database.',
+            style: AppTextStyles.bodySmall),
+        const SizedBox(height: 48),
+      ],
+    );
+  }
+
+  Widget _buildFormFields(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _emailController,
+          decoration: const InputDecoration(
+              labelText: 'Email', hintText: 'owner@example.com'),
+          keyboardType: TextInputType.emailAddress,
+          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+        ),
+        const SizedBox(height: 20),
+        TextFormField(
+          controller: _passwordController,
+          decoration: InputDecoration(
+            labelText: 'Password',
+            hintText: '••••••••',
+            suffixIcon: IconButton(
+              onPressed: () =>
+                  setState(() => _isPasswordVisible = !_isPasswordVisible),
+              icon: Icon(
+                _isPasswordVisible
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+          obscureText: !_isPasswordVisible,
+          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => context.push('/forgot-password'),
+            child: Text('Forgot Password?',
+                style: AppTextStyles.label.copyWith(color: AppColors.primary)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            onPressed: () async {
+              if (_formKey.currentState!.validate()) {
+                final success = await ref
+                    .read(authProvider.notifier)
+                    .login(_emailController.text, _passwordController.text);
+                if (!context.mounted) return;
+                if (success) {
+                  context.go('/unlock');
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Log In'),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Center(
+          child: TextButton(
+            onPressed: () => context.go('/signup'),
+            child: RichText(
+              text: TextSpan(
+                text: 'Don\'t have an account? ',
+                style: AppTextStyles.bodySmall,
+                children: const [
+                  TextSpan(
+                    text: 'Sign Up',
+                    style: TextStyle(
+                        color: AppColors.primary, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,92 +149,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Image.asset('assets/images/logo.png', width: 52, height: 52),
+                _buildHeader(),
+                _buildFormFields(context),
                 const SizedBox(height: 32),
-                Text('Welcome Back', style: AppTextStyles.heroNumber.copyWith(fontSize: 32)),
-                const SizedBox(height: 8),
-                Text('Log in to manage your gym membership database.',
-                    style: AppTextStyles.bodySmall),
-                const SizedBox(height: 48),
-                
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'Email', hintText: 'owner@example.com'),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: '••••••••',
-                    suffixIcon: IconButton(
-                      onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                      icon: Icon(
-                        _isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ),
-                  obscureText: !_isPasswordVisible,
-                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
-                    child: Text('Forgot Password?',
-                        style: AppTextStyles.label.copyWith(color: AppColors.primary)),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        final success = await ref.read(authProvider.notifier).login(
-                          _emailController.text, 
-                          _passwordController.text
-                        );
-                        if (!mounted) return;
-                        if (success) {
-                          context.go('/unlock');
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Log In'),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Center(
-                  child: TextButton(
-                    onPressed: () => context.go('/signup'),
-                    child: RichText(
-                      text: TextSpan(
-                        text: 'Don\'t have an account? ',
-                        style: AppTextStyles.bodySmall,
-                        children: const [
-                          TextSpan(
-                            text: 'Sign Up',
-                            style: TextStyle(
-                                color: AppColors.primary, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                _buildActionButtons(context),
               ],
             ),
           ),
@@ -132,12 +161,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
-
-
-
-
-
-
-
-
-
