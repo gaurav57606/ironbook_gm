@@ -19,15 +19,16 @@ class OutboxRepository {
       hmacSignature: Value(event.hmacSignature),
       deviceId: Value(event.deviceId),
     );
-    
+
     await _db.into(_db.outboxEvents).insert(
-      companion,
-      mode: InsertMode.insertOrIgnore,
-    );
+          companion,
+          mode: InsertMode.insertOrIgnore,
+        );
   }
 
   Future<List<OutboxEvent>> getUnsynced() async {
-    return (_db.select(_db.outboxEvents)..where((t) => t.isSynced.equals(0))).get();
+    return (_db.select(_db.outboxEvents)..where((t) => t.isSynced.equals(0)))
+        .get();
   }
 
   Future<List<DomainEvent>> getUnsyncedEvents() async {
@@ -55,7 +56,7 @@ class OutboxRepository {
     final query = _db.selectOnly(_db.outboxEvents)
       ..addColumns([countExp])
       ..where(_db.outboxEvents.isSynced.equals(0));
-    
+
     return query.watchSingle().map((row) => row.read(countExp) ?? 0);
   }
 
@@ -84,45 +85,40 @@ class OutboxRepository {
 
   Future<void> purgeSyncedBefore(DateTime cutoff) async {
     await (_db.delete(_db.outboxEvents)
-      ..where((t) => t.isSynced.equals(1) & 
-                     t.deviceTimestamp.isSmallerThanValue(cutoff.millisecondsSinceEpoch)))
-    .go();
+          ..where((t) =>
+              t.isSynced.equals(1) &
+              t.deviceTimestamp
+                  .isSmallerThanValue(cutoff.millisecondsSinceEpoch)))
+        .go();
   }
 
   Future<PinAttempt?> getPinAttempts() async {
-    return (_db.select(_db.pinAttempts)..where((t) => t.id.equals(1))).getSingleOrNull();
+    return (_db.select(_db.pinAttempts)..where((t) => t.id.equals(1)))
+        .getSingleOrNull();
   }
 
-  Future<void> updatePinAttempts({required int count, DateTime? lockoutUntil}) async {
+  Future<void> updatePinAttempts(
+      {required int count, DateTime? lockoutUntil}) async {
     await _db.into(_db.pinAttempts).insert(
-      PinAttemptsCompanion(
-        id: const Value(1),
-        count: Value(count),
-        lastAttemptAt: Value(DateTime.now()),
-        lockoutUntil: Value(lockoutUntil),
-      ),
-      mode: InsertMode.insertOrReplace,
-    );
+          PinAttemptsCompanion(
+            id: const Value(1),
+            count: Value(count),
+            lastAttemptAt: Value(DateTime.now()),
+            lockoutUntil: Value(lockoutUntil),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
   }
 
   Future<void> resetPinAttempts() async {
     await _db.into(_db.pinAttempts).insert(
-      const PinAttemptsCompanion(
-        id: Value(1),
-        count: Value(0),
-        lastAttemptAt: Value(null),
-        lockoutUntil: Value(null),
-      ),
-      mode: InsertMode.insertOrReplace,
-    );
+          const PinAttemptsCompanion(
+            id: Value(1),
+            count: Value(0),
+            lastAttemptAt: Value(null),
+            lockoutUntil: Value(null),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
   }
 }
-
-
-
-
-
-
-
-
-
