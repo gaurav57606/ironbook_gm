@@ -16,6 +16,11 @@ import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:hive/hive.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
 
 class MockEventRepo extends Mock implements IEventRepository {}
 class MockSyncWorker extends Mock implements SyncWorker {}
