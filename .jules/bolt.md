@@ -28,3 +28,6 @@
 ## 2024-05-24 - [Avoid `Future.wait` Memory Bloat on Hive `LazyBox`]
 **Learning:** Fetching all keys from a Hive `LazyBox` at once and mapping them to `box.get(key)` inside a single `Future.wait` forces all records into memory simultaneously. For large databases, this completely defeats the purpose of a `LazyBox` and causes severe memory spikes or Out-Of-Memory (OOM) crashes.
 **Action:** When performing bulk reads from a `LazyBox`, always batch the keys into smaller chunks (e.g., using `skip().take(50)`) and use `Future.wait` *within* each chunk. This preserves the speed of parallel I/O while strictly capping peak memory usage.
+## 2024-05-18 - [Fix ref.watch inside Iterable.map performance issue]
+**Learning:** Found that `ref.watch(memberProvider)` was called repeatedly within an `.map()` loop inside the build method in `NutritionScreen`. This is a classic Flutter/Riverpod anti-pattern because it causes N redundant dependency evaluations and O(N) widget rebuilds unnecessarily.
+**Action:** Always lift state readings outside of iterables (e.g. `map()`, `List.generate()`) during widget build. Read the provider list once and create an O(1) in-memory lookup map to apply directly to elements in the loop.
