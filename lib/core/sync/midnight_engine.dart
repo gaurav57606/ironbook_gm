@@ -1,15 +1,14 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:ironbook_gm/core/data/local/hive_init.dart';
-import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/services/notification_service.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 
 class MidnightEngine {
   /// The entry point for the Workmanager background task.
@@ -23,15 +22,9 @@ class MidnightEngine {
         await Firebase.initializeApp();
         await NotificationService.init();
         
-        // 2. Open storage and ensure adapters are registered
-        HiveInit.registerAdapters();
-        final healthy = await HiveInit.openWithCorruptionGuard();
-        if (!healthy) {
-          debugPrint("MidnightEngine: Hive corruption detected. Aborting background task.");
-          return true;
-        }
+        // Note: Drift initializes lazily when the database is accessed.
 
-        // 3. Acquire global sync lock to prevent foreground/background conflict
+        // 2. Acquire global sync lock to prevent foreground/background conflict
         final container = ProviderContainer();
         final syncCoord = container.read(syncCoordinatorProvider);
         const holderId = 'background_midnight_engine';
@@ -43,17 +36,12 @@ class MidnightEngine {
         }
 
         try {
-          // 4. Run Maintenance Tasks (Alerts, Cleanups)
-          try {
-            final clock = container.read(clockProvider);
-            await _runMemberAlerts(clock);
+          // 3. Run Maintenance Tasks (Alerts, Cleanups)
+          await _runMemberAlerts(container);
 
-            // 5. Run Cloud Sync
-            final syncWorker = container.read(syncWorkerProvider);
-            await syncWorker.performSync();
-          } finally {
-            // Container disposed in outer block
-          }
+          // 4. Run Cloud Sync
+          final syncWorker = container.read(syncWorkerProvider);
+          await syncWorker.performSync();
 
           debugPrint("MidnightEngine: All background maintenance completed successfully.");
         } finally {
@@ -68,38 +56,26 @@ class MidnightEngine {
     });
   }
 
-  static Future<void> _runMemberAlerts(IClock clock) async {
-    final snapshots = Hive.lazyBox<MemberSnapshot>('snapshots');
+  static Future<void> _runMemberAlerts(ProviderContainer container) async {
+    final memberRepo = container.read(memberRepositoryProvider);
+    final clock = container.read(clockProvider);
     final today = clock.now;
     final todayKey = '${today.year}-${today.month}-${today.day}';
 
-    debugPrint("MidnightEngine: Checking alerts for ${snapshots.length} members.");
+    final members = await memberRepo.getAllMembers();
+    debugPrint("MidnightEngine: Checking alerts for ${members.length} members.");
 
-    for (final key in snapshots.keys) {
-      final snapshot = await snapshots.get(key);
-      if (snapshot == null || snapshot.archived) continue;
+    for (final member in members) {
+      if (member.archived) continue;
 
-      final status = snapshot.getStatus(today);
+      final status = member.getStatus(today);
       if (status == MemberStatus.expiring || status == MemberStatus.expired) {
         await NotificationService.sendMemberAlert(
-          snapshot: snapshot,
-          dedupKey: '${snapshot.memberId}_$todayKey',
+          snapshot: member,
+          dedupKey: '${member.memberId}_$todayKey',
           now: today,
         );
       }
     }
   }
-
-  // _runCloudSync merged into main try block for container reuse
 }
-
-
-
-
-
-
-
-
-
-
-

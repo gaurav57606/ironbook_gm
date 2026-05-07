@@ -34,27 +34,33 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final products = ref.watch(productsProvider);
-    final total = _calculateTotal(products);
+    final productsAsync = ref.watch(productsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: StatusBarWrapper(
-        child: Column(
-          children: [
-            _buildAppBar(),
-            _buildCategoryFilter(),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(child: _buildProductGrid(products)),
-                  _buildCartSidebar(products, total),
-                ],
-              ),
+    return productsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error: $e')),
+      data: (products) {
+        final total = _calculateTotal(products);
+        return Scaffold(
+          backgroundColor: AppColors.bg,
+          body: StatusBarWrapper(
+            child: Column(
+              children: [
+                _buildAppBar(),
+                _buildCategoryFilter(),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(child: _buildProductGrid(products)),
+                      _buildCartSidebar(products, total),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

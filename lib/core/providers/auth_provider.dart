@@ -1,15 +1,16 @@
-import 'dart:async'; // Added for StreamSubscription
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:hive/hive.dart';
 import 'package:ironbook_gm/core/sync/recovery_service.dart';
 import 'package:ironbook_gm/core/data/local/models/owner_profile_model.dart';
 import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/owner_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/settings_repository.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
@@ -17,6 +18,8 @@ import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/config_service.dart';
+import 'package:ironbook_gm/core/providers/owner_provider.dart';
+import 'package:ironbook_gm/core/providers/settings_provider.dart';
 import 'base_providers.dart';
 
 class AuthState {
@@ -70,9 +73,11 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final FlutterSecureStorage _storage;
   final PinService _pinService;
-  final fb.FirebaseAuth? _firebaseAuth;
+  final fb.FirebaseAuth _firebaseAuth;
   final SyncWorker _syncWorker;
   final IEventRepository _eventRepo;
+  final IOwnerRepository _ownerRepo;
+  final ISettingsRepository _settingsRepo;
   final HmacService _hmacService;
   final ConfigService _config;
   final Ref _ref;
@@ -80,9 +85,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   StreamSubscription<fb.User?>? _authSubscription;
 
-  AuthNotifier(this._storage, this._pinService, this._firebaseAuth,
-      this._eventRepo, this._syncWorker, this._hmacService, this._config, this._ref)
-      : super(AuthState(settings: AppSettings())) {
+  AuthNotifier(
+    this._storage,
+    this._pinService,
+    this._firebaseAuth,
+    this._eventRepo,
+    this._ownerRepo,
+    this._settingsRepo,
+    this._syncWorker,
+    this._hmacService,
+    this._config,
+    this._ref,
+  ) : super(AuthState(settings: AppSettings())) {
     _init();
     _syncWorker.startPeriodicSync(const Duration(seconds: 30));
   }
@@ -99,25 +113,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final onboardingDone = await _storage.read(key: 'onboarding_done');
     _deviceId = await _hmacService.getInstallationId();
 
-    // Safety: If we have a hash but no salt (stale/legacy), nuke it to prevent lock-out
     bool isPinSetup = pinHash != null && pinSalt != null;
     if (pinHash != null && pinSalt == null) {
       await _storage.delete(key: 'pin_hash');
       isPinSetup = false;
     }
 
-    // Load Hive state
-    OwnerProfile? owner;
-    AppSettings settings = AppSettings();
-    try {
-      final ownerBox = Hive.box<OwnerProfile>('owner');
-      owner = ownerBox.isEmpty ? null : ownerBox.values.first;
-
-      final settingsBox = Hive.box<AppSettings>('settings');
-      settings = settingsBox.get('app_settings') ?? AppSettings();
-    } catch (e) {
-      debugPrint('AuthNotifier Hive Init Error: $e');
-    }
+    final owner = await _ownerRepo.getOwner();
+    final settings = await _settingsRepo.getSettings();
 
     if (mounted) {
       state = state.copyWith(
@@ -131,7 +134,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   void onFirebaseReady(fb.FirebaseAuth auth) {
-    debugPrint('AuthNotifier: Firebase Ready. Starting listener.');
     _authSubscription?.cancel();
     _authSubscription = auth.authStateChanges().listen((user) {
       if (mounted) {
@@ -143,7 +145,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     });
 
-    // Trigger recovery if signed in
     if (auth.currentUser != null) {
       _ref.read(recoveryServiceProvider).recoverAll();
     }
@@ -166,66 +167,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return false;
   }
 
-  // Aliases for backward compatibility
-  Future<bool> verifyPin(String pin) => authenticate(pin: pin);
-  Future<bool> unlockWithBiometrics() => authenticate();
-  Future<bool> loginWithBiometrics() => authenticate();
-
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true);
     try {
-      if (kIsWeb || _firebaseAuth == null) {
-        debugPrint('AuthNotifier: Web/Degraded mode detected. Using Mock Auth.');
-        
-        final mockEmail = _config.appName.toLowerCase().contains('ironbook') 
-            ? dotenv.get('MOCK_ADMIN_EMAIL', fallback: 'admin@ironbook.gym')
-            : 'admin@gym.com';
-        final mockPass = _config.hmacSecret.isNotEmpty 
-            ? dotenv.get('MOCK_ADMIN_PASSWORD', fallback: 'password123')
-            : 'password123';
-        
-        // 1. Check Admin Account
-        bool success = (email == mockEmail && password == mockPass);
-        
-        // 2. Check Mock User Store (from Signups)
-        if (!success && _ref.read(_mockUserStoreProvider).containsKey(email)) {
-          success = _ref.read(_mockUserStoreProvider)[email] == password;
-        }
-
-        if (success) {
-          // Ensure we have some settings if missing
-          final settingsBox = Hive.box<AppSettings>('settings');
-          if (settingsBox.isEmpty) {
-            await settingsBox.put('app_settings', AppSettings());
-          }
-
-          state = state.copyWith(
-            isAuthenticated: true,
-            authAttempts: 0,
-            isLoading: false,
-          );
-          return true;
-        } else {
-          state = state.copyWith(
-            authAttempts: state.authAttempts + 1,
-            isLoading: false,
-          );
-          return false;
-        }
+      if (kDebugMode && _firebaseAuth.currentUser == null) {
+         // Debug/Test flow - should be overridden in tests via MockFirebaseAuth
       }
-
+      
       await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      state = state.copyWith(authAttempts: 0); // Reset on success
+      state = state.copyWith(authAttempts: 0);
       return true;
-    } on fb.FirebaseAuthException catch (e) {
-      debugPrint('AuthNotifier Login Error [${e.code}]: ${e.message}');
-      state = state.copyWith(authAttempts: state.authAttempts + 1);
-      return false;
     } catch (e) {
-      debugPrint('AuthNotifier Login Error: $e');
       state = state.copyWith(authAttempts: state.authAttempts + 1);
       return false;
     } finally {
@@ -241,33 +196,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _performFullLogout() async {
     try {
-      await _firebaseAuth!.signOut();
+      await _firebaseAuth.signOut();
       await _storage.deleteAll();
 
-      // CRITICAL: Wipe all local Hive data for isolation
-      final boxes = [
-        'snapshots',
-        'events',
-        'payments',
-        'plans',
-        'owner',
-        'settings',
-        'invoice_sequences'
-      ];
-      for (final name in boxes) {
-        try {
-          await Hive.box(name).clear();
-        } catch (e) {
-          debugPrint('Error clearing box $name: $e');
-        }
-      }
-
-      // NEW: Clear Drift Outbox
-      try {
-        await _ref.read(outboxRepositoryProvider).clearAll();
-      } catch (e) {
-        debugPrint('Error clearing Drift Outbox: $e');
-      }
+      // Clear old synced data from Drift (retain unsynced offline data)
+      final cutoff = DateTime.now().subtract(const Duration(days: 7));
+      await _ref.read(outboxRepositoryProvider).purgeSyncedBefore(cutoff);
 
       state = AuthState(
         isAuthenticated: false,
@@ -286,17 +220,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       {String? gymName, String? ownerName, String? phone}) async {
     state = state.copyWith(isLoading: true);
     try {
-      if (!kIsWeb && _firebaseAuth != null) {
-        await _firebaseAuth.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      } else {
-        debugPrint('AuthNotifier: Web/Degraded mode detected. Simulating signup success.');
-        _ref.read(_mockUserStoreProvider)[email] = password;
-      }
+      await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      // If we are on web, or credential creation was bypassed/successful
       if (gymName != null) {
         final owner = OwnerProfile(
           gymName: gymName,
@@ -304,7 +232,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           phone: phone ?? '',
           address: '',
         );
-        // Data Pipeline: Queue for Sync FIRST (Enforce Outbox-First Rule)
+
         final event = DomainEvent(
           entityId: 'owner',
           eventType: EventType.ownerProfileCreated,
@@ -317,16 +245,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           },
         );
         
-        // This will throw if the Drift Outbox write fails, preventing local Hive corruption
         await _eventRepo.persist(event);
-
-        // Persist Cache Locally
-        final box = Hive.box<OwnerProfile>('owner');
-        if (box.isEmpty) {
-          await box.add(owner);
-        } else {
-          await box.putAt(0, owner);
-        }
+        await _ownerRepo.upsertOwner(owner);
         
         _ref.read(syncWorkerProvider).performSync();
 
@@ -337,12 +257,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
       }
       return true;
-    } on fb.FirebaseAuthException catch (e) {
-      debugPrint('AuthNotifier SignUp Error [${e.code}]: ${e.message}');
-      state = state.copyWith(authAttempts: state.authAttempts + 1);
-      return false;
     } catch (e) {
-      debugPrint('AuthNotifier SignUp Error: $e');
       state = state.copyWith(authAttempts: state.authAttempts + 1);
       return false;
     } finally {
@@ -351,24 +266,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> updateOwner(OwnerProfile updated) async {
-    final box = Hive.box<OwnerProfile>('owner');
-    if (box.isEmpty) {
-      await box.add(updated);
-    } else {
-      await box.putAt(0, updated);
-    }
+    await _ownerRepo.upsertOwner(updated);
     state = state.copyWith(owner: updated);
   }
 
   Future<void> logout() => _performFullLogout();
-  Future<void> logOut() => _performFullLogout();
 
   Future<void> setPin(String pin) async {
     await _pinService.setPin(pin);
     state = state.copyWith(isPinSetup: true, unlocked: true);
   }
-
-
 
   Future<void> setBiometricOptIn(bool enabled) async {
     final settings = state.settings.copyWith(
@@ -376,60 +283,57 @@ class AuthNotifier extends StateNotifier<AuthState> {
       useBiometrics: enabled,
     );
 
-    await Hive.box<AppSettings>('settings').put('app_settings', settings);
+    await _settingsRepo.updateSettings(settings);
     state = state.copyWith(settings: settings);
   }
 
   Future<void> updateSettings(AppSettings settings) async {
-    await Hive.box<AppSettings>('settings').put('app_settings', settings);
+    await _settingsRepo.updateSettings(settings);
     state = state.copyWith(settings: settings);
   }
 
   Future<void> sendPasswordReset(String email) async {
-    await _firebaseAuth!.sendPasswordResetEmail(email: email);
+    await _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 }
 
-// Internal Mock Store for Audit/Web mode
-final _mockUserStoreProvider = Provider<Map<String, String>>((ref) => {});
 
-final entitlementProvider = Provider<EntitlementGuard?>((ref) {
+
+final entitlementProvider = Provider<EntitlementGuard>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
   final auth = ref.watch(firebaseAuthProvider);
   final firestore = ref.watch(firestoreProvider);
   final clock = ref.watch(clockProvider);
-
-  // On Web/Audit mode, we might not have Firebase initialized
-  if (auth == null || firestore == null) return null;
 
   return EntitlementGuard(storage, auth, firestore, clock);
 });
 
 final entitlementStatusProvider = FutureProvider<EntitlementStatus>((ref) async {
   final guard = ref.watch(entitlementProvider);
-  // On Web/Degraded, we default to valid to allow local-first operation
-  if (guard == null) return EntitlementStatus.valid;
   return await guard.checkEntitlement();
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
   final pinService = ref.watch(pinServiceProvider);
-  final repo = ref.watch(eventRepositoryProvider);
+  final eventRepo = ref.watch(eventRepositoryProvider);
+  final ownerRepo = ref.watch(ownerRepositoryProvider);
+  final settingsRepo = ref.watch(settingsRepositoryProvider);
   final syncWorker = ref.watch(syncWorkerProvider);
   final firebaseAuth = ref.watch(firebaseAuthProvider);
   final hmac = ref.watch(hmacServiceProvider);
   final config = ref.watch(configServiceProvider);
-  return AuthNotifier(storage, pinService, firebaseAuth, repo, syncWorker, hmac, config, ref);
+  
+  return AuthNotifier(
+    storage, 
+    pinService, 
+    firebaseAuth, 
+    eventRepo, 
+    ownerRepo, 
+    settingsRepo, 
+    syncWorker, 
+    hmac, 
+    config, 
+    ref
+  );
 });
-
-
-
-
-
-
-
-
-
-
-

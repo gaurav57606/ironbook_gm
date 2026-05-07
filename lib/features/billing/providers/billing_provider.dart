@@ -103,6 +103,7 @@ class BillingNotifier {
       gstAmount: plan.totalPrice - (plan.totalPrice / 1.18),
       gstRate: 0.18,
       componentsJson: plan.componentsJson,
+      hmacSignature: '',
     );
     await _repository.recordPayment(payment);
   }
@@ -131,6 +132,7 @@ class BillingNotifier {
         'price': i.price,
         'quantity': i.quantity,
       }).toList()),
+      hmacSignature: '',
     );
     await _repository.recordSale(sale);
   }

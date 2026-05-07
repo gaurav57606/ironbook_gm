@@ -1,7 +1,11 @@
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
+import 'package:ironbook_gm/core/providers/plan_provider.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/core/providers/owner_provider.dart';
+import 'package:ironbook_gm/core/providers/settings_provider.dart';
+import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'local/models/product_model.dart';
 import 'local/models/domain_event_model.dart';
@@ -11,6 +15,10 @@ import 'local/models/plan_component_model.dart';
 import 'local/models/owner_profile_model.dart';
 import 'local/models/app_settings_model.dart';
 import 'repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/owner_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/settings_repository.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 
 class SeedData {
@@ -21,33 +29,24 @@ class SeedData {
       debugPrint('SeedData: Production environment detected. Skipping seeding.');
       return;
     }
-    final plansBox = Hive.box<Plan>('plans');
-    final membersBox = Hive.lazyBox<MemberSnapshot>('snapshots');
-    final ownerBox = Hive.box<OwnerProfile>('owner');
-    final settingsBox = Hive.box<AppSettings>('settings');
-    final productBox = Hive.box<Product>('products');
+
     final eventRepo = container.read(eventRepositoryProvider);
+    final planRepo = container.read(planRepositoryProvider);
+    final memberRepo = container.read(memberRepositoryProvider);
+    final ownerRepo = container.read(ownerRepositoryProvider);
+    final settingsRepo = container.read(settingsRepositoryProvider);
+    final productRepo = container.read(productRepositoryProvider);
     final hmac = container.read(hmacServiceProvider);
     final pinService = container.read(pinServiceProvider);
     final storage = container.read(appSecureStorageProvider);
-    final eventBox = Hive.box<DomainEvent>('events');
-    const deviceId = 'seed-device';
 
-    bool needsSeeding = plansBox.isEmpty && eventBox.isEmpty;
-    if (!needsSeeding) {
-      final firstPlan = plansBox.values.first;
-      if (firstPlan.hmacSignature == null) {
-        debugPrint('SeedData: Found invalid data (no signatures). Re-seeding...');
-        needsSeeding = true;
-        await plansBox.clear();
-        await membersBox.clear();
-        await ownerBox.clear();
-        await settingsBox.clear();
-        await productBox.clear();
-      }
+    final events = await eventRepo.getAll();
+    if (events.isNotEmpty) {
+      debugPrint('SeedData: Database not empty. Skipping seeding.');
+      return;
     }
 
-    if (!needsSeeding) return; 
+    debugPrint('SeedData: Starting database seeding...');
 
     // Ensure PIN is set for testing
     await pinService.setPin('1234');
@@ -64,10 +63,10 @@ class SeedData {
       accountNumber: '1234567890',
       ifsc: 'HDFC0001234',
     );
-    await ownerBox.put('owner', owner);
+    await ownerRepo.upsertOwner(owner);
 
     // Settings
-    await settingsBox.put('app_settings', AppSettings());
+    await settingsRepo.updateSettings(AppSettings());
 
     // Plans
     final gymAccess = PlanComponent(id: _uuid.v4(), name: 'Gym Access', price: 800);
@@ -110,7 +109,7 @@ class SeedData {
     for (final p in plans) {
       final signature = await hmac.signSnapshot(p.id, p.toFirestore());
       p.hmacSignature = signature;
-      await plansBox.put(p.id, p);
+      await planRepo.upsertPlan(p);
     }
 
     // Products
@@ -123,14 +122,15 @@ class SeedData {
       Product(id: 'p6', name: 'Steel Shaker', price: 25, category: 'Merch', iconCodePoint: 0xe3ab),
     ];
     for (final p in products) {
-      await productBox.put(p.id, p);
+      await productRepo.upsertProduct(p);
     }
 
     // Seed initial event to Drift Outbox
     final seedEvent = DomainEvent(
+      id: _uuid.v4(),
       entityId: 'gym-plans',
       eventType: EventType.plansUpdated,
-      deviceId: deviceId,
+      deviceId: 'seed-device',
       deviceTimestamp: DateTime.now(),
       payload: {'plans': plans.map((p) => p.toFirestore()).toList()},
     );
@@ -158,8 +158,9 @@ class SeedData {
     for (final m in members) {
       final signature = await hmac.signSnapshot(m.memberId, m.toFirestore());
       final signed = m.copyWith(hmacSignature: signature);
-      await membersBox.put(signed.memberId, signed);
+      await memberRepo.upsertMember(signed);
     }
+    debugPrint('SeedData: Seeding complete.');
   }
 
   static MemberSnapshot _makeMember(String name, String phone, String planId, String planName,
@@ -180,14 +181,3 @@ class SeedData {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

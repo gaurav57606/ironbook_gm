@@ -11,23 +11,18 @@ import 'package:workmanager/workmanager.dart';
 
 import '../firebase_options.dart';
 
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:ironbook_gm/core/data/local/hive_init.dart';
 import 'package:ironbook_gm/core/data/seed_data.dart';
-import 'package:ironbook_gm/core/data/local/drift/hive_to_drift_migration.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
-import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'services/fcm_service.dart';
 import 'services/hmac_service.dart';
 import 'services/notification_service.dart';
 import 'services/config_service.dart';
 import 'services/logger_service.dart';
 import 'package:ironbook_gm/core/sync/midnight_engine.dart';
 
-typedef BootstrapResult = ({bool hiveHealthy});
+typedef BootstrapResult = ({bool initialized});
 
 class AppBootstrap {
   static Future<BootstrapResult> initialize(ProviderContainer container) async {
@@ -36,32 +31,32 @@ class AppBootstrap {
     
     // 1. Core Config & Local Engine
     await container.read(configServiceProvider).init();
-    await Hive.initFlutter();
     
     // 2. System UI Setup
     _setupSystemUI();
     
-    // 2. Open Local Authorities (Hive)
     final logger = container.read(loggerProvider);
-    logger.info('Bootstrap Tier 1: Hive Initialization...');
-    await HiveInit.openWithCorruptionGuard();
-    // Initialize HMAC key via provider to ensure ConfigService is ready
+    logger.info('Bootstrap Tier 1: Local Services Initialization...');
+
+    // 3. Initialize HMAC key via provider to ensure ConfigService is ready
     await container.read(hmacServiceProvider).getInstallationId();
-    final hiveHealthy = Hive.isBoxOpen('events');
     
-    // 3. Open Secondary Authorities (Drift/SQLite)
+    // 4. Open Primary Authority (Drift/SQLite)
     logger.info('Bootstrap Tier 1: Drift Initialization...');
+    bool initialized = true;
     try {
+      // Accessing the database triggers initialization
       container.read(outboxDatabaseProvider);
     } catch (e) {
       logger.error('Bootstrap Tier 1: Drift Initialization FAILED', e);
+      initialized = false;
     }
     
-    if (hiveHealthy && kDebugMode) {
+    if (initialized && kDebugMode) {
       await SeedData.seedIfEmpty(container);
     }
     
-    // 4. Set Initial State
+    // 5. Set Initial State
     container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Ready;
     
     // Schedule TIER 2 (Post-Frame: Cloud/Background)
@@ -69,7 +64,7 @@ class AppBootstrap {
       _runTier2(container);
     });
     
-    return (hiveHealthy: hiveHealthy);
+    return (initialized: initialized);
   }
 
   static void _setupSystemUI() {
@@ -97,11 +92,19 @@ class AppBootstrap {
         // 1.1 Configure Monitoring (Hardening)
         if (!kIsWeb) {
           await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
+          
+          FlutterError.onError = (errorDetails) {
+            FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+          };
+          PlatformDispatcher.instance.onError = (error, stack) {
+            FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+            return true;
+          };
+
           FirebaseCrashlytics.instance.log('IronBook Tier 2 Cloud Services Started');
         }
 
         await Future.wait([
-          if (!kIsWeb) FcmService.init(),
           if (!kIsWeb) NotificationService.init(),
         ]).timeout(const Duration(seconds: 10));
 
@@ -131,30 +134,7 @@ class AppBootstrap {
         }
       }
 
-      // 3. Migration (Hive -> Drift)
-      debugPrint('Bootstrap Tier 2: Migration...');
-      final outboxRepo = container.read(outboxRepositoryProvider);
-      await HiveToDriftMigration.runIfNeeded(outboxRepo);
-      
-      // 4. Reconciliation (Drift -> Hive)
-      debugPrint('Bootstrap Tier 2: Reconciliation...');
-      final unsyncedInDrift = await outboxRepo.getUnsyncedEvents();
-      if (unsyncedInDrift.isNotEmpty) {
-        final hiveRepo = container.read(eventRepositoryProvider);
-        int reconciledCount = 0;
-        for (final event in unsyncedInDrift) {
-          final existing = await hiveRepo.getById(event.id);
-          if (existing == null) {
-            await hiveRepo.persistSynced(event); // Copy to Hive
-            reconciledCount++;
-          }
-        }
-        if (reconciledCount > 0) {
-          debugPrint('Bootstrap Tier 2: Reconciled $reconciledCount missing events from Drift to Hive.');
-        }
-      }
-      
-      // 5. Start Sync Worker
+      // 3. Start Sync Worker
       debugPrint('Bootstrap Tier 2: SyncWorker...');
       container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
 
@@ -174,21 +154,8 @@ class AppBootstrap {
       
       // Still attempt to start local services even if cloud timed out
       try {
-        final outboxRepo = container.read(outboxRepositoryProvider);
-        await HiveToDriftMigration.runIfNeeded(outboxRepo);
         container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
       } catch (_) {}
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-

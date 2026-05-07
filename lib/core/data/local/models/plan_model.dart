@@ -1,4 +1,6 @@
 import 'package:hive/hive.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'plan_component_model.dart';
 
 @HiveType(typeId: 2)
@@ -53,7 +55,33 @@ class Plan extends HiveObject {
         'name': c.name,
         'price': c.price,
       }).toList(),
+      'hmacSignature': hmacSignature,
     };
+  }
+
+  factory Plan.fromDrift(dynamic d) {
+    List<PlanComponent> comps = [];
+    if (d.componentsJson != null) {
+      try {
+        final List<dynamic> decoded = jsonDecode(d.componentsJson);
+        comps = decoded.map((c) => PlanComponent(
+          id: c['id'] ?? '',
+          name: c['name'] ?? '',
+          price: (c['price'] as num?)?.toDouble() ?? 0.0,
+        )).toList();
+      } catch (e) {
+        debugPrint('Error decoding plan componentsJson: $e');
+      }
+    }
+
+    return Plan(
+      id: d.id,
+      name: d.name,
+      durationMonths: d.durationMonths,
+      active: d.active,
+      components: comps,
+      hmacSignature: d.hmacSignature,
+    );
   }
 }
 

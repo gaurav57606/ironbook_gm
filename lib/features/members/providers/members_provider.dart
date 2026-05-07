@@ -92,6 +92,7 @@ class MembersNotifier {
       age: age,
       archived: false,
       totalPaid: 0,
+      hmacSignature: '',
     );
     await _repository.upsertMember(member);
     return id;

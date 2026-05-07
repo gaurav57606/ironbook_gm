@@ -4,13 +4,13 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
-import '../../../core/data/local/drift/outbox_database.dart';
+import '../../../core/data/local/drift/outbox_database.dart' as db;
 import '../providers/billing_provider.dart';
 import '../../../core/data/local/models/owner_profile_model.dart';
 
 class InvoicePdfService {
   static Future<File> generateInvoice({
-    required Payment payment,
+    required db.Payment payment,
     required OwnerProfile owner,
     required String memberName,
   }) async {

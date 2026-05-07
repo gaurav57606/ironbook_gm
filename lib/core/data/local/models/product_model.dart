@@ -11,7 +11,7 @@ class Product extends HiveObject {
   @HiveField(3)
   late String category;
   @HiveField(4)
-  late int iconCodePoint; // Using codePoint for icon persistence
+  late int iconCodePoint;
 
   Product({
     required this.id,
@@ -40,13 +40,14 @@ class Product extends HiveObject {
       'iconCodePoint': iconCodePoint,
     };
   }
+
+  factory Product.fromDrift(dynamic d) {
+    return Product(
+      id: d.id,
+      name: d.name,
+      price: d.price,
+      category: d.category,
+      iconCodePoint: d.iconCodePoint,
+    );
+  }
 }
-
-
-
-
-
-
-
-
-

@@ -45,7 +45,7 @@ import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 
-final routerProvider = Provider.family<GoRouter, bool>((ref, hiveHealthy) {
+final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
   final authState = ref.watch(authProvider);
   final tier2Status = ref.watch(tier2StatusProvider);
   final bootstrap = ref.watch(bootstrapStateProvider);

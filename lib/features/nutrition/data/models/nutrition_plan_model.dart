@@ -33,6 +33,42 @@ class NutritionPlan extends HiveObject {
     this.hmacSignature,
   });
 
+  factory NutritionPlan.fromFirestore(Map<String, dynamic> data) {
+    return NutritionPlan(
+      id: data['id'],
+      memberId: data['memberId'],
+      planName: data['planName'],
+      dailyCalories: data['dailyCalories'],
+      adherence: (data['adherence'] as num?)?.toDouble() ?? 0.0,
+      waterGoalMl: data['waterGoalMl'] ?? 2000,
+      hmacSignature: data['hmacSignature'],
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'memberId': memberId,
+      'planName': planName,
+      'dailyCalories': dailyCalories,
+      'adherence': adherence,
+      'waterGoalMl': waterGoalMl,
+      'hmacSignature': hmacSignature,
+    };
+  }
+
+  factory NutritionPlan.fromDrift(dynamic d) {
+    return NutritionPlan(
+      id: d.id,
+      memberId: d.memberId,
+      planName: d.planName,
+      dailyCalories: d.dailyCalories,
+      adherence: d.adherence,
+      waterGoalMl: d.waterGoalMl,
+      hmacSignature: d.hmacSignature,
+    );
+  }
+
   NutritionPlan copyWith({
     String? memberId,
     String? planName,

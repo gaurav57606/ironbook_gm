@@ -1,21 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:ironbook_gm/features/nutrition/data/models/nutrition_plan_model.dart';
 import 'package:ironbook_gm/features/nutrition/data/models/meal_item_model.dart';
 import 'package:ironbook_gm/features/nutrition/data/repositories/nutrition_repository.dart';
+import 'package:ironbook_gm/features/nutrition/domain/repositories/nutrition_repository.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 
-final nutritionPlanBoxProvider = Provider<Box<NutritionPlan>>((ref) => Hive.box<NutritionPlan>('nutrition'));
-final mealBoxProvider = Provider<Box<MealItem>>((ref) => Hive.box<MealItem>('meals'));
-final waterBoxProvider = Provider<Box<WaterLog>>((ref) => Hive.box<WaterLog>('water'));
+import 'package:ironbook_gm/features/nutrition/data/models/water_log_model.dart';
 
-final nutritionRepositoryProvider = Provider<NutritionRepository>((ref) {
-  return NutritionRepository(
-    ref.watch(nutritionPlanBoxProvider),
-    ref.watch(mealBoxProvider),
-    ref.watch(waterBoxProvider),
-    ref.watch(hmacServiceProvider),
-  );
+final nutritionRepositoryProvider = Provider<INutritionRepository>((ref) {
+  final db = ref.watch(outboxDatabaseProvider);
+  final hmac = ref.watch(hmacServiceProvider);
+  return DriftNutritionRepository(db, hmac);
 });
 
 class NutritionState {
@@ -47,7 +42,7 @@ class NutritionState {
 }
 
 class NutritionNotifier extends StateNotifier<NutritionState> {
-  final NutritionRepository _repo;
+  final INutritionRepository _repo;
   final String _memberId;
 
   NutritionNotifier(this._repo, this._memberId) : super(NutritionState()) {
