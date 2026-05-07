@@ -115,6 +115,54 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     await _reconcileSnapshots();
   }
 
+  Future<List<MemberSnapshot>> _loadAllSnapshots(LazyBox<MemberSnapshot> box) async {
+    final keys = box.keys.toList();
+    final List<MemberSnapshot> validSnapshots = [];
+    const batchSize = 50;
+    
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final batch = keys.skip(i).take(batchSize).toList();
+      final Map<String, MemberSnapshot> repairedInBatch = {};
+
+      final results = await Future.wait(batch.map((key) async {
+        final snap = await box.get(key);
+        if (snap == null) return null;
+
+        // Integrity Check
+        final isValid = snap.hmacSignature != null &&
+            await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
+
+        if (isValid) {
+          return snap;
+        } else {
+          debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Triggering automatic repair...');
+          // Repair from Event Log (Write-Ahead Log)
+          final history = await _repo.getByEntityId(snap.memberId);
+          final repaired = SnapshotBuilder.rebuild(history);
+          if (repaired != null) {
+            final signature = await _hmac.signSnapshot(snap.memberId, repaired.toFirestore());
+            final signed = repaired.copyWith(hmacSignature: signature);
+            repairedInBatch[snap.memberId] = signed;
+            return signed;
+          }
+        }
+        return null;
+      }));
+
+      if (repairedInBatch.isNotEmpty) {
+        // ⚡ Bolt: Batch write repaired snapshots
+        await box.putAll(repairedInBatch);
+      }
+
+      for (final res in results) {
+        if (res != null) {
+          validSnapshots.add(res as MemberSnapshot);
+        }
+      }
+    }
+    return validSnapshots;
+  }
+
   Future<void> _reconcileSnapshots() async {
     const prefKey = 'member_reconcile_ts';
     final lastCheckMs = await _prefRepo.getInt(prefKey) ?? 0;
@@ -133,6 +181,29 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     }
 
     bool updatedAny = false;
+    final keys = eventsByEntity.keys.toList();
+    const batchSize = 50;
+
+    for (int i = 0; i < keys.length; i += batchSize) {
+      final batch = keys.skip(i).take(batchSize).toList();
+      final Map<String, MemberSnapshot> updates = {};
+
+      await Future.wait(batch.map((entityId) async {
+        final snap = await box.get(entityId);
+        final latestEventTime = eventsByEntity[entityId]!
+            .map((e) => e.deviceTimestamp)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+
+        if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+          debugPrint('MemberNotifier: Lagging snapshot for ${entityId}. Rebuilding from checkpoint events...');
+          // Rebuild from ALL entity events for correctness (only triggered when needed)
+          final fullHistory = await _repo.getByEntityId(entityId);
+          final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+          if (rebuilt != null) {
+            final signature = await _hmac.signSnapshot(entityId, rebuilt.toFirestore());
+            final signed = rebuilt.copyWith(hmacSignature: signature);
+            updates[entityId] = signed;
+          }
     for (final entityId in eventsByEntity.keys) {
       final snap = await _memberRepo.getMember(entityId);
       final latestEventTime = eventsByEntity[entityId]!
@@ -147,6 +218,12 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
           await _memberRepo.upsertMember(rebuilt);
           updatedAny = true;
         }
+      }));
+
+      if (updates.isNotEmpty) {
+        // ⚡ Bolt: Batch write updated snapshots
+        await box.putAll(updates);
+        updatedAny = true;
       }
     }
 
