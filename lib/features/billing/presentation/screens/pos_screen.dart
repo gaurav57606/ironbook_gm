@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
-import '../../../../core/providers/sale_provider.dart';
+import '../../providers/billing_provider.dart';
 import '../../../../core/data/local/models/product_model.dart';
 import '../../../../core/data/local/models/sale_model.dart';
+import '../../../../core/providers/sale_provider.dart';
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -253,7 +254,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         }
       });
 
-      await ref.read(saleProvider.notifier).recordSale(
+      await ref.read(billingNotifierProvider).recordProductSale(
         items: items,
         method: 'Cash',
         total: total,

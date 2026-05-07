@@ -1159,6 +1159,27 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
   late final GeneratedColumn<String> reference = GeneratedColumn<String>(
       'reference', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<String> planId = GeneratedColumn<String>(
+      'plan_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _planNameMeta =
+      const VerificationMeta('planName');
+  @override
+  late final GeneratedColumn<String> planName = GeneratedColumn<String>(
+      'plan_name', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _durationMonthsMeta =
+      const VerificationMeta('durationMonths');
+  @override
+  late final GeneratedColumn<int> durationMonths = GeneratedColumn<int>(
+      'duration_months', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _invoiceNumberMeta =
       const VerificationMeta('invoiceNumber');
   @override
@@ -1177,6 +1198,20 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
   late final GeneratedColumn<double> gstAmount = GeneratedColumn<double>(
       'gst_amount', aliasedName, false,
       type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _gstRateMeta =
+      const VerificationMeta('gstRate');
+  @override
+  late final GeneratedColumn<double> gstRate = GeneratedColumn<double>(
+      'gst_rate', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _componentsJsonMeta =
+      const VerificationMeta('componentsJson');
+  @override
+  late final GeneratedColumn<String> componentsJson = GeneratedColumn<String>(
+      'components_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _hmacSignatureMeta =
       const VerificationMeta('hmacSignature');
   @override
@@ -1191,9 +1226,14 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         amount,
         method,
         reference,
+        planId,
+        planName,
+        durationMonths,
         invoiceNumber,
         subtotal,
         gstAmount,
+        gstRate,
+        componentsJson,
         hmacSignature
       ];
   @override
@@ -1239,6 +1279,20 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
       context.handle(_referenceMeta,
           reference.isAcceptableOrUnknown(data['reference']!, _referenceMeta));
     }
+    if (data.containsKey('plan_id')) {
+      context.handle(_planIdMeta,
+          planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta));
+    }
+    if (data.containsKey('plan_name')) {
+      context.handle(_planNameMeta,
+          planName.isAcceptableOrUnknown(data['plan_name']!, _planNameMeta));
+    }
+    if (data.containsKey('duration_months')) {
+      context.handle(
+          _durationMonthsMeta,
+          durationMonths.isAcceptableOrUnknown(
+              data['duration_months']!, _durationMonthsMeta));
+    }
     if (data.containsKey('invoice_number')) {
       context.handle(
           _invoiceNumberMeta,
@@ -1258,6 +1312,16 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
           gstAmount.isAcceptableOrUnknown(data['gst_amount']!, _gstAmountMeta));
     } else if (isInserting) {
       context.missing(_gstAmountMeta);
+    }
+    if (data.containsKey('gst_rate')) {
+      context.handle(_gstRateMeta,
+          gstRate.isAcceptableOrUnknown(data['gst_rate']!, _gstRateMeta));
+    }
+    if (data.containsKey('components_json')) {
+      context.handle(
+          _componentsJsonMeta,
+          componentsJson.isAcceptableOrUnknown(
+              data['components_json']!, _componentsJsonMeta));
     }
     if (data.containsKey('hmac_signature')) {
       context.handle(
@@ -1286,12 +1350,22 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
           .read(DriftSqlType.string, data['${effectivePrefix}method'])!,
       reference: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}reference']),
+      planId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}plan_id']),
+      planName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}plan_name'])!,
+      durationMonths: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}duration_months'])!,
       invoiceNumber: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}invoice_number'])!,
       subtotal: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}subtotal'])!,
       gstAmount: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}gst_amount'])!,
+      gstRate: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}gst_rate'])!,
+      componentsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}components_json']),
       hmacSignature: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}hmac_signature']),
     );
@@ -1310,9 +1384,14 @@ class Payment extends DataClass implements Insertable<Payment> {
   final double amount;
   final String method;
   final String? reference;
+  final String? planId;
+  final String planName;
+  final int durationMonths;
   final String invoiceNumber;
   final double subtotal;
   final double gstAmount;
+  final double gstRate;
+  final String? componentsJson;
   final String? hmacSignature;
   const Payment(
       {required this.id,
@@ -1321,9 +1400,14 @@ class Payment extends DataClass implements Insertable<Payment> {
       required this.amount,
       required this.method,
       this.reference,
+      this.planId,
+      required this.planName,
+      required this.durationMonths,
       required this.invoiceNumber,
       required this.subtotal,
       required this.gstAmount,
+      required this.gstRate,
+      this.componentsJson,
       this.hmacSignature});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1336,9 +1420,18 @@ class Payment extends DataClass implements Insertable<Payment> {
     if (!nullToAbsent || reference != null) {
       map['reference'] = Variable<String>(reference);
     }
+    if (!nullToAbsent || planId != null) {
+      map['plan_id'] = Variable<String>(planId);
+    }
+    map['plan_name'] = Variable<String>(planName);
+    map['duration_months'] = Variable<int>(durationMonths);
     map['invoice_number'] = Variable<String>(invoiceNumber);
     map['subtotal'] = Variable<double>(subtotal);
     map['gst_amount'] = Variable<double>(gstAmount);
+    map['gst_rate'] = Variable<double>(gstRate);
+    if (!nullToAbsent || componentsJson != null) {
+      map['components_json'] = Variable<String>(componentsJson);
+    }
     if (!nullToAbsent || hmacSignature != null) {
       map['hmac_signature'] = Variable<String>(hmacSignature);
     }
@@ -1355,9 +1448,17 @@ class Payment extends DataClass implements Insertable<Payment> {
       reference: reference == null && nullToAbsent
           ? const Value.absent()
           : Value(reference),
+      planId:
+          planId == null && nullToAbsent ? const Value.absent() : Value(planId),
+      planName: Value(planName),
+      durationMonths: Value(durationMonths),
       invoiceNumber: Value(invoiceNumber),
       subtotal: Value(subtotal),
       gstAmount: Value(gstAmount),
+      gstRate: Value(gstRate),
+      componentsJson: componentsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(componentsJson),
       hmacSignature: hmacSignature == null && nullToAbsent
           ? const Value.absent()
           : Value(hmacSignature),
@@ -1374,9 +1475,14 @@ class Payment extends DataClass implements Insertable<Payment> {
       amount: serializer.fromJson<double>(json['amount']),
       method: serializer.fromJson<String>(json['method']),
       reference: serializer.fromJson<String?>(json['reference']),
+      planId: serializer.fromJson<String?>(json['planId']),
+      planName: serializer.fromJson<String>(json['planName']),
+      durationMonths: serializer.fromJson<int>(json['durationMonths']),
       invoiceNumber: serializer.fromJson<String>(json['invoiceNumber']),
       subtotal: serializer.fromJson<double>(json['subtotal']),
       gstAmount: serializer.fromJson<double>(json['gstAmount']),
+      gstRate: serializer.fromJson<double>(json['gstRate']),
+      componentsJson: serializer.fromJson<String?>(json['componentsJson']),
       hmacSignature: serializer.fromJson<String?>(json['hmacSignature']),
     );
   }
@@ -1390,9 +1496,14 @@ class Payment extends DataClass implements Insertable<Payment> {
       'amount': serializer.toJson<double>(amount),
       'method': serializer.toJson<String>(method),
       'reference': serializer.toJson<String?>(reference),
+      'planId': serializer.toJson<String?>(planId),
+      'planName': serializer.toJson<String>(planName),
+      'durationMonths': serializer.toJson<int>(durationMonths),
       'invoiceNumber': serializer.toJson<String>(invoiceNumber),
       'subtotal': serializer.toJson<double>(subtotal),
       'gstAmount': serializer.toJson<double>(gstAmount),
+      'gstRate': serializer.toJson<double>(gstRate),
+      'componentsJson': serializer.toJson<String?>(componentsJson),
       'hmacSignature': serializer.toJson<String?>(hmacSignature),
     };
   }
@@ -1404,9 +1515,14 @@ class Payment extends DataClass implements Insertable<Payment> {
           double? amount,
           String? method,
           Value<String?> reference = const Value.absent(),
+          Value<String?> planId = const Value.absent(),
+          String? planName,
+          int? durationMonths,
           String? invoiceNumber,
           double? subtotal,
           double? gstAmount,
+          double? gstRate,
+          Value<String?> componentsJson = const Value.absent(),
           Value<String?> hmacSignature = const Value.absent()}) =>
       Payment(
         id: id ?? this.id,
@@ -1415,9 +1531,15 @@ class Payment extends DataClass implements Insertable<Payment> {
         amount: amount ?? this.amount,
         method: method ?? this.method,
         reference: reference.present ? reference.value : this.reference,
+        planId: planId.present ? planId.value : this.planId,
+        planName: planName ?? this.planName,
+        durationMonths: durationMonths ?? this.durationMonths,
         invoiceNumber: invoiceNumber ?? this.invoiceNumber,
         subtotal: subtotal ?? this.subtotal,
         gstAmount: gstAmount ?? this.gstAmount,
+        gstRate: gstRate ?? this.gstRate,
+        componentsJson:
+            componentsJson.present ? componentsJson.value : this.componentsJson,
         hmacSignature:
             hmacSignature.present ? hmacSignature.value : this.hmacSignature,
       );
@@ -1429,11 +1551,20 @@ class Payment extends DataClass implements Insertable<Payment> {
       amount: data.amount.present ? data.amount.value : this.amount,
       method: data.method.present ? data.method.value : this.method,
       reference: data.reference.present ? data.reference.value : this.reference,
+      planId: data.planId.present ? data.planId.value : this.planId,
+      planName: data.planName.present ? data.planName.value : this.planName,
+      durationMonths: data.durationMonths.present
+          ? data.durationMonths.value
+          : this.durationMonths,
       invoiceNumber: data.invoiceNumber.present
           ? data.invoiceNumber.value
           : this.invoiceNumber,
       subtotal: data.subtotal.present ? data.subtotal.value : this.subtotal,
       gstAmount: data.gstAmount.present ? data.gstAmount.value : this.gstAmount,
+      gstRate: data.gstRate.present ? data.gstRate.value : this.gstRate,
+      componentsJson: data.componentsJson.present
+          ? data.componentsJson.value
+          : this.componentsJson,
       hmacSignature: data.hmacSignature.present
           ? data.hmacSignature.value
           : this.hmacSignature,
@@ -1449,17 +1580,36 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('amount: $amount, ')
           ..write('method: $method, ')
           ..write('reference: $reference, ')
+          ..write('planId: $planId, ')
+          ..write('planName: $planName, ')
+          ..write('durationMonths: $durationMonths, ')
           ..write('invoiceNumber: $invoiceNumber, ')
           ..write('subtotal: $subtotal, ')
           ..write('gstAmount: $gstAmount, ')
+          ..write('gstRate: $gstRate, ')
+          ..write('componentsJson: $componentsJson, ')
           ..write('hmacSignature: $hmacSignature')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, memberId, date, amount, method, reference,
-      invoiceNumber, subtotal, gstAmount, hmacSignature);
+  int get hashCode => Object.hash(
+      id,
+      memberId,
+      date,
+      amount,
+      method,
+      reference,
+      planId,
+      planName,
+      durationMonths,
+      invoiceNumber,
+      subtotal,
+      gstAmount,
+      gstRate,
+      componentsJson,
+      hmacSignature);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1470,9 +1620,14 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.amount == this.amount &&
           other.method == this.method &&
           other.reference == this.reference &&
+          other.planId == this.planId &&
+          other.planName == this.planName &&
+          other.durationMonths == this.durationMonths &&
           other.invoiceNumber == this.invoiceNumber &&
           other.subtotal == this.subtotal &&
           other.gstAmount == this.gstAmount &&
+          other.gstRate == this.gstRate &&
+          other.componentsJson == this.componentsJson &&
           other.hmacSignature == this.hmacSignature);
 }
 
@@ -1483,9 +1638,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<double> amount;
   final Value<String> method;
   final Value<String?> reference;
+  final Value<String?> planId;
+  final Value<String> planName;
+  final Value<int> durationMonths;
   final Value<String> invoiceNumber;
   final Value<double> subtotal;
   final Value<double> gstAmount;
+  final Value<double> gstRate;
+  final Value<String?> componentsJson;
   final Value<String?> hmacSignature;
   final Value<int> rowid;
   const PaymentsCompanion({
@@ -1495,9 +1655,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.amount = const Value.absent(),
     this.method = const Value.absent(),
     this.reference = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.planName = const Value.absent(),
+    this.durationMonths = const Value.absent(),
     this.invoiceNumber = const Value.absent(),
     this.subtotal = const Value.absent(),
     this.gstAmount = const Value.absent(),
+    this.gstRate = const Value.absent(),
+    this.componentsJson = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1508,9 +1673,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     required double amount,
     required String method,
     this.reference = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.planName = const Value.absent(),
+    this.durationMonths = const Value.absent(),
     required String invoiceNumber,
     required double subtotal,
     required double gstAmount,
+    this.gstRate = const Value.absent(),
+    this.componentsJson = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -1528,9 +1698,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<double>? amount,
     Expression<String>? method,
     Expression<String>? reference,
+    Expression<String>? planId,
+    Expression<String>? planName,
+    Expression<int>? durationMonths,
     Expression<String>? invoiceNumber,
     Expression<double>? subtotal,
     Expression<double>? gstAmount,
+    Expression<double>? gstRate,
+    Expression<String>? componentsJson,
     Expression<String>? hmacSignature,
     Expression<int>? rowid,
   }) {
@@ -1541,9 +1716,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (amount != null) 'amount': amount,
       if (method != null) 'method': method,
       if (reference != null) 'reference': reference,
+      if (planId != null) 'plan_id': planId,
+      if (planName != null) 'plan_name': planName,
+      if (durationMonths != null) 'duration_months': durationMonths,
       if (invoiceNumber != null) 'invoice_number': invoiceNumber,
       if (subtotal != null) 'subtotal': subtotal,
       if (gstAmount != null) 'gst_amount': gstAmount,
+      if (gstRate != null) 'gst_rate': gstRate,
+      if (componentsJson != null) 'components_json': componentsJson,
       if (hmacSignature != null) 'hmac_signature': hmacSignature,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1556,9 +1736,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       Value<double>? amount,
       Value<String>? method,
       Value<String?>? reference,
+      Value<String?>? planId,
+      Value<String>? planName,
+      Value<int>? durationMonths,
       Value<String>? invoiceNumber,
       Value<double>? subtotal,
       Value<double>? gstAmount,
+      Value<double>? gstRate,
+      Value<String?>? componentsJson,
       Value<String?>? hmacSignature,
       Value<int>? rowid}) {
     return PaymentsCompanion(
@@ -1568,9 +1753,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       amount: amount ?? this.amount,
       method: method ?? this.method,
       reference: reference ?? this.reference,
+      planId: planId ?? this.planId,
+      planName: planName ?? this.planName,
+      durationMonths: durationMonths ?? this.durationMonths,
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       subtotal: subtotal ?? this.subtotal,
       gstAmount: gstAmount ?? this.gstAmount,
+      gstRate: gstRate ?? this.gstRate,
+      componentsJson: componentsJson ?? this.componentsJson,
       hmacSignature: hmacSignature ?? this.hmacSignature,
       rowid: rowid ?? this.rowid,
     );
@@ -1597,6 +1787,15 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     if (reference.present) {
       map['reference'] = Variable<String>(reference.value);
     }
+    if (planId.present) {
+      map['plan_id'] = Variable<String>(planId.value);
+    }
+    if (planName.present) {
+      map['plan_name'] = Variable<String>(planName.value);
+    }
+    if (durationMonths.present) {
+      map['duration_months'] = Variable<int>(durationMonths.value);
+    }
     if (invoiceNumber.present) {
       map['invoice_number'] = Variable<String>(invoiceNumber.value);
     }
@@ -1605,6 +1804,12 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     }
     if (gstAmount.present) {
       map['gst_amount'] = Variable<double>(gstAmount.value);
+    }
+    if (gstRate.present) {
+      map['gst_rate'] = Variable<double>(gstRate.value);
+    }
+    if (componentsJson.present) {
+      map['components_json'] = Variable<String>(componentsJson.value);
     }
     if (hmacSignature.present) {
       map['hmac_signature'] = Variable<String>(hmacSignature.value);
@@ -1624,9 +1829,14 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('amount: $amount, ')
           ..write('method: $method, ')
           ..write('reference: $reference, ')
+          ..write('planId: $planId, ')
+          ..write('planName: $planName, ')
+          ..write('durationMonths: $durationMonths, ')
           ..write('invoiceNumber: $invoiceNumber, ')
           ..write('subtotal: $subtotal, ')
           ..write('gstAmount: $gstAmount, ')
+          ..write('gstRate: $gstRate, ')
+          ..write('componentsJson: $componentsJson, ')
           ..write('hmacSignature: $hmacSignature, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3021,9 +3231,14 @@ typedef $$PaymentsTableCreateCompanionBuilder = PaymentsCompanion Function({
   required double amount,
   required String method,
   Value<String?> reference,
+  Value<String?> planId,
+  Value<String> planName,
+  Value<int> durationMonths,
   required String invoiceNumber,
   required double subtotal,
   required double gstAmount,
+  Value<double> gstRate,
+  Value<String?> componentsJson,
   Value<String?> hmacSignature,
   Value<int> rowid,
 });
@@ -3034,9 +3249,14 @@ typedef $$PaymentsTableUpdateCompanionBuilder = PaymentsCompanion Function({
   Value<double> amount,
   Value<String> method,
   Value<String?> reference,
+  Value<String?> planId,
+  Value<String> planName,
+  Value<int> durationMonths,
   Value<String> invoiceNumber,
   Value<double> subtotal,
   Value<double> gstAmount,
+  Value<double> gstRate,
+  Value<String?> componentsJson,
   Value<String?> hmacSignature,
   Value<int> rowid,
 });
@@ -3068,6 +3288,16 @@ class $$PaymentsTableFilterComposer
   ColumnFilters<String> get reference => $composableBuilder(
       column: $table.reference, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get planName => $composableBuilder(
+      column: $table.planName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get durationMonths => $composableBuilder(
+      column: $table.durationMonths,
+      builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get invoiceNumber => $composableBuilder(
       column: $table.invoiceNumber, builder: (column) => ColumnFilters(column));
 
@@ -3076,6 +3306,13 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<double> get gstAmount => $composableBuilder(
       column: $table.gstAmount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get gstRate => $composableBuilder(
+      column: $table.gstRate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get componentsJson => $composableBuilder(
+      column: $table.componentsJson,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get hmacSignature => $composableBuilder(
       column: $table.hmacSignature, builder: (column) => ColumnFilters(column));
@@ -3108,6 +3345,16 @@ class $$PaymentsTableOrderingComposer
   ColumnOrderings<String> get reference => $composableBuilder(
       column: $table.reference, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get planName => $composableBuilder(
+      column: $table.planName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get durationMonths => $composableBuilder(
+      column: $table.durationMonths,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get invoiceNumber => $composableBuilder(
       column: $table.invoiceNumber,
       builder: (column) => ColumnOrderings(column));
@@ -3117,6 +3364,13 @@ class $$PaymentsTableOrderingComposer
 
   ColumnOrderings<double> get gstAmount => $composableBuilder(
       column: $table.gstAmount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get gstRate => $composableBuilder(
+      column: $table.gstRate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get componentsJson => $composableBuilder(
+      column: $table.componentsJson,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get hmacSignature => $composableBuilder(
       column: $table.hmacSignature,
@@ -3150,6 +3404,15 @@ class $$PaymentsTableAnnotationComposer
   GeneratedColumn<String> get reference =>
       $composableBuilder(column: $table.reference, builder: (column) => column);
 
+  GeneratedColumn<String> get planId =>
+      $composableBuilder(column: $table.planId, builder: (column) => column);
+
+  GeneratedColumn<String> get planName =>
+      $composableBuilder(column: $table.planName, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMonths => $composableBuilder(
+      column: $table.durationMonths, builder: (column) => column);
+
   GeneratedColumn<String> get invoiceNumber => $composableBuilder(
       column: $table.invoiceNumber, builder: (column) => column);
 
@@ -3158,6 +3421,12 @@ class $$PaymentsTableAnnotationComposer
 
   GeneratedColumn<double> get gstAmount =>
       $composableBuilder(column: $table.gstAmount, builder: (column) => column);
+
+  GeneratedColumn<double> get gstRate =>
+      $composableBuilder(column: $table.gstRate, builder: (column) => column);
+
+  GeneratedColumn<String> get componentsJson => $composableBuilder(
+      column: $table.componentsJson, builder: (column) => column);
 
   GeneratedColumn<String> get hmacSignature => $composableBuilder(
       column: $table.hmacSignature, builder: (column) => column);
@@ -3192,9 +3461,14 @@ class $$PaymentsTableTableManager extends RootTableManager<
             Value<double> amount = const Value.absent(),
             Value<String> method = const Value.absent(),
             Value<String?> reference = const Value.absent(),
+            Value<String?> planId = const Value.absent(),
+            Value<String> planName = const Value.absent(),
+            Value<int> durationMonths = const Value.absent(),
             Value<String> invoiceNumber = const Value.absent(),
             Value<double> subtotal = const Value.absent(),
             Value<double> gstAmount = const Value.absent(),
+            Value<double> gstRate = const Value.absent(),
+            Value<String?> componentsJson = const Value.absent(),
             Value<String?> hmacSignature = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -3205,9 +3479,14 @@ class $$PaymentsTableTableManager extends RootTableManager<
             amount: amount,
             method: method,
             reference: reference,
+            planId: planId,
+            planName: planName,
+            durationMonths: durationMonths,
             invoiceNumber: invoiceNumber,
             subtotal: subtotal,
             gstAmount: gstAmount,
+            gstRate: gstRate,
+            componentsJson: componentsJson,
             hmacSignature: hmacSignature,
             rowid: rowid,
           ),
@@ -3218,9 +3497,14 @@ class $$PaymentsTableTableManager extends RootTableManager<
             required double amount,
             required String method,
             Value<String?> reference = const Value.absent(),
+            Value<String?> planId = const Value.absent(),
+            Value<String> planName = const Value.absent(),
+            Value<int> durationMonths = const Value.absent(),
             required String invoiceNumber,
             required double subtotal,
             required double gstAmount,
+            Value<double> gstRate = const Value.absent(),
+            Value<String?> componentsJson = const Value.absent(),
             Value<String?> hmacSignature = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -3231,9 +3515,14 @@ class $$PaymentsTableTableManager extends RootTableManager<
             amount: amount,
             method: method,
             reference: reference,
+            planId: planId,
+            planName: planName,
+            durationMonths: durationMonths,
             invoiceNumber: invoiceNumber,
             subtotal: subtotal,
             gstAmount: gstAmount,
+            gstRate: gstRate,
+            componentsJson: componentsJson,
             hmacSignature: hmacSignature,
             rowid: rowid,
           ),

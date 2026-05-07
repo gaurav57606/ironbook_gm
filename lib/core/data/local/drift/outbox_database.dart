@@ -44,9 +44,14 @@ class Payments extends Table {
   RealColumn get amount => real()();
   TextColumn get method => text()();
   TextColumn get reference => text().nullable()();
+  TextColumn get planId => text().nullable()();
+  TextColumn get planName => text().withDefault(const Constant(''))();
+  IntColumn get durationMonths => integer().withDefault(const Constant(0))();
   TextColumn get invoiceNumber => text()();
   RealColumn get subtotal => real()();
   RealColumn get gstAmount => real()();
+  RealColumn get gstRate => real().withDefault(const Constant(0))();
+  TextColumn get componentsJson => text().nullable()();
   TextColumn get hmacSignature => text().nullable()();
 
   @override

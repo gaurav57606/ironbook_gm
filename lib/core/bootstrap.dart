@@ -57,7 +57,7 @@ class AppBootstrap {
       logger.error('Bootstrap Tier 1: Drift Initialization FAILED', e);
     }
     
-    if (hiveHealthy) {
+    if (hiveHealthy && kDebugMode) {
       await SeedData.seedIfEmpty(container);
     }
     
