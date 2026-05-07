@@ -108,11 +108,58 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       }
     });
 
-    // 2. Load all members from Drift
-    state = await _memberRepo.getAllMembers();
+    // 2. Load all members with integrity checks
+    state = await _loadAllSnapshots();
 
-    // 3. Reconcile
+    // 3. Reconcile lagging state
     await _reconcileSnapshots();
+  }
+
+  Future<List<MemberSnapshot>> _loadAllSnapshots() async {
+    final allMembers = await _memberRepo.getAllMembers();
+    final List<MemberSnapshot> validSnapshots = [];
+    final List<String> repairRequiredIds = [];
+
+    // Batch process HMAC verification in chunks of 50
+    for (int i = 0; i < allMembers.length; i += 50) {
+      final chunk = allMembers.skip(i).take(50).toList();
+      final results = await Future.wait(chunk.map((snap) async {
+        if (snap.hmacSignature == null) return MapEntry(snap.memberId, false);
+        final isValid = await _hmac.verifySnapshot(snap.memberId, snap.toFirestore(), snap.hmacSignature!);
+        return MapEntry(snap.memberId, isValid);
+      }));
+
+      for (int j = 0; j < chunk.length; j++) {
+        final snap = chunk[j];
+        final isValid = results[j].value;
+        if (isValid) {
+          validSnapshots.add(snap);
+        } else {
+          debugPrint('MemberNotifier: TAMPER DETECTED for ${snap.memberId}. Repair required.');
+          repairRequiredIds.add(snap.memberId);
+        }
+      }
+    }
+
+    if (repairRequiredIds.isNotEmpty) {
+      final histories = await _eventRepo.getByEntityIds(repairRequiredIds);
+      final List<MemberSnapshot> repairedSnapshots = [];
+
+      for (final entityId in repairRequiredIds) {
+        final history = histories[entityId] ?? [];
+        final rebuilt = SnapshotBuilder.rebuild(history);
+        if (rebuilt != null) {
+          repairedSnapshots.add(rebuilt);
+        }
+      }
+
+      if (repairedSnapshots.isNotEmpty) {
+        await _memberRepo.upsertMembers(repairedSnapshots);
+        validSnapshots.addAll(repairedSnapshots);
+      }
+    }
+
+    return validSnapshots;
   }
 
   Future<void> _reconcileSnapshots() async {
@@ -132,29 +179,42 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       eventsByEntity.putIfAbsent(e.entityId, () => []).add(e);
     }
 
-    bool updatedAny = false;
-    for (final entityId in eventsByEntity.keys) {
-      final snap = await _memberRepo.getMember(entityId);
+    final List<String> entityIdsToCheck = eventsByEntity.keys.toList();
+    final existingSnaps = await _memberRepo.getMembers(entityIdsToCheck);
+    final snapMap = {for (final s in existingSnaps) s.memberId: s};
+
+    final List<String> laggingIds = [];
+    for (final entityId in entityIdsToCheck) {
+      final snap = snapMap[entityId];
       final latestEventTime = eventsByEntity[entityId]!
           .map((e) => e.deviceTimestamp)
           .reduce((a, b) => a.isAfter(b) ? a : b);
 
       if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-        debugPrint('MemberNotifier: Lagging Drift state for $entityId. Rebuilding from event log...');
-        final fullHistory = await _eventRepo.getByEntityId(entityId);
-        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+        laggingIds.add(entityId);
+      }
+    }
+
+    if (laggingIds.isNotEmpty) {
+      debugPrint('MemberNotifier: Found ${laggingIds.length} lagging members. Rebuilding in batch...');
+      final histories = await _eventRepo.getByEntityIds(laggingIds);
+      final List<MemberSnapshot> rebuiltSnapshots = [];
+
+      for (final entityId in laggingIds) {
+        final history = histories[entityId] ?? [];
+        final rebuilt = SnapshotBuilder.rebuild(history);
         if (rebuilt != null) {
-          await _memberRepo.upsertMember(rebuilt);
-          updatedAny = true;
+          rebuiltSnapshots.add(rebuilt);
         }
+      }
+
+      if (rebuiltSnapshots.isNotEmpty) {
+        await _memberRepo.upsertMembers(rebuiltSnapshots);
+        state = await _loadAllSnapshots();
       }
     }
 
     await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
-
-    if (updatedAny) {
-      state = await _memberRepo.getAllMembers();
-    }
   }
 
   Future<void> rebuildCache() async {
