@@ -31,102 +31,135 @@ class LeaseExpiredScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.expired.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.vpn_key_off_rounded,
-                  size: 64,
-                  color: AppColors.expired,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Text(
-                'LEASE EXPIRED',
-                style: AppTextStyles.h1.copyWith(
-                  color: AppColors.expired,
-                  letterSpacing: 4.0,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Your 7-day offline lease has expired. To continue using IronBook GM, you must synchronize your local data with the secure cloud.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body.copyWith(color: AppColors.text3),
-              ),
+              _buildHeader(),
               const SizedBox(height: 48),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.bg2,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('UNSYNCED DATA', style: TextStyle(color: AppColors.text3, fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.bold)),
-                        Text('$unsyncedCount ITEMS', style: const TextStyle(color: AppColors.expired, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const LinearProgressIndicator(
-                      value: 1.0,
-                      backgroundColor: AppColors.bg,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.expired),
-                      minHeight: 4,
-                    ),
-                  ],
-                ),
-              ),
+              _buildSyncStatusCard(unsyncedCount),
               const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // This will trigger the sync worker naturally if online
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Re-establishing cloud connection...')),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.expired,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  child: const Text('SYNC NOW TO RENEW LEASE', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextButton(
-                onPressed: () {
-                  // Logout to re-establish auth if needed
-                },
-                child: Text(
-                  'CONTACT SUPPORT',
-                  style: AppTextStyles.label.copyWith(color: AppColors.text3),
-                ),
-              ),
+              _buildActionButtons(context),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppColors.expired.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.vpn_key_off_rounded,
+            size: 64,
+            color: AppColors.expired,
+          ),
+        ),
+        const SizedBox(height: 32),
+        Text(
+          'LEASE EXPIRED',
+          style: AppTextStyles.h1.copyWith(
+            color: AppColors.expired,
+            letterSpacing: 4.0,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Your 7-day offline lease has expired. To continue using IronBook GM, you must synchronize your local data with the secure cloud.',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.body.copyWith(color: AppColors.text3),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSyncStatusCard(int unsyncedCount) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.bg2,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'UNSYNCED DATA',
+                style: TextStyle(
+                  color: AppColors.text3,
+                  fontSize: 10,
+                  letterSpacing: 1,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '$unsyncedCount ITEMS',
+                style: const TextStyle(
+                  color: AppColors.expired,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const LinearProgressIndicator(
+            value: 1.0,
+            backgroundColor: AppColors.bg,
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.expired),
+            minHeight: 4,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: () {
+              // This will trigger the sync worker naturally if online
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Re-establishing cloud connection...'),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.expired,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'SYNC NOW TO RENEW LEASE',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        TextButton(
+          onPressed: () {
+            // Logout to re-establish auth if needed
+          },
+          child: Text(
+            'CONTACT SUPPORT',
+            style: AppTextStyles.label.copyWith(color: AppColors.text3),
+          ),
+        ),
+      ],
+    );
+  }
 }
-
-
-
-
-
-
-
-
-
