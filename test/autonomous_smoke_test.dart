@@ -1,7 +1,6 @@
 import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'test_helper.dart';
 
 void main() {

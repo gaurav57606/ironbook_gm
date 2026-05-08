@@ -83,6 +83,7 @@ class AppSettings extends HiveObject {
     bool? useBiometrics,
     String? businessType,
     DateTime? lastBackupAt,
+    String? hmacSignature,
   }) {
     return AppSettings(
       gstRate: gstRate ?? this.gstRate,

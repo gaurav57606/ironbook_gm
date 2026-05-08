@@ -140,7 +140,10 @@ class DriftEventRepository implements IEventRepository {
   }
 
   @override
-  Stream<DomainEvent> watch() => _eventBus.stream;
+  Stream<DomainEvent> watch() {
+    debugPrint('DriftEventRepository: watch() called. EventBus stream: ${_eventBus.stream}');
+    return _eventBus.stream;
+  }
 }
 
 final eventRepositoryProvider = Provider<IEventRepository>((ref) {

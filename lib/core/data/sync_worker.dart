@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'local/drift/outbox_repository.dart';
-import 'repositories/event_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
@@ -24,7 +23,6 @@ class SyncWorkerState {
 /// Worker responsible for pushing local events to Firestore.
 /// Ensures idempotency using eventId as Firestore Document ID.
 class SyncWorker {
-  final IEventRepository _repo;
   final OutboxRepository _outboxRepo;
   final SyncCoordinator _coordinator;
   final SharedPreferences _prefs;
@@ -39,7 +37,7 @@ class SyncWorker {
   final StateProvider<SyncWorkerState> _statusProvider;
   final Ref _ref;
 
-  SyncWorker(this._repo, this._outboxRepo, this._coordinator, this._prefs, this._recordPusher, this._currentUserId, this._statusProvider, this._ref) {
+  SyncWorker(this._outboxRepo, this._coordinator, this._prefs, this._recordPusher, this._currentUserId, this._statusProvider, this._ref) {
     // Subscribe to manual sync requests from the UI or Repositories
     _syncSubscription = _coordinator.onSyncRequested.listen((_) => performSync());
     
@@ -167,13 +165,11 @@ class SyncWorker {
 final syncWorkerStatusProvider = StateProvider<SyncWorkerState>((ref) => SyncWorkerState(status: SyncWorkerStatus.idle));
 
 final syncWorkerProvider = Provider<SyncWorker>((ref) {
-  final repo = ref.watch(eventRepositoryProvider);
   final outboxRepo = ref.watch(outboxRepositoryProvider);
   final coordinator = ref.watch(syncCoordinatorProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
   
   final worker = SyncWorker(
-    repo,
     outboxRepo,
     coordinator,
     prefs,

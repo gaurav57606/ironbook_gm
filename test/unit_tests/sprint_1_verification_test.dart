@@ -9,14 +9,17 @@ import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 
+import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
+
 class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
-class MockUser extends Mock implements User {}
+class MockOutboxRepository extends Mock implements OutboxRepository {}
 class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
 
 void main() {
   late MockFlutterSecureStorage mockStorage;
   late MockFirebaseAuth mockAuth;
+  late MockOutboxRepository mockOutboxRepo;
   late MockFirebaseFirestore mockFirestore;
   late HmacService hmacService;
   late PinService pinService;
@@ -35,8 +38,9 @@ void main() {
     mockStorage = MockFlutterSecureStorage();
     mockAuth = MockFirebaseAuth();
     mockFirestore = MockFirebaseFirestore();
+    mockOutboxRepo = MockOutboxRepository();
     hmacService = HmacService(mockStorage, mockAuth, mockFirestore);
-    pinService = PinService(mockStorage, mockAuth);
+    pinService = PinService(mockStorage, mockOutboxRepo);
   });
 
   group('HmacService Verification', () {

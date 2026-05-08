@@ -33,7 +33,6 @@ import '../../features/settings/presentation/screens/profile_edit_screen.dart';
 import '../../features/auth/recovery/recovery_screen.dart';
 import '../../features/settings/presentation/screens/ownership_transfer_screen.dart';
 import '../../features/home/presentation/widgets/main_shell.dart';
-import '../../features/backup/presentation/backup_restore_screen.dart';
 
 // Newly Added Screens
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
@@ -46,22 +45,31 @@ import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 
 final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
-  final authState = ref.watch(authProvider);
-  final tier2Status = ref.watch(tier2StatusProvider);
-  final bootstrap = ref.watch(bootstrapStateProvider);
-  final entitlementStatus = ref.watch(entitlementStatusProvider);
+  final refreshListenable = ValueNotifier<int>(0);
+  ref.onDispose(() => refreshListenable.dispose());
+  ref.listen(authProvider, (_, __) => refreshListenable.value++);
+  ref.listen(tier2StatusProvider, (_, __) => refreshListenable.value++);
+  ref.listen(bootstrapStateProvider, (_, __) => refreshListenable.value++);
+  ref.listen(entitlementStatusProvider, (_, __) => refreshListenable.value++);
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: refreshListenable,
     errorBuilder: (context, state) => Scaffold(
       body: Center(
         child: Text('Page not found: ${state.matchedLocation}'),
       ),
     ),
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final tier2Status = ref.read(tier2StatusProvider);
+      final bootstrap = ref.read(bootstrapStateProvider);
+      final entitlementStatus = ref.read(entitlementStatusProvider);
+
+
       // 0. Hard Block until Phase 1 (Core) is done
       if (bootstrap == BootstrapPhase.tier1Pending) return null;
-
+      
       // 1. Splash Screen Holding Pattern (Stay until Tier 2 is determined)
       final isSplash = state.matchedLocation == '/';
       if (tier2Status == Tier2Status.pending && isSplash) return null;
@@ -83,7 +91,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
 
       // 3. Onboarding Redirect
       if (!onboardingDone) {
-         if (isOnboarding) return null;
+         if (isOnboarding || isLoggingIn) return null;
          return '/onboarding';
       }
 
@@ -96,26 +104,27 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
         return '/'; // Hold on Splash
       }
 
-      // 5. Auth Redirect
-      if (!isAuth) {
-         if (isLoggingIn || isOnboarding) return null;
+      // 5. Auth Guard
+      if (!isAuth && !isLoggingIn && !isOnboarding) {
          return '/login';
       }
 
       // 6. Post-Auth Routing (PIN & Landing)
-      if (isSplash || isLoggingIn || isOnboarding) {
+      if (isAuth && (isSplash || isLoggingIn || isOnboarding)) {
          if (isPinSetup && !unlocked) return '/unlock';
          if (!isPinSetup) return '/setup-pin';
          return '/dashboard';
       }
 
       // 7. PIN Enforcement
-      if (isPinSetup && !unlocked && !isPinEntryPath) {
-        return '/unlock';
-      }
+      if (isAuth) {
+        if (isPinSetup && !unlocked && !isPinEntryPath) {
+          return '/unlock';
+        }
 
-      if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
-        return '/setup-pin';
+        if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
+          return '/setup-pin';
+        }
       }
 
       // 8. Entitlement Guard (Paywall)

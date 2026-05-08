@@ -5,9 +5,14 @@ import 'package:ironbook_gm/core/data/local/snapshot_builder.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
-import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart';
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide MemberSnapshotAdapter;
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'dart:io';
+import 'package:mocktail/mocktail.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+import 'package:drift/native.dart';
+
+class MockOutboxDatabase extends Mock implements OutboxDatabase {}
 
 void main() {
   setUpAll(() async {
@@ -105,7 +110,8 @@ void main() {
 
   group('Sprint 2: Sync Coordination (Locking)', () {
     test('Should coordinate locks between holders', () async {
-      final coordinator = SyncCoordinator();
+      final db = OutboxDatabase(NativeDatabase.memory());
+      final coordinator = SyncCoordinator(db);
       await coordinator.clearAllLocks();
       
       final ok = await coordinator.acquireLock('h1');

@@ -90,7 +90,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           _emailController.text, 
                           _passwordController.text
                         );
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         if (success) {
                           context.go('/unlock');
                         }

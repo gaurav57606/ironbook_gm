@@ -7,10 +7,16 @@ import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockEventRepo extends Mock implements IEventRepository {}
 class MockHmacService extends Mock implements HmacService {}
+class MockMemberRepo extends Mock implements IMemberRepository {}
+class MockPlanRepo extends Mock implements IPlanRepository {}
+class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
 
 void main() {
   late MockEventRepo mockRepo;
@@ -55,7 +61,7 @@ void main() {
         eventRepositoryProvider.overrideWithValue(mockRepo),
         clockProvider.overrideWithValue(FrozenClock(DateTime(2024, 1, 1))),
         membersProvider.overrideWith((ref) {
-          final notifier = MemberNotifier(mockRepo, FrozenClock(DateTime(2024, 1, 1)), mockHmac as HmacService);
+          final notifier = MemberNotifier(mockRepo, MockMemberRepo(), MockPlanRepo(), MockPreferencesRepo(), FrozenClock(DateTime(2024, 1, 1)), mockHmac as HmacService);
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = testMembers;
           return notifier;
@@ -116,5 +122,6 @@ void main() {
     });
   });
 }
+
 
 

@@ -4,13 +4,11 @@ import 'package:uuid/uuid.dart';
 import 'package:ironbook_gm/core/data/local/models/product_model.dart';
 import 'package:ironbook_gm/core/data/local/models/sale_model.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sale_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'payment_provider.dart';
 
 import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';

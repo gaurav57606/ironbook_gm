@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../local/drift/outbox_database.dart';
-import '../local/drift/outbox_repository.dart';
 import '../local/models/member_snapshot_model.dart';
 import '../local/models/domain_event_model.dart';
 import '../local/snapshot_builder.dart';

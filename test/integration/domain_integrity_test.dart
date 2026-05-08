@@ -5,6 +5,11 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide OwnerProfile, Payment, Plan, Sale, Product, InvoiceSequence;
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/shared/utils/event_bus.dart';
+import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 
 void main() {
   late ProviderContainer container;
@@ -21,12 +26,16 @@ void main() {
         outboxDatabaseProvider.overrideWithValue(db),
         hmacServiceProvider.overrideWithValue(FakeHmacService()),
         outboxRepositoryProvider.overrideWith((ref) => OutboxRepository(db)),
+        memberRepositoryProvider.overrideWithValue(DriftMemberRepository(db, FakeHmacService())),
+        eventRepositoryProvider.overrideWith((ref) => DriftEventRepository(db, EventBus(), FakeHmacService(), FakeSyncCoordinator())),
+        planRepositoryProvider.overrideWithValue(DriftPlanRepository(db)),
+        preferencesRepositoryProvider.overrideWithValue(DriftPreferencesRepository(db)),
       ],
     );
 
-    // Seed a test plan in Hive (legacy for now)
-    final plansBox = await Hive.openBox<Plan>('plans');
-    await plansBox.put('plan-1', Plan(
+    // Seed a test plan in Drift
+    final planRepo = DriftPlanRepository(db);
+    await planRepo.upsertPlan(Plan(
       id: 'plan-1',
       name: 'Monthly',
       durationMonths: 1,
@@ -35,9 +44,9 @@ void main() {
   });
 
   tearDown(() async {
+    container.dispose();
     await db.close();
     await TestHelper.cleanHive();
-    container.dispose();
   });
 
   test('Full Integrity Flow: Add Member -> Drift Persistence -> Event Log', () async {

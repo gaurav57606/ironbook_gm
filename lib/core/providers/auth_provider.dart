@@ -15,9 +15,7 @@ import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
-import 'package:ironbook_gm/core/services/config_service.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
 import 'base_providers.dart';
@@ -79,7 +77,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final IOwnerRepository _ownerRepo;
   final ISettingsRepository _settingsRepo;
   final HmacService _hmacService;
-  final ConfigService _config;
   final Ref _ref;
   String _deviceId = 'device-unknown';
 
@@ -94,11 +91,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     this._settingsRepo,
     this._syncWorker,
     this._hmacService,
-    this._config,
     this._ref,
   ) : super(AuthState(settings: AppSettings())) {
-    _init();
-    _syncWorker.startPeriodicSync(const Duration(seconds: 30));
+    init();
   }
 
   @override
@@ -107,7 +102,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     super.dispose();
   }
 
-  Future<void> _init() async {
+  Future<void> init() async {
+    _syncWorker.startPeriodicSync(const Duration(seconds: 30));
     final pinHash = await _storage.read(key: 'pin_hash');
     final pinSalt = await _storage.read(key: 'pin_salt');
     final onboardingDone = await _storage.read(key: 'onboarding_done');
@@ -322,7 +318,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final syncWorker = ref.watch(syncWorkerProvider);
   final firebaseAuth = ref.watch(firebaseAuthProvider);
   final hmac = ref.watch(hmacServiceProvider);
-  final config = ref.watch(configServiceProvider);
   
   return AuthNotifier(
     storage, 
@@ -333,7 +328,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     settingsRepo, 
     syncWorker, 
     hmac, 
-    config, 
     ref
   );
 });

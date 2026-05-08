@@ -2,8 +2,6 @@ import '../test_helper.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
-import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 
 void main() {
   late OutboxDatabase db;

@@ -6,7 +6,6 @@ import '../local/models/plan_model.dart' as domain;
 import '../../providers/base_providers.dart';
 
 import '../local/models/domain_event_model.dart';
-import '../../constants/event_payload_keys.dart';
 import '../local/models/plan_component_model.dart';
 
 abstract class IPlanRepository {

@@ -6,18 +6,20 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 
+import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
+
 class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
-class MockFirebaseAuth extends Mock implements FirebaseAuth {}
+class MockOutboxRepository extends Mock implements OutboxRepository {}
 
 void main() {
   late MockFlutterSecureStorage mockStorage;
-  late MockFirebaseAuth mockAuth;
+  late MockOutboxRepository mockOutboxRepo;
   late PinService pinService;
 
   setUp(() {
     mockStorage = MockFlutterSecureStorage();
-    mockAuth = MockFirebaseAuth();
-    pinService = PinService(mockStorage, mockAuth);
+    mockOutboxRepo = MockOutboxRepository();
+    pinService = PinService(mockStorage, mockOutboxRepo);
   });
 
   group('PinService Hardening', () {

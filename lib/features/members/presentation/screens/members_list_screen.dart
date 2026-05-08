@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../providers/members_provider.dart';
-import '../../../../core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import '../../../../shared/utils/date_formatter.dart';
 import '../../../../shared/utils/clock.dart';
 import 'package:go_router/go_router.dart';
@@ -14,8 +14,8 @@ class MembersListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filteredMembers = ref.watch(filteredMembersProvider);
-    final allMembersAsync = ref.watch(membersProvider);
-    final allMembersCount = allMembersAsync.value?.length ?? 0;
+    final allMembers = ref.watch(membersProvider);
+    final allMembersCount = allMembers.length;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -90,8 +90,7 @@ class MembersListScreen extends ConsumerWidget {
   }
 
   Widget _buildQuickStats(BuildContext context, WidgetRef ref) {
-    final allAsync = ref.watch(membersProvider);
-    final all = allAsync.value ?? [];
+    final all = ref.watch(membersProvider);
     final now = ref.watch(clockProvider).now;
     
     // ⚡ Bolt: Consolidated multiple list traversals to compute stats in one pass
@@ -196,8 +195,7 @@ class MembersListScreen extends ConsumerWidget {
   }
 
   Widget _buildPillTabs(WidgetRef ref) {
-    final allAsync = ref.watch(membersProvider);
-    final all = allAsync.value ?? [];
+    final all = ref.watch(membersProvider);
     final selectedTab = ref.watch(memberTabProvider);
     final now = ref.watch(clockProvider).now;
     
@@ -276,7 +274,7 @@ class MembersListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMemberListContainer(BuildContext context, List<Member> members, WidgetRef ref) {
+  Widget _buildMemberListContainer(BuildContext context, List<MemberSnapshot> members, WidgetRef ref) {
     if (members.isEmpty) {
       return Container(
         height: 200,
@@ -316,7 +314,7 @@ class MembersListScreen extends ConsumerWidget {
     );
   }
 
-  String _getStatusMessage(Member m, DateTime now) {
+  String _getStatusMessage(MemberSnapshot m, DateTime now) {
     final days = m.getDaysRemaining(now);
     if (days < 0) return 'Expired';
     if (days == 0) return 'Today';
@@ -324,7 +322,7 @@ class MembersListScreen extends ConsumerWidget {
     return '${days}d';
   }
 
-  Color _getStatusColor(Member m, DateTime now) {
+  Color _getStatusColor(MemberSnapshot m, DateTime now) {
     final status = m.getStatus(now);
     switch (status) {
       case MemberStatus.active: return AppColors.green;
@@ -336,9 +334,9 @@ class MembersListScreen extends ConsumerWidget {
 
   String _formatDate(DateTime d) => DateFormatter.formatShort(d);
 
-  Widget _buildMemberItem(BuildContext context, Member member, String initials, String subtitle, String status, Color color) {
+  Widget _buildMemberItem(BuildContext context, MemberSnapshot member, String initials, String subtitle, String status, Color color) {
     return GestureDetector(
-      onTap: () => context.push('/gym/member-details/${member.id}'),
+      onTap: () => context.push('/gym/member-details/${member.memberId}'),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

@@ -1,3 +1,11 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ironbook_gm/features/auth/onboarding/onboarding_screen.dart';
+import 'package:ironbook_gm/features/auth/presentation/screens/signup_screen.dart';
+import 'package:ironbook_gm/features/auth/presentation/screens/login_screen.dart';
+import 'package:ironbook_gm/features/auth/presentation/screens/pin_setup_screen.dart';
+import 'package:ironbook_gm/shared/widgets/app_button.dart';
+import 'package:ironbook_gm/shared/widgets/app_text_field.dart';
 import 'test_helper.dart';
 
 void main() {
@@ -61,6 +69,7 @@ void main() {
             isAuthenticated: false,
             isPinSetup: false,
           )),
+          tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
         ],
       );
 
@@ -79,10 +88,31 @@ void main() {
       
       expect(find.textContaining('Your gym, your rules'), findsOneWidget);
       await tester.tap(find.text('Get started'));
+      await tester.pump(); // Trigger navigation
+      await tester.pump(const Duration(milliseconds: 100)); // Advance timer
       await tester.pumpAndSettle();
 
       // Signup Screen
-      expect(find.textContaining('Create Account'), findsOneWidget);
+      expect(find.textContaining('Your gym, your rules'), findsNothing);
+      expect(find.byType(SignupScreen), findsOneWidget);
+      expect(find.text('Create Account'), findsNWidgets(2)); // Header and Button
+
+      // Fill signup form
+      await tester.enterText(find.byType(TextFormField).at(0), 'IronBook Gym');
+      await tester.enterText(find.byType(TextFormField).at(1), 'John Doe');
+      await tester.enterText(find.byType(TextFormField).at(2), 'test@example.com');
+      await tester.enterText(find.byType(TextFormField).at(3), '9876543210');
+      await tester.enterText(find.byType(TextFormField).at(4), 'Password123');
+      await tester.enterText(find.byType(TextFormField).at(5), 'Password123');
+      await tester.pumpAndSettle();
+
+      // Tap Create Account button (the one in AppButton)
+      await tester.tap(find.widgetWithText(AppButton, 'Create Account'));
+      await tester.pumpAndSettle();
+
+      // Should be on PIN Setup Screen
+      expect(find.byType(PinSetupScreen), findsOneWidget);
+      expect(find.text('Create your PIN'), findsOneWidget);
     });
   });
 }

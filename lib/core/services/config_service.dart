@@ -1,9 +1,23 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ConfigService {
   Future<void> init() async {
-    await dotenv.load(fileName: ".env");
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
+      debugPrint('Warning: Failed to load .env file: $e');
+      if (kIsWeb) {
+        // Fallback for Flutter Web which sometimes struggles with root assets
+        dotenv.testLoad(fileInput: '''
+API_URL=https://api.ironbook.gym
+ENV=development
+HMAC_SECRET=ironbook_secret_key_2026
+APP_NAME=IronBook GM
+''');
+      }
+    }
   }
 
   String get apiUrl => dotenv.get('API_URL', fallback: 'https://api.ironbook.gym');
