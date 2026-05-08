@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:ironbook_gm/app.dart';
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide AppSettingsAdapter, MemberSnapshotAdapter;
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart'
+    hide AppSettingsAdapter, MemberSnapshotAdapter;
 import 'package:drift/native.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide OwnerProfile, Payment, Plan, Sale, Product, InvoiceSequence;
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart'
+    hide OwnerProfile, Payment, Plan, Sale, Product, InvoiceSequence;
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
@@ -80,17 +82,21 @@ export '../integration_test/mocks/mock_secure_storage.dart';
 export '../integration_test/mocks/mock_entitlement.dart';
 
 class TestHelper {
-
   static Future<void> setupHive([String subDir = 'default']) async {
-    final tempDir = Directory.systemTemp.createTempSync('ironbook_test_${subDir}_');
+    final tempDir =
+        Directory.systemTemp.createTempSync('ironbook_test_${subDir}_');
     Hive.init(tempDir.path);
-    if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(AppSettingsAdapter());
+    if (!Hive.isAdapterRegistered(6))
+      Hive.registerAdapter(AppSettingsAdapter());
     if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(PaymentAdapter());
-    if (!Hive.isAdapterRegistered(12)) Hive.registerAdapter(InvoiceSequenceAdapter());
-    if (!Hive.isAdapterRegistered(13)) Hive.registerAdapter(PlanComponentSnapshotAdapter());
+    if (!Hive.isAdapterRegistered(12))
+      Hive.registerAdapter(InvoiceSequenceAdapter());
+    if (!Hive.isAdapterRegistered(13))
+      Hive.registerAdapter(PlanComponentSnapshotAdapter());
     if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(PlanAdapter());
-    if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(PlanComponentAdapter());
-    
+    if (!Hive.isAdapterRegistered(3))
+      Hive.registerAdapter(PlanComponentAdapter());
+
     await Hive.openBox<AppSettings>('settings');
     await Hive.openBox('meta');
     await Hive.openLazyBox<MemberSnapshot>('snapshots');
@@ -123,9 +129,9 @@ class TestHelper {
     final mockStorage = MockFlutterSecureStorage();
     final mockFirestore = MockFirebaseFirestore();
     final driftDb = setupDrift();
-    
+
     addTearDown(() async => await driftDb.close());
-    
+
     // Register fallbacks for Mocktail
     try {
       registerFallbackValue(Duration.zero);
@@ -134,19 +140,23 @@ class TestHelper {
     } catch (_) {
       // Already registered
     }
-    
 
-    
     // Default mocks
     when(() => mockAuth.currentUser).thenReturn(null);
-    when(() => mockAuth.authStateChanges()).thenAnswer((_) => const Stream.empty());
-    when(() => mockAuth.idTokenChanges()).thenAnswer((_) => const Stream.empty());
+    when(() => mockAuth.authStateChanges())
+        .thenAnswer((_) => const Stream.empty());
+    when(() => mockAuth.idTokenChanges())
+        .thenAnswer((_) => const Stream.empty());
     when(() => mockAuth.userChanges()).thenAnswer((_) => const Stream.empty());
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
-    when(() => mockPin.authenticate(pinFallback: any(named: 'pinFallback'))).thenAnswer((_) async => AuthResult.success);
+    when(() => mockPin.authenticate(pinFallback: any(named: 'pinFallback')))
+        .thenAnswer((_) async => AuthResult.success);
     when(() => mockSync.startPeriodicSync(any())).thenReturn(null);
-    when(() => mockStorage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
-    when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value'))).thenAnswer((_) async {});
+    when(() => mockStorage.read(key: any(named: 'key')))
+        .thenAnswer((_) async => null);
+    when(() => mockStorage.write(
+        key: any(named: 'key'),
+        value: any(named: 'value'))).thenAnswer((_) async {});
 
     GoogleFonts.config.allowRuntimeFetching = false;
 
@@ -159,25 +169,27 @@ class TestHelper {
           syncWorkerProvider.overrideWithValue(mockSync),
           appSecureStorageProvider.overrideWithValue(mockStorage),
           outboxDatabaseProvider.overrideWithValue(driftDb),
-          outboxRepositoryProvider.overrideWith((ref) => OutboxRepository(driftDb)),
-          bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
+          outboxRepositoryProvider
+              .overrideWith((ref) => OutboxRepository(driftDb)),
+          bootstrapStateProvider
+              .overrideWith((ref) => BootstrapPhase.tier2Ready),
           tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
           clockProvider.overrideWith((ref) => FakeClock()),
           ...overrides,
         ],
-        child: (routerConfig != null) 
-          ? MaterialApp.router(
-              theme: AppTheme.darkTheme(),
-              debugShowCheckedModeBanner: false,
-              routerConfig: routerConfig,
-            )
-          : (child is MaterialApp || child is IronBookApp) 
-            ? child 
-            : MaterialApp(
+        child: (routerConfig != null)
+            ? MaterialApp.router(
                 theme: AppTheme.darkTheme(),
                 debugShowCheckedModeBanner: false,
-                home: child,
-              ),
+                routerConfig: routerConfig,
+              )
+            : (child is MaterialApp || child is IronBookApp)
+                ? child
+                : MaterialApp(
+                    theme: AppTheme.darkTheme(),
+                    debugShowCheckedModeBanner: false,
+                    home: child,
+                  ),
       ),
     );
     // Extra pumps for surface and state initialization
@@ -187,9 +199,13 @@ class TestHelper {
 }
 
 class MockAuth extends Mock implements AuthNotifier {}
+
 class MockPinService extends Mock implements PinService {}
+
 class MockSyncWorker extends Mock implements SyncWorker {}
+
 class MockBillingRepository extends Mock implements IBillingRepository {}
+
 class FakeFlutterSecureStorage extends Fake implements FlutterSecureStorage {
   final Map<String, String> _data = {};
 
@@ -249,7 +265,9 @@ class FakeFlutterSecureStorage extends Fake implements FlutterSecureStorage {
     _data.clear();
   }
 }
+
 class MockFirebaseAuth extends Mock implements fb.FirebaseAuth {}
+
 typedef FakeRepo = FakeDriftEventRepository;
 
 class FakeDriftEventRepository implements IEventRepository {
@@ -259,8 +277,10 @@ class FakeDriftEventRepository implements IEventRepository {
   Future<void> persist(DomainEvent event) async {
     _events.add(event);
   }
+
   @override
-  Future<List<DomainEvent>> getAllUnsynced() async => _events.where((e) => !e.synced).toList();
+  Future<List<DomainEvent>> getAllUnsynced() async =>
+      _events.where((e) => !e.synced).toList();
   @override
   Future<DomainEvent?> getById(String id) async {
     try {
@@ -269,12 +289,15 @@ class FakeDriftEventRepository implements IEventRepository {
       return null;
     }
   }
+
   @override
-  Future<List<DomainEvent>> getByEntityId(String entityId) async => _events.where((e) => e.entityId == entityId).toList();
+  Future<List<DomainEvent>> getByEntityId(String entityId) async =>
+      _events.where((e) => e.entityId == entityId).toList();
   @override
   Future<List<DomainEvent>> getAll() async => List.unmodifiable(_events);
   @override
-  Future<List<DomainEvent>> getEventsSince(DateTime since) async => _events.where((e) => e.deviceTimestamp.isAfter(since)).toList();
+  Future<List<DomainEvent>> getEventsSince(DateTime since) async =>
+      _events.where((e) => e.deviceTimestamp.isAfter(since)).toList();
   @override
   Future<void> markAsSynced(String eventId) async {
     final idx = _events.indexWhere((e) => e.id == eventId);
@@ -282,10 +305,12 @@ class FakeDriftEventRepository implements IEventRepository {
       _events[idx] = _events[idx].copyWith(synced: true);
     }
   }
+
   @override
   Future<void> persistSynced(DomainEvent event) async {
     _events.add(event.copyWith(synced: true));
   }
+
   @override
   Stream<DomainEvent> watch() => const Stream.empty();
 }
@@ -300,16 +325,16 @@ class FakeAuth extends AuthNotifier {
     bool isPinSetup = true,
     bool unlocked = false,
   }) : super(
-    const FlutterSecureStorage(),
-    MockPinService(),
-    MockFirebaseAuth(),
-    FakeDriftEventRepository(),
-    MockOwnerRepo(),
-    MockSettingsRepo(),
-    MockSyncWorker(),
-    FakeHmacService(),
-    MockRef(),
-  ) {
+          const FlutterSecureStorage(),
+          MockPinService(),
+          MockFirebaseAuth(),
+          FakeDriftEventRepository(),
+          MockOwnerRepo(),
+          MockSettingsRepo(),
+          MockSyncWorker(),
+          FakeHmacService(),
+          MockRef(),
+        ) {
     state = AuthState(
       isAuthenticated: isAuthenticated,
       unlocked: unlocked,
@@ -317,13 +342,17 @@ class FakeAuth extends AuthNotifier {
       isFirstLaunch: isFirstLaunch,
       isLoading: isLoading,
       settings: AppSettings(),
-      owner: OwnerProfile(gymName: 'Test Gym', ownerName: 'Tester', phone: '12345', address: ''),
+      owner: OwnerProfile(
+          gymName: 'Test Gym',
+          ownerName: 'Tester',
+          phone: '12345',
+          address: ''),
     );
   }
-  
+
   @override
   Future<void> init() async {} // Prevent actual init
-  
+
   Future<bool> verifyPin(String pin) async => true;
 
   @override
@@ -335,7 +364,8 @@ class FakeAuth extends AuthNotifier {
   }
 
   @override
-  Future<bool> signUp(String email, String password, {String? gymName, String? ownerName, String? phone}) async {
+  Future<bool> signUp(String email, String password,
+      {String? gymName, String? ownerName, String? phone}) async {
     state = state.copyWith(isAuthenticated: true);
     return true;
   }
@@ -359,32 +389,45 @@ class FakeAuth extends AuthNotifier {
 }
 
 class MockHmacService extends Mock implements HmacService {}
+
 class FakeHmacService extends Fake implements HmacService {
   @override
   Future<String> getInstallationId() async => 'test-device';
   @override
   Future<String> signEvent(DomainEvent event) async => 'fake-sig';
   @override
-  Future<String> signSnapshot(String entityId, Map<String, dynamic> data) async => 'fake-sig';
+  Future<String> signSnapshot(
+          String entityId, Map<String, dynamic> data) async =>
+      'fake-sig';
   @override
-  Future<bool> verifySnapshot(String entityId, Map<String, dynamic> data, String signature) async => true;
+  Future<bool> verifySnapshot(
+          String entityId, Map<String, dynamic> data, String signature) async =>
+      true;
   @override
   Future<bool> verifyInstance(DomainEvent event) async => true;
 }
 
 class MockOwnerRepo extends Mock implements IOwnerRepository {}
+
 class MockSettingsRepo extends Mock implements ISettingsRepository {}
+
 class MockMemberRepo extends Mock implements IMemberRepository {}
+
 class MockPlanRepo extends Mock implements IPlanRepository {}
+
 class MockPaymentRepo extends Mock implements IPaymentRepository {}
+
 class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
+
 class MockProductRepo extends Mock implements IProductRepository {}
+
 class MockSequenceRepo extends Mock implements ISequenceRepository {}
+
 class MockSaleRepo extends Mock implements ISaleRepository {}
 
 class FakeClock extends IClock {
   DateTime _now = DateTime(2025, 1, 1, 12, 0, 0);
-  
+
   @override
   DateTime get now => _now;
 
@@ -404,7 +447,8 @@ class FakeSyncCoordinator extends Fake implements SyncCoordinator {
   Stream<void> get onSyncRequested => const Stream.empty();
 }
 
-class FakePaymentNotifier extends StateNotifier<List<Payment>> implements PaymentNotifier {
+class FakePaymentNotifier extends StateNotifier<List<Payment>>
+    implements PaymentNotifier {
   FakePaymentNotifier([List<Payment>? initial]) : super(initial ?? []);
 
   @override
@@ -428,7 +472,8 @@ class FakePaymentNotifier extends StateNotifier<List<Payment>> implements Paymen
   }
 }
 
-class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>> implements MemberNotifier {
+class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>
+    implements MemberNotifier {
   FakeMemberNotifier([List<MemberSnapshot>? initial]) : super(initial ?? []);
 
   @override
@@ -446,7 +491,8 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>> implements 
     required DateTime joinDate,
     String? gender,
     int? age,
-  }) async => '';
+  }) async =>
+      '';
   @override
   Future<void> updateMember({
     required String memberId,
@@ -458,4 +504,3 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>> implements 
   @override
   Future<void> recordAttendance(String memberId) async {}
 }
-

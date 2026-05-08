@@ -16,7 +16,8 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:collection/collection.dart';
 
-final membersProvider = StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
+final membersProvider =
+    StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
   final eventRepo = ref.watch(eventRepositoryProvider);
   final memberRepo = ref.watch(memberRepositoryProvider);
   final planRepo = ref.watch(planRepositoryProvider);
@@ -27,7 +28,8 @@ final membersProvider = StateNotifierProvider<MemberNotifier, List<MemberSnapsho
 });
 
 final memberSearchQueryProvider = StateProvider<String>((ref) => '');
-final memberTabProvider = StateProvider<int>((ref) => 0); // 0: All, 1: Active, 2: Expiring, 3: Expired
+final memberTabProvider = StateProvider<int>(
+    (ref) => 0); // 0: All, 1: Active, 2: Expiring, 3: Expired
 
 final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final members = ref.watch(membersProvider);
@@ -41,11 +43,17 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
 
   switch (tabIndex) {
     case 1: // Active
-      return searched.where((m) => m.getStatus(now) == MemberStatus.active).toList();
+      return searched
+          .where((m) => m.getStatus(now) == MemberStatus.active)
+          .toList();
     case 2: // Expiring (next 7 days)
-      return searched.where((m) => m.getStatus(now) == MemberStatus.expiring).toList();
+      return searched
+          .where((m) => m.getStatus(now) == MemberStatus.expiring)
+          .toList();
     case 3: // Expired
-      return searched.where((m) => m.getStatus(now) == MemberStatus.expired).toList();
+      return searched
+          .where((m) => m.getStatus(now) == MemberStatus.expired)
+          .toList();
     default:
       return searched;
   }
@@ -56,9 +64,12 @@ final memberProvider = Provider.family<MemberSnapshot?, String>((ref, id) {
   return members.firstWhereOrNull((m) => m.memberId == id);
 });
 
-final memberByIdProvider = Provider.family<AsyncValue<MemberSnapshot>, String>((ref, id) {
+final memberByIdProvider =
+    Provider.family<AsyncValue<MemberSnapshot>, String>((ref, id) {
   final members = ref.watch(membersProvider);
-  final member = members.cast<MemberSnapshot?>().firstWhere((m) => m?.memberId == id, orElse: () => null);
+  final member = members
+      .cast<MemberSnapshot?>()
+      .firstWhere((m) => m?.memberId == id, orElse: () => null);
   if (member == null) return const AsyncValue.loading();
   return AsyncValue.data(member);
 });
@@ -102,7 +113,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       }
 
       await _memberRepo.applyEvent(event);
-      
+
       final updatedMember = await _memberRepo.getMember(event.entityId);
       if (updatedMember != null) {
         final index = state.indexWhere((m) => m.memberId == event.entityId);
@@ -148,7 +159,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
           .reduce((a, b) => a.isAfter(b) ? a : b);
 
       if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-        debugPrint('MemberNotifier: Lagging Drift state for $entityId. Rebuilding from event log...');
+        debugPrint(
+            'MemberNotifier: Lagging Drift state for $entityId. Rebuilding from event log...');
         final fullHistory = await _eventRepo.getByEntityId(entityId);
         final rebuilt = SnapshotBuilder.rebuild(fullHistory);
         if (rebuilt != null) {
@@ -184,7 +196,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   }) async {
     final memberId = const Uuid().v4();
     final now = _clock.now;
-    
+
     final plan = await _planRepo.getPlan(planId);
     if (plan == null) throw Exception('Plan not found');
 
