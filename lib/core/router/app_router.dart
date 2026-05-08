@@ -1,42 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-// Splash & Onboarding
+import 'package:go_router/go_router.dart';
 import '../../features/auth/splash/splash_screen.dart';
 import '../../features/auth/onboarding/onboarding_screen.dart';
-
-// New Feature Screens
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/character_creation/presentation/screens/character_creation_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/pin_setup_screen.dart';
 import '../../features/auth/presentation/screens/pin_entry_screen.dart';
+import '../../features/auth/recovery/recovery_screen.dart';
 import '../../features/auth/presentation/screens/lease_expired_screen.dart';
 import '../../features/home/presentation/screens/dashboard_screen.dart';
+import '../../features/home/presentation/widgets/main_shell.dart';
 import '../../features/members/presentation/screens/members_list_screen.dart';
-import '../../features/members/presentation/screens/member_detail_screen.dart';
 import '../../features/members/presentation/screens/quick_add_member_screen.dart';
-import '../../features/billing/presentation/screens/pos_screen.dart';
+import '../../features/members/presentation/screens/member_detail_screen.dart';
 import '../../features/billing/presentation/screens/invoice_screen.dart';
+import '../../features/billing/presentation/screens/pos_screen.dart';
+import '../../features/nutrition/presentation/screens/nutrition_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/profile_screen.dart';
+import '../../features/settings/presentation/screens/profile_edit_screen.dart';
 import '../../features/settings/presentation/screens/security_settings_screen.dart';
 import '../../features/settings/presentation/screens/notifications_settings_screen.dart';
 import '../../features/settings/presentation/screens/gym_profile_screen.dart';
+import '../../features/settings/presentation/screens/plan_management_screen.dart';
 import '../../features/settings/presentation/screens/subscription_screen.dart';
 import '../../features/settings/presentation/screens/tax_billing_screen.dart';
 import '../../features/settings/presentation/screens/help_center_screen.dart';
 import '../../features/settings/presentation/screens/about_screen.dart';
-import '../../features/settings/presentation/screens/plan_management_screen.dart';
-import '../../features/settings/presentation/screens/profile_edit_screen.dart';
-import '../../features/auth/recovery/recovery_screen.dart';
 import '../../features/settings/presentation/screens/ownership_transfer_screen.dart';
+import '../../features/backup/presentation/backup_restore_screen.dart';
 import '../../features/home/presentation/widgets/main_shell.dart';
 
 // Newly Added Screens
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
-import '../../features/nutrition/presentation/screens/nutrition_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_hub_screen.dart';
 import '../../features/legal/presentation/screens/legal_screens.dart';
 
@@ -91,6 +90,8 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
 
       // 3. Onboarding Redirect
       if (!onboardingDone) {
+        if (isOnboarding) return null;
+        return '/onboarding';
          if (isOnboarding || isLoggingIn) return null;
          return '/onboarding';
       }
@@ -99,11 +100,22 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       // We allow Login/Onboarding screens after Tier 1 Ready.
       // But we BLOCK dashboard/gym access until Tier 2 (Firebase Auth) is determined (Ready/Degraded).
       final isProtectedRoute = !isLoggingIn && !isOnboarding && !isSplash;
-      
+
       if (isProtectedRoute && tier2Status == Tier2Status.pending) {
         return '/'; // Hold on Splash
       }
 
+      // 5. Auth Redirect
+      if (!isAuth) {
+        if (isLoggingIn || isOnboarding) return null;
+        return '/login';
+      }
+
+      // 6. Post-Auth Routing (PIN & Landing)
+      if (isSplash || isLoggingIn || isOnboarding) {
+        if (isPinSetup && !unlocked) return '/unlock';
+        if (!isPinSetup) return '/setup-pin';
+        return '/dashboard';
       // 5. Auth Guard
       if (!isAuth && !isLoggingIn && !isOnboarding) {
          return '/login';
@@ -122,6 +134,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
           return '/unlock';
         }
 
+      if (!isPinSetup &&
+          !isPinSetupPath &&
+          !state.matchedLocation.startsWith('/settings')) {
+        return '/setup-pin';
         if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
           return '/setup-pin';
         }
@@ -170,6 +186,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       GoRoute(
         path: '/recovery',
         builder: (context, state) => const RecoveryScreen(),
+      ),
+      GoRoute(
+        path: '/character-creation',
+        builder: (context, state) => const CharacterCreationScreen(),
       ),
       GoRoute(
         path: '/lease-expired',
@@ -266,11 +286,13 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
                   ),
                   GoRoute(
                     path: 'profile/owner',
-                    builder: (context, state) => const ProfileEditScreen(isGymProfile: false),
+                    builder: (context, state) =>
+                        const ProfileEditScreen(isGymProfile: false),
                   ),
                   GoRoute(
                     path: 'profile/gym',
-                    builder: (context, state) => const ProfileEditScreen(isGymProfile: true),
+                    builder: (context, state) =>
+                        const ProfileEditScreen(isGymProfile: true),
                   ),
                   GoRoute(
                     path: 'security',
@@ -278,7 +300,8 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
                   ),
                   GoRoute(
                     path: 'notifications',
-                    builder: (context, state) => const NotificationsSettingsScreen(),
+                    builder: (context, state) =>
+                        const NotificationsSettingsScreen(),
                   ),
                   GoRoute(
                     path: 'gym-profile',
@@ -295,6 +318,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
                   GoRoute(
                     path: 'tax-billing',
                     builder: (context, state) => const TaxBillingScreen(),
+                  ),
+                  GoRoute(
+                    path: 'backup',
+                    builder: (context, state) => const BackupRestoreScreen(),
                   ),
                   GoRoute(
                     path: 'help',
@@ -320,7 +347,8 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
                   ),
                   GoRoute(
                     path: 'transfer',
-                    builder: (context, state) => const OwnershipTransferScreen(),
+                    builder: (context, state) =>
+                        const OwnershipTransferScreen(),
                   ),
                 ],
               ),
@@ -335,14 +363,3 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
     ],
   );
 });
-
-
-
-
-
-
-
-
-
-
-
