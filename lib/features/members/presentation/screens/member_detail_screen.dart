@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:collection/collection.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
-import '../../providers/members_provider.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
 import '../../../billing/providers/billing_provider.dart';
-import '../../../../core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import '../../../../shared/utils/date_formatter.dart';
 import '../../../../shared/utils/currency_formatter.dart';
 import 'package:go_router/go_router.dart';
@@ -30,8 +29,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final memberAsync = ref.watch(memberProvider(widget.memberId));
-    final member = memberAsync.value;
+    final member = ref.watch(memberProvider(widget.memberId));
 
     if (member == null) {
       return Scaffold(
@@ -55,7 +53,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
       );
     }
 
-    final status = member.getStatus(DateTime.now());
+    final status = member.getStatus(ref.watch(clockProvider).now);
     final statusColor = _getStatusColor(status);
     final statusMsg = _getStatusMessage(member);
 
@@ -82,7 +80,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                       _buildSectionHeader('FINANCIALS'),
                       _buildFinancialsCard(member),
                       _buildSectionHeader('HISTORY'),
-                      _buildPaymentHistory(member.id),
+                      _buildPaymentHistory(member.memberId),
                     ],
                   ),
                 ),
@@ -94,7 +92,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildHeaderAvatar(Member member, Color statusColor, String statusMsg) {
+  Widget _buildHeaderAvatar(MemberSnapshot member, Color statusColor, String statusMsg) {
     return Center(
       child: Column(
         children: [
@@ -151,7 +149,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, Member member, Color color, String status) {
+  Widget _buildAppBar(BuildContext context, MemberSnapshot member, Color color, String status) {
     return Padding(
       padding: const EdgeInsets.only(left: 14, right: 14, top: 12, bottom: 8),
       child: Row(
@@ -190,7 +188,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, Member member) {
+  Widget _buildQuickActions(BuildContext context, MemberSnapshot member) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Column(
@@ -201,7 +199,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                 flex: 2,
                 child: AppButton(
                   text: 'Generate Invoice',
-                  onPressed: () => context.push('/gym/member-details/${member.id}/invoice'),
+                  onPressed: () => context.push('/gym/member-details/${member.memberId}/invoice'),
                 ),
               ),
               const SizedBox(width: 6),
@@ -253,7 +251,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, Member member) {
+  void _showDeleteConfirmation(BuildContext context, MemberSnapshot member) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -265,7 +263,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary))),
           TextButton(
             onPressed: () {
-              ref.read(membersNotifierProvider).deleteMember(member.id);
+              ref.read(membersProvider.notifier).deleteMember(member.memberId);
               Navigator.pop(ctx);
               context.pop();
             },
@@ -286,7 +284,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildSubscriptionCard(Member member, Color color, String status) {
+  Widget _buildSubscriptionCard(MemberSnapshot member, Color color, String status) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.all(16),
@@ -318,8 +316,8 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildFinancialsCard(Member member) {
-    final paymentsAsync = ref.watch(paymentsProvider(member.id));
+  Widget _buildFinancialsCard(MemberSnapshot member) {
+    final paymentsAsync = ref.watch(paymentsProvider(member.memberId));
     final payments = paymentsAsync.value ?? [];
     final totalPaid = payments.fold(0.0, (sum, p) => sum + p.amount);
 
@@ -371,16 +369,16 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     
     return paymentsAsync.when(
       loading: () => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
-      error: (e, s) => Center(child: Text('Error loading history')),
+      error: (e, s) => const Center(child: Text('Error loading history', style: TextStyle(color: Colors.red))),
       data: (payments) {
         if (payments.isEmpty) {
           return Center(child: Padding(
             padding: const EdgeInsets.all(40),
             child: Column(
               children: [
-                Icon(Icons.history_rounded, size: 40, color: AppColors.textMuted.withValues(alpha: 0.3)),
+                Icon(Icons.history_rounded, size: 40, color: AppColors.text3.withValues(alpha: 0.3)),
                 const SizedBox(height: 12),
-                const Text('No history recorded yet', style: TextStyle(color: AppColors.textMuted)),
+                const Text('No history recorded yet', style: TextStyle(color: AppColors.text3)),
               ],
             ),
           ));
@@ -490,7 +488,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     }
   }
 
-  String _getStatusMessage(Member m) {
+  String _getStatusMessage(MemberSnapshot m) {
     final now = ref.watch(clockProvider).now;
     final days = m.getDaysRemaining(now);
     if (days < 0) return 'Membership Expired';
@@ -499,12 +497,3 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     return 'Active Status';
   }
 }
-
-
-
-
-
-
-
-
-

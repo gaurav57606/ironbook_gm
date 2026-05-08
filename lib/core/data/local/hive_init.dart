@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Legacy Hive initialization. 
 /// Hive has been decommissioned in favor of Drift (SQLite).
 /// This class is kept as a stub during the final transition phase.

@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter/foundation.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';

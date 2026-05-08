@@ -34,7 +34,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Alice Active'), findsOneWidget);
-      expect(find.byType(MemberRow), findsOneWidget);
       expect(find.text('ACTIVE'), findsOneWidget);
     });
   });

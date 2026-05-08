@@ -86,7 +86,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         ownerName: _nameController.text,
                         gymName: _gymNameController.text,
                       );
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       if (success) {
                         context.go('/setup-pin');
                       }

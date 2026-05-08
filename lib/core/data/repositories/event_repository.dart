@@ -15,6 +15,7 @@ abstract class IEventRepository {
   Future<List<DomainEvent>> getAll(); 
   Future<DomainEvent?> getById(String id);
   Future<List<DomainEvent>> getByEntityId(String entityId);
+  Future<Map<String, List<DomainEvent>>> getByEntityIds(List<String> entityIds);
   Future<List<DomainEvent>> getEventsSince(DateTime since);
   Future<void> markAsSynced(String eventId);
   Future<void> persistSynced(DomainEvent event); 
@@ -101,6 +102,17 @@ class DriftEventRepository implements IEventRepository {
   }
 
   @override
+  Future<Map<String, List<DomainEvent>>> getByEntityIds(List<String> entityIds) async {
+    final docs = await (_db.select(_db.outboxEvents)..where((t) => t.entityId.isIn(entityIds))).get();
+    final Map<String, List<DomainEvent>> results = {};
+    for (final doc in docs) {
+      final event = DomainEvent.fromOutbox(doc);
+      results.putIfAbsent(event.entityId, () => []).add(event);
+    }
+    return results;
+  }
+
+  @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async {
     final docs = await (_db.select(_db.outboxEvents)..where((t) => t.deviceTimestamp.isBiggerThanValue(since.millisecondsSinceEpoch))).get();
     final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
@@ -128,7 +140,10 @@ class DriftEventRepository implements IEventRepository {
   }
 
   @override
-  Stream<DomainEvent> watch() => _eventBus.stream;
+  Stream<DomainEvent> watch() {
+    debugPrint('DriftEventRepository: watch() called. EventBus stream: ${_eventBus.stream}');
+    return _eventBus.stream;
+  }
 }
 
 final eventRepositoryProvider = Provider<IEventRepository>((ref) {

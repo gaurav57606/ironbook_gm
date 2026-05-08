@@ -250,7 +250,7 @@ class BackupCoordinator {
           payloadJson: jsonEncode(e.payload),
           deviceTimestamp: e.deviceTimestamp.millisecondsSinceEpoch,
           isSynced: drift.Value(e.synced ? 1 : 0),
-          hmacSignature: drift.Value(e.hmacSignature ?? ''),
+          hmacSignature: drift.Value(e.hmacSignature),
           deviceId: drift.Value(e.deviceId),
         ));
       }

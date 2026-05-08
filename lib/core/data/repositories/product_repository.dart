@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../local/drift/outbox_database.dart' as db;
 import '../local/models/product_model.dart' as domain;

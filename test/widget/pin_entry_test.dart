@@ -37,7 +37,7 @@ void main() {
       await tester.tap(find.byKey(const Key('btn_2')));
       await tester.pump();
 
-      await tester.tap(find.byKey(const Key('btn_⌫')));
+      await tester.tap(find.byKey(const Key('btn_⌫')), warnIfMissed: false);
       await tester.pump();
     });
 

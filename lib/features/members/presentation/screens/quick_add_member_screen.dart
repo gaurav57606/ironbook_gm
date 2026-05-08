@@ -7,9 +7,9 @@ import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/members_provider.dart';
+import 'package:ironbook_gm/core/providers/member_provider.dart';
 import '../../../billing/providers/billing_provider.dart';
-import '../../../../core/data/local/drift/outbox_database.dart';
+import '../../../../core/data/local/drift/outbox_database.dart' as db;
 
 class QuickAddMemberScreen extends ConsumerStatefulWidget {
   const QuickAddMemberScreen({super.key});
@@ -70,7 +70,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
       final selectedPlan = plans[_selectedPlanIndex];
       final age = int.tryParse(ageStr);
       
-      final memberId = await ref.read(membersNotifierProvider).addMember(
+      final memberId = await ref.read(membersProvider.notifier).addMember(
         name: name,
         phone: phone,
         planId: selectedPlan.id,
@@ -210,7 +210,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     );
   }
 
-  Widget _buildPlanChips(List<Plan> plans) {
+  Widget _buildPlanChips(List<db.Plan> plans) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -312,7 +312,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     );
   }
 
-  Widget _buildPlanSummary(Plan plan) {
+  Widget _buildPlanSummary(db.Plan plan) {
     final expiryDate = AppDateUtils.addMonths(DateTime.now(), plan.durationMonths);
     final expiryStr = '${expiryDate.day} ${_getMonthName(expiryDate.month)} ${expiryDate.year}';
 

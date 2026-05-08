@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:ironbook_gm/core/data/local/snapshot_builder.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
@@ -32,7 +33,7 @@ void main() {
       final snapshot = SnapshotBuilder.rebuild(events);
       stopwatch.stop();
 
-      print('Latency for 1,000 events: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('Latency for 1,000 events: ${stopwatch.elapsedMilliseconds}ms');
       
       expect(snapshot, isNotNull);
       // Relaxed constraint for sandbox environment where performance can be unstable

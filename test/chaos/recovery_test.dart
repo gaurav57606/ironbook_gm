@@ -68,9 +68,12 @@ void main() {
 
       // 2. Initialize Notifier with empty snapshots box
       final hmac = FakeHmacService();
+      final mockMemberRepo = MockMemberRepo();
+      when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => []);
+      
       final notifier = MemberNotifier(
         repo,
-        MockMemberRepo(),
+        mockMemberRepo,
         MockPlanRepo(),
         MockPreferencesRepo(),
         clock,

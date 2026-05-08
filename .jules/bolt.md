@@ -28,3 +28,7 @@
 ## 2024-05-24 - [Avoid `Future.wait` Memory Bloat on Hive `LazyBox`]
 **Learning:** Fetching all keys from a Hive `LazyBox` at once and mapping them to `box.get(key)` inside a single `Future.wait` forces all records into memory simultaneously. For large databases, this completely defeats the purpose of a `LazyBox` and causes severe memory spikes or Out-Of-Memory (OOM) crashes.
 **Action:** When performing bulk reads from a `LazyBox`, always batch the keys into smaller chunks (e.g., using `skip().take(50)`) and use `Future.wait` *within* each chunk. This preserves the speed of parallel I/O while strictly capping peak memory usage.
+
+## 2025-01-24 - Logout Process Optimization
+**Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
+**Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.

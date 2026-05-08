@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import "package:hive/hive.dart";
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:ironbook_gm/core/sync/recovery_service.dart';
 import 'package:ironbook_gm/core/data/local/models/owner_profile_model.dart';
@@ -15,9 +16,7 @@ import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
-import 'package:ironbook_gm/core/services/config_service.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
 import 'base_providers.dart';
@@ -79,7 +78,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final IOwnerRepository _ownerRepo;
   final ISettingsRepository _settingsRepo;
   final HmacService _hmacService;
-  final ConfigService _config;
   final Ref _ref;
   String _deviceId = 'device-unknown';
 
@@ -94,11 +92,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     this._settingsRepo,
     this._syncWorker,
     this._hmacService,
-    this._config,
     this._ref,
   ) : super(AuthState(settings: AppSettings())) {
-    _init();
-    _syncWorker.startPeriodicSync(const Duration(seconds: 30));
+    init();
   }
 
   @override
@@ -107,7 +103,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     super.dispose();
   }
 
-  Future<void> _init() async {
+  Future<void> init() async {
+    _syncWorker.startPeriodicSync(const Duration(seconds: 30));
     final pinHash = await _storage.read(key: 'pin_hash');
     final pinSalt = await _storage.read(key: 'pin_salt');
     final onboardingDone = await _storage.read(key: 'onboarding_done');
@@ -194,14 +191,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: false);
   }
 
+
   Future<void> _performFullLogout() async {
     try {
       await _firebaseAuth.signOut();
       await _storage.deleteAll();
 
-      // Clear old synced data from Drift (retain unsynced offline data)
-      final cutoff = DateTime.now().subtract(const Duration(days: 7));
-      await _ref.read(outboxRepositoryProvider).purgeSyncedBefore(cutoff);
+      // OPTIMIZED: Parallel Hive clearing + Batched Drift clearing
+      final boxes = ['members', 'payments', 'plans', 'settings', 'events', 'snapshots'];
+      await Future.wait(boxes.map((name) async {
+        try {
+          if (Hive.isBoxOpen(name)) {
+            await Hive.box(name).clear();
+          } else {
+            final box = await Hive.openBox(name);
+            await box.clear();
+          }
+        } catch (e) {
+          debugPrint('Error clearing box $name: $e');
+        }
+      }));
+
+      try {
+        await _ref.read(outboxRepositoryProvider).clearAll();
+      } catch (e) {
+        debugPrint('Error clearing Drift Outbox: $e');
+      }
 
       state = AuthState(
         isAuthenticated: false,
@@ -215,7 +230,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       debugPrint('Logout Error: $e');
     }
   }
-
   Future<bool> signUp(String email, String password,
       {String? gymName, String? ownerName, String? phone}) async {
     state = state.copyWith(isLoading: true);
@@ -322,7 +336,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final syncWorker = ref.watch(syncWorkerProvider);
   final firebaseAuth = ref.watch(firebaseAuthProvider);
   final hmac = ref.watch(hmacServiceProvider);
-  final config = ref.watch(configServiceProvider);
   
   return AuthNotifier(
     storage, 
@@ -333,7 +346,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     settingsRepo, 
     syncWorker, 
     hmac, 
-    config, 
     ref
   );
 });

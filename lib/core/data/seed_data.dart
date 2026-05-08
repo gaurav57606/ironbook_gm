@@ -1,8 +1,6 @@
 import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'package:ironbook_gm/core/providers/plan_provider.dart';
-import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
 import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
@@ -15,10 +13,8 @@ import 'local/models/plan_component_model.dart';
 import 'local/models/owner_profile_model.dart';
 import 'local/models/app_settings_model.dart';
 import 'repositories/event_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/owner_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/settings_repository.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 
 class SeedData {

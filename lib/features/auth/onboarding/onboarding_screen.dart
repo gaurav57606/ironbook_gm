@@ -173,13 +173,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 curve: Curves.ease,
               );
             } else {
-              debugPrint('Onboarding: Mark complete and navigating to /signup');
               final router = GoRouter.of(context);
               await ref.read(authProvider.notifier).completeOnboarding();
-              if (mounted) {
-                debugPrint('Onboarding: router.go(/signup)');
-                router.go('/signup');
-              }
+              if (!mounted) return;
+              router.go('/signup');
             }
           },
         ),

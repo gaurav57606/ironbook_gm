@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:ironbook_gm/app.dart';
 import 'dart:io';
@@ -15,8 +16,6 @@ import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/core/data/local/models/owner_profile_model.dart';
 import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
 import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
-import 'package:ironbook_gm/core/data/local/models/product_model.dart';
-import 'package:ironbook_gm/core/data/local/models/sale_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
@@ -36,15 +35,15 @@ import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
-import 'package:ironbook_gm/core/services/config_service.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
-import 'package:go_router/go_router.dart';
+import 'package:ironbook_gm/core/providers/payment_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ironbook_gm/features/billing/data/billing_repository.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 
 // Re-exports for convenience in tests
 export 'package:flutter/material.dart';
@@ -62,6 +61,7 @@ export 'package:ironbook_gm/core/services/hmac_service.dart';
 export 'package:ironbook_gm/shared/utils/clock.dart';
 export 'package:ironbook_gm/core/providers/member_provider.dart';
 export 'package:ironbook_gm/core/providers/payment_provider.dart';
+export 'package:ironbook_gm/core/data/sync_worker.dart';
 export 'package:ironbook_gm/core/providers/plan_provider.dart';
 export 'package:ironbook_gm/features/members/presentation/screens/members_list_screen.dart';
 export 'package:ironbook_gm/features/home/presentation/widgets/member_row.dart';
@@ -70,8 +70,6 @@ export 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 export 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 
 // Import and re-export mocks from integration_test/mocks
-import '../integration_test/mocks/mock_firebase.dart';
-import '../integration_test/mocks/mock_services.dart';
 import '../integration_test/mocks/mock_secure_storage.dart';
 import '../integration_test/mocks/mock_firestore.dart';
 
@@ -137,7 +135,7 @@ class TestHelper {
       // Already registered
     }
     
-    final mockPayments = MockPaymentNotifier();
+
     
     // Default mocks
     when(() => mockAuth.currentUser).thenReturn(null);
@@ -146,7 +144,6 @@ class TestHelper {
     when(() => mockAuth.userChanges()).thenAnswer((_) => const Stream.empty());
     when(() => mockPin.verifyPin(any())).thenAnswer((_) async => true);
     when(() => mockPin.authenticate(pinFallback: any(named: 'pinFallback'))).thenAnswer((_) async => AuthResult.success);
-    when(() => mockPayments.state).thenReturn([]);
     when(() => mockSync.startPeriodicSync(any())).thenReturn(null);
     when(() => mockStorage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
     when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value'))).thenAnswer((_) async {});
@@ -192,9 +189,68 @@ class TestHelper {
 class MockAuth extends Mock implements AuthNotifier {}
 class MockPinService extends Mock implements PinService {}
 class MockSyncWorker extends Mock implements SyncWorker {}
-class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+class MockBillingRepository extends Mock implements IBillingRepository {}
+class FakeFlutterSecureStorage extends Fake implements FlutterSecureStorage {
+  final Map<String, String> _data = {};
+
+  @override
+  Future<String?> read({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    return _data[key];
+  }
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (value == null) {
+      _data.remove(key);
+    } else {
+      _data[key] = value;
+    }
+  }
+
+  @override
+  Future<void> delete({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    _data.remove(key);
+  }
+
+  @override
+  Future<void> deleteAll({
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    _data.clear();
+  }
+}
 class MockFirebaseAuth extends Mock implements fb.FirebaseAuth {}
-class MockConfigService extends Mock implements ConfigService {}
+typedef FakeRepo = FakeDriftEventRepository;
 
 class FakeDriftEventRepository implements IEventRepository {
   final List<DomainEvent> _events = [];
@@ -252,7 +308,6 @@ class FakeAuth extends AuthNotifier {
     MockSettingsRepo(),
     MockSyncWorker(),
     FakeHmacService(),
-    MockConfigService(),
     MockRef(),
   ) {
     state = AuthState(
@@ -266,9 +321,9 @@ class FakeAuth extends AuthNotifier {
     );
   }
   
-  Future<void> _init() async {} // Prevent actual init
-  
   @override
+  Future<void> init() async {} // Prevent actual init
+  
   Future<bool> verifyPin(String pin) async => true;
 
   @override
@@ -277,6 +332,26 @@ class FakeAuth extends AuthNotifier {
   @override
   Future<void> completeOnboarding() async {
     state = state.copyWith(isFirstLaunch: false);
+  }
+
+  @override
+  Future<bool> signUp(String email, String password, {String? gymName, String? ownerName, String? phone}) async {
+    state = state.copyWith(isAuthenticated: true);
+    return true;
+  }
+
+  @override
+  Future<bool> login(String email, String password) async {
+    state = state.copyWith(isAuthenticated: true);
+    return true;
+  }
+
+  @override
+  Future<void> signOut() async {
+    state = state.copyWith(
+      isAuthenticated: false,
+      unlocked: false,
+    );
   }
 
   @override
@@ -293,6 +368,8 @@ class FakeHmacService extends Fake implements HmacService {
   Future<String> signSnapshot(String entityId, Map<String, dynamic> data) async => 'fake-sig';
   @override
   Future<bool> verifySnapshot(String entityId, Map<String, dynamic> data, String signature) async => true;
+  @override
+  Future<bool> verifyInstance(DomainEvent event) async => true;
 }
 
 class MockOwnerRepo extends Mock implements IOwnerRepository {}
@@ -320,7 +397,65 @@ class FakeClock extends IClock {
   }
 }
 
-class MockPaymentNotifier extends Mock implements PaymentNotifier {}
-class MockSyncWorker extends Mock implements SyncWorker {}
-class MockConfigService extends Mock implements ConfigService {}
+class FakeSyncCoordinator extends Fake implements SyncCoordinator {
+  @override
+  void triggerSync() {}
+  @override
+  Stream<void> get onSyncRequested => const Stream.empty();
+}
+
+class FakePaymentNotifier extends StateNotifier<List<Payment>> implements PaymentNotifier {
+  FakePaymentNotifier([List<Payment>? initial]) : super(initial ?? []);
+
+  @override
+  set debugState(List<Payment> payments) => state = payments;
+
+  @override
+  Future<Payment> recordMemberPayment({
+    required String memberId,
+    required Plan plan,
+    required String method,
+    String? reference,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  Future<void> deletePayment(String paymentId) async {}
+
+  @override
+  Payment? getLatestForMember(String memberId) {
+    return state.firstWhereOrNull((p) => p.memberId == memberId);
+  }
+}
+
+class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>> implements MemberNotifier {
+  FakeMemberNotifier([List<MemberSnapshot>? initial]) : super(initial ?? []);
+
+  @override
+  set debugState(List<MemberSnapshot> members) => state = members;
+
+  @override
+  Future<void> init() async {}
+  @override
+  Future<void> rebuildCache() async {}
+  @override
+  Future<String> addMember({
+    required String name,
+    required String phone,
+    required String planId,
+    required DateTime joinDate,
+    String? gender,
+    int? age,
+  }) async => '';
+  @override
+  Future<void> updateMember({
+    required String memberId,
+    required String name,
+    required String phone,
+  }) async {}
+  @override
+  Future<void> deleteMember(String memberId) async {}
+  @override
+  Future<void> recordAttendance(String memberId) async {}
+}
 

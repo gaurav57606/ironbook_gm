@@ -96,12 +96,8 @@ class NutritionScreen extends ConsumerWidget {
           )
         else
           ...plans.map((plan) {
-            final memberAsync = ref.watch(memberProvider(plan.memberId));
-            return memberAsync.when(
-              data: (member) => _buildClientCard(context, member?.name ?? 'Unknown', plan.memberId, plan.planName, plan.dailyCalories, plan.adherence),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            );
+            final member = ref.watch(memberProvider(plan.memberId));
+            return _buildClientCard(context, member?.name ?? 'Unknown', plan.memberId, plan.planName, plan.dailyCalories, plan.adherence);
           }),
         const SizedBox(height: 24),
         const Text('Diet Distribution', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
@@ -329,12 +325,3 @@ class NutritionScreen extends ConsumerWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-

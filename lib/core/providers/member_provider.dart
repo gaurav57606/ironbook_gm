@@ -14,6 +14,7 @@ import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
+import 'package:collection/collection.dart';
 
 final membersProvider = StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
   final eventRepo = ref.watch(eventRepositoryProvider);
@@ -50,8 +51,12 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   }
 });
 
-// Alias for legacy support if needed
-final memberProvider = Provider.family<AsyncValue<MemberSnapshot>, String>((ref, id) {
+final memberProvider = Provider.family<MemberSnapshot?, String>((ref, id) {
+  final members = ref.watch(membersProvider);
+  return members.firstWhereOrNull((m) => m.memberId == id);
+});
+
+final memberByIdProvider = Provider.family<AsyncValue<MemberSnapshot>, String>((ref, id) {
   final members = ref.watch(membersProvider);
   final member = members.cast<MemberSnapshot?>().firstWhere((m) => m?.memberId == id, orElse: () => null);
   if (member == null) return const AsyncValue.loading();
@@ -126,7 +131,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     final recentEvents = await _eventRepo.getEventsSince(lastCheckTime);
 
     if (recentEvents.isEmpty) {
-      await _prefRepo.setInt(prefKey, _clock.now.millisecondsSinceEpoch);
+      await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
       return;
     }
 
@@ -136,30 +141,24 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     }
 
     bool updatedAny = false;
-    final entityIds = eventsByEntity.keys.toList();
-    const batchSize = 50;
+    for (final entityId in eventsByEntity.keys) {
+      final snap = await _memberRepo.getMember(entityId);
+      final latestEventTime = eventsByEntity[entityId]!
+          .map((e) => e.deviceTimestamp)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
 
-    for (int i = 0; i < entityIds.length; i += batchSize) {
-      final batch = entityIds.skip(i).take(batchSize).toList();
-      
-      await Future.wait(batch.map((entityId) async {
-        final snap = await _memberRepo.getMember(entityId);
-        final events = eventsByEntity[entityId]!;
-        final latestEventTime = events.map((e) => e.deviceTimestamp).reduce((a, b) => a.isAfter(b) ? a : b);
-
-        if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-          debugPrint('MemberNotifier: Lagging state for $entityId. Rebuilding...');
-          final fullHistory = await _eventRepo.getByEntityId(entityId);
-          final rebuilt = SnapshotBuilder.rebuild(fullHistory);
-          if (rebuilt != null) {
-            await _memberRepo.upsertMember(rebuilt);
-            updatedAny = true;
-          }
+      if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
+        debugPrint('MemberNotifier: Lagging Drift state for $entityId. Rebuilding from event log...');
+        final fullHistory = await _eventRepo.getByEntityId(entityId);
+        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+        if (rebuilt != null) {
+          await _memberRepo.upsertMember(rebuilt);
+          updatedAny = true;
         }
-      }));
+      }
     }
 
-    await _prefRepo.setInt(prefKey, _clock.now.millisecondsSinceEpoch);
+    await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
 
     if (updatedAny) {
       state = await _memberRepo.getAllMembers();
@@ -213,11 +212,6 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     final snapshot = MemberSnapshot.fromPayload(memberId, memberEvent.payload);
     await _memberRepo.upsertMember(snapshot);
-    
-    // We don't manually update state here because the listener in init() will catch it
-    // Wait, the listener catches it via _eventRepo.watch()
-    // But we also manually added it to state in the old code.
-    // Let's keep the manual update for immediate UI response.
     final signed = await _memberRepo.getMember(memberId);
     if (signed != null) {
       state = [...state, signed];

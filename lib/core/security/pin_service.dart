@@ -4,7 +4,6 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 
@@ -20,8 +19,6 @@ class PinService {
   static const _pinSaltKey = 'pin_salt';
   static const _editPwHashKey = 'edit_pw_hash';
   static const _editPwSaltKey = 'edit_pw_salt';
-  static const _failCountKey = 'pin_fail_count';
-  static const _lockoutUntilKey = 'pin_lockout_until';
   
   final _localAuth = LocalAuthentication();
 
