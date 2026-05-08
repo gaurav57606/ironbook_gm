@@ -22,6 +22,7 @@ import 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
 
 class MockEventRepo extends Mock implements IEventRepository {}
 class MockSyncWorker extends Mock implements SyncWorker {}
@@ -33,6 +34,7 @@ class MockPaymentRepo extends Mock implements IPaymentRepository {}
 class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
 class MockSequenceRepo extends Mock implements ISequenceRepository {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
+class MockOutboxDatabase extends Mock implements OutboxDatabase {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 
 void main() {
@@ -83,13 +85,14 @@ void main() {
         clockProvider.overrideWithValue(FrozenClock(DateTime(2024, 1, 1))),
         // Mock Notifiers
         planProvider.overrideWith((ref) {
-          final notifier = PlanNotifier(mockRepo, MockPlanRepo(), mockSyncWorker, mockHmac);
+          final notifier = PlanNotifier(MockOutboxDatabase(), mockRepo, MockPlanRepo(), mockSyncWorker, mockHmac);
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = testPlans;
           return notifier;
         }),
         membersProvider.overrideWith((ref) {
           final notifier = MemberNotifier(
+            MockOutboxDatabase(),
             mockRepo, 
             MockMemberRepo(), 
             MockPlanRepo(), 
@@ -106,6 +109,7 @@ void main() {
           final clock = FrozenClock(DateTime(2024, 1, 1));
           // ignore: invalid_use_of_visible_for_testing_member
           return PaymentNotifier(
+            MockOutboxDatabase(),
             MockSequenceRepo(), 
             mockRepo, 
             MockPaymentRepo(), 

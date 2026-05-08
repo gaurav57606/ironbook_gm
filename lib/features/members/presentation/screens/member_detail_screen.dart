@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_radius.dart';
-import '../../../../core/constants/app_shadows.dart';
 import '../../../../shared/widgets/app_section_header.dart';
-import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
-import 'package:ironbook_gm/core/providers/member_provider.dart';
+import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/providers/member_provider.dart';
 import '../../../billing/providers/billing_provider.dart';
-import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import '../../../../core/data/local/models/member_snapshot_model.dart';
 import '../../../../shared/utils/date_formatter.dart';
 import '../../../../shared/utils/currency_formatter.dart';
 import 'package:go_router/go_router.dart';
@@ -330,7 +331,7 @@ class MemberDetailScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.elevation2,
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusXL),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.radiusXL),
         title: Text('Delete Member', style: AppTextStyles.cardTitle),
         content: Text('Are you sure you want to delete ${member.name}?', style: AppTextStyles.body),
         actions: [

@@ -152,7 +152,7 @@ class AppBootstrap {
             "1",
             "midnightTask",
             frequency: const Duration(hours: 12),
-            existingWorkPolicy: ExistingWorkPolicy.replace,
+            existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
             constraints: Constraints(
               networkType: NetworkType.connected,
               requiresBatteryNotLow: true,

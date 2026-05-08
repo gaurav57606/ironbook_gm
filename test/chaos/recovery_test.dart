@@ -1,5 +1,6 @@
 import '../test_helper.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as drift;
 import 'package:hive/hive.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -56,6 +57,7 @@ class MockRepo implements IEventRepository {
 }
 
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
+class MockOutboxDatabase extends Mock implements drift.OutboxDatabase {}
 
 void main() {
   group('Chaos Recovery Tests (TC-RECO-01)', () {
@@ -90,6 +92,7 @@ void main() {
       when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => []);
 
       final notifier = MemberNotifier(
+        MockOutboxDatabase() as drift.OutboxDatabase,
         repo,
         mockMemberRepo,
         MockPlanRepo(),

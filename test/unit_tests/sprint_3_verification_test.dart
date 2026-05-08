@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'package:ironbook_gm/core/providers/payment_provider.dart';
@@ -14,6 +15,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
 
 class MockSequenceRepository extends Mock implements ISequenceRepository {}
 class MockEventRepository extends Mock implements IEventRepository {}
@@ -21,6 +23,7 @@ class MockPaymentRepository extends Mock implements IPaymentRepository {}
 class MockMemberRepository extends Mock implements IMemberRepository {}
 class MockHmacService extends Mock implements HmacService {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
+class MockOutboxDatabase extends Mock implements OutboxDatabase {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 class FakePayment extends Fake implements Payment {}
 
@@ -83,6 +86,7 @@ void main() {
       when(() => paymentRepo.getPayment(any())).thenAnswer((_) async => null);
 
       final notifier = PaymentNotifier(
+        MockOutboxDatabase(),
         sequenceRepo,
         eventRepo,
         paymentRepo,
@@ -108,7 +112,7 @@ void main() {
       ]);
 
       final invoiceNumbers = results.map((p) => p.invoiceNumber).toList();
-      print('Invoice numbers: $invoiceNumbers');
+      debugPrint('Invoice numbers: $invoiceNumbers');
       expect(invoiceNumbers.toSet().length, 5);
       invoiceNumbers.sort();
       expect(invoiceNumbers, [

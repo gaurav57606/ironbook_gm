@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 abstract class IOwnerRepository {
   Future<domain.OwnerProfile?> getOwner();
   Future<void> upsertOwner(domain.OwnerProfile owner);
+  Future<void> applyEvent(dynamic event);
 }
 
 class DriftOwnerRepository implements IOwnerRepository {
@@ -59,5 +60,11 @@ class DriftOwnerRepository implements IOwnerRepository {
         selectedCharacterId: Value(owner.selectedCharacterId),
       ),
     );
+  }
+
+  @override
+  Future<void> applyEvent(dynamic event) async {
+    final profile = domain.OwnerProfile.fromFirestore(event.payload);
+    await upsertOwner(profile);
   }
 }

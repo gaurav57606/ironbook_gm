@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
@@ -6,11 +7,11 @@ import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'base_providers.dart';
 
 class PlanNotifier extends StateNotifier<List<Plan>> {
-  final OutboxDatabase _db;
+  final db.OutboxDatabase _db;
   final IEventRepository _eventRepo;
   final IPlanRepository _planRepo;
   final SyncWorker _syncWorker;
@@ -18,7 +19,13 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   String _deviceId = 'device-plan-sync';
   StreamSubscription? _eventSubscription;
 
-  PlanNotifier(this._db, this._eventRepo, this._planRepo, this._syncWorker, this._hmac) : super([]) {
+  PlanNotifier(
+    db.OutboxDatabase db,
+    this._eventRepo,
+    this._planRepo,
+    this._syncWorker,
+    this._hmac,
+  ) : _db = db, super([]) {
     _init();
   }
 
@@ -137,6 +144,7 @@ final planProvider = StateNotifierProvider<PlanNotifier, List<Plan>>((ref) {
   final planRepo = ref.watch(planRepositoryProvider);
   final syncWorker = ref.watch(syncWorkerProvider);
   final db = ref.watch(outboxDatabaseProvider);
+  final hmac = ref.watch(hmacServiceProvider);
   return PlanNotifier(db, eventRepo, planRepo, syncWorker, hmac);
 });
 

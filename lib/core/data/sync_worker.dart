@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'local/drift/outbox_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
+import '../services/logger_service.dart';
 
 enum SyncWorkerStatus { idle, syncing, failed }
 
@@ -194,14 +194,14 @@ final syncWorkerProvider = Provider<SyncWorker>((ref) {
         logger.warn('Skipping record push: Firebase not initialized.', category: 'SYNC');
         return;
       }
-      debugPrint('[FIREBASE] SyncWorker: Pushing to $coll/$id');
+      logger.debug('Pushing to $coll/$id', category: 'FIREBASE');
       final dbRef = FirebaseFirestore.instance.collection(coll).doc(id);
       final existing = await dbRef.get();
       if (!existing.exists) {
         await dbRef.set(data);
-        debugPrint('[FIREBASE] SyncWorker: Successfully pushed $id');
+        logger.debug('Successfully pushed $id', category: 'FIREBASE');
       } else {
-        debugPrint('[FIREBASE] SyncWorker: Document $id already exists, skipping.');
+        logger.debug('Document $id already exists, skipping.', category: 'FIREBASE');
       }
     },
     () {

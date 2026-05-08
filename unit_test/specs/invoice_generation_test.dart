@@ -68,12 +68,3 @@ void main() {
     });
   });
 }
-
-extension on InvoiceSequence {
-  InvoiceSequence copyWith({int? nextNumber}) {
-    return InvoiceSequence(
-      prefix: prefix,
-      nextNumber: nextNumber ?? this.nextNumber,
-    );
-  }
-}

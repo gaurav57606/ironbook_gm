@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_provider.dart';
+import '../services/logger_service.dart';
 
 /// Provider that initializes and manages the application lifecycle observer.
 /// It should be "watched" at the top of the widget tree (e.g. in App).

@@ -1,28 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mocktail/mocktail.dart';
+import '../test_helper.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
-import 'package:ironbook_gm/core/data/sync_worker.dart';
-import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'package:ironbook_gm/core/providers/auth_provider.dart';
-import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
-import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
-import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as domain;
-import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
-import 'package:ironbook_gm/core/providers/member_provider.dart';
-import 'package:ironbook_gm/core/providers/plan_provider.dart';
-import 'package:ironbook_gm/core/providers/payment_provider.dart';
-import 'package:ironbook_gm/features/billing/data/billing_repository.dart';
 import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
-import '../test_helper.dart';
+import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as domain;
 
 class MockMemberRepo extends Mock implements IMemberRepository {}
 class MockPlanRepo extends Mock implements IPlanRepository {}
@@ -98,7 +78,7 @@ void main() {
       when(() => mockMemberRepo.upsertMember(any())).thenAnswer((_) async => {});
       when(() => mockMemberRepo.getMember(any())).thenAnswer((_) async => null);
 
-      final testDbPlan = db.Plan(
+      const testDbPlan = db.Plan(
         id: '1', 
         name: 'Basic Plan', 
         durationMonths: 1, 
@@ -128,7 +108,6 @@ void main() {
       when(() => mockAuth.state).thenReturn(AuthState(
         isLoading: false,
         isAuthenticated: true,
-        settings: AppSettings(),
       ));
       when(() => mockAuth.init()).thenAnswer((_) async => {});
       when(() => mockSync.performSync()).thenAnswer((_) async => {});

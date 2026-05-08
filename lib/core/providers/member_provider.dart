@@ -15,7 +15,8 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:collection/collection.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
+import 'dart:async';
 
 final membersProvider =
     StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
@@ -26,6 +27,7 @@ final membersProvider =
   final clock = ref.watch(clockProvider);
   final hmac = ref.watch(hmacServiceProvider);
   final db = ref.watch(outboxDatabaseProvider);
+  final coordinator = ref.watch(syncCoordinatorProvider);
   return MemberNotifier(
       db, eventRepo, memberRepo, planRepo, prefRepo, clock, hmac, coordinator);
 });
@@ -78,7 +80,7 @@ final memberByIdProvider =
 });
 
 class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
-  final OutboxDatabase _db;
+  final db.OutboxDatabase _db;
   final IEventRepository _eventRepo;
   final IMemberRepository _memberRepo;
   final IPlanRepository _planRepo;
@@ -90,7 +92,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   StreamSubscription? _eventSubscription;
 
   MemberNotifier(
-    this._db,
+    db.OutboxDatabase db,
     this._eventRepo,
     this._memberRepo,
     this._planRepo,
@@ -98,7 +100,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     this._clock,
     this._hmac,
     this._coordinator,
-  ) : super([]) {
+  ) : _db = db, super([]) {
     init();
   }
 
@@ -112,45 +114,58 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   set debugState(List<MemberSnapshot> members) => state = members;
 
   Future<void> init() async {
-    _deviceId = await _hmac.getInstallationId();
+    try {
+      _deviceId = await _hmac.getInstallationId();
 
-    // 1. Real-time updates via Event Bus (Single Source of Truth)
-    _eventSubscription = _eventRepo.watch().listen((event) async {
-      if (![
-        EventType.memberCreated,
-        EventType.memberUpdated,
-        EventType.memberArchived,
-        EventType.checkInRecorded,
-        EventType.paymentRecorded
-      ].contains(event.eventType)) {
-        return;
-      }
-
-      debugPrint('[STATE] MemberNotifier: Processing event ${event.eventType} for ${event.entityId}');
-      await _memberRepo.applyEvent(event);
-
-      final updatedMember = await _memberRepo.getMember(event.entityId);
-      if (mounted) {
-        if (updatedMember != null) {
-          final index = state.indexWhere((m) => m.memberId == event.entityId);
-          if (index != -1) {
-            state = [...state]..[index] = updatedMember;
-          } else {
-            state = [...state, updatedMember];
-          }
-        } else if (event.eventType == EventType.memberArchived) {
-          state = state.where((m) => m.memberId != event.entityId).toList();
+      // 1. Real-time updates via Event Bus (Single Source of Truth)
+      _eventSubscription = _eventRepo.watch().listen((event) async {
+        if (![
+          EventType.memberCreated,
+          EventType.memberUpdated,
+          EventType.memberArchived,
+          EventType.checkInRecorded,
+          EventType.paymentRecorded
+        ].contains(event.eventType)) {
+          return;
         }
+
+        if (!mounted) return;
+
+        debugPrint('[STATE] MemberNotifier: Processing event ${event.eventType} for ${event.entityId}');
+        await _memberRepo.applyEvent(event);
+
+        if (!mounted) return;
+
+        final updatedMember = await _memberRepo.getMember(event.entityId);
+        if (mounted) {
+          if (updatedMember != null) {
+            final index = state.indexWhere((m) => m.memberId == event.entityId);
+            if (index != -1) {
+              state = [...state]..[index] = updatedMember;
+            } else {
+              state = [...state, updatedMember];
+            }
+          } else if (event.eventType == EventType.memberArchived) {
+            state = state.where((m) => m.memberId != event.entityId).toList();
+          }
+        }
+      });
+
+      // 2. Load all members from Drift
+      debugPrint('[DB] MemberNotifier: Loading initial members from repository');
+      final members = await _memberRepo.getAllMembers();
+      if (mounted) {
+        state = members;
+        debugPrint('[STATE] MemberNotifier: Loaded ${state.length} members');
       }
-    });
 
-    // 2. Load all members from Drift
-    debugPrint('[DB] MemberNotifier: Loading initial members from repository');
-    state = await _memberRepo.getAllMembers();
-    debugPrint('[STATE] MemberNotifier: Loaded ${state.length} members');
-
-    // 3. Reconcile
-    await _reconcileSnapshots();
+      // 3. Reconcile
+      if (mounted) {
+        await _reconcileSnapshots();
+      }
+    } catch (e) {
+      debugPrint('[WARN] MemberNotifier: Init failed (likely due to disposal/teardown): $e');
+    }
   }
 
   Future<void> _reconcileSnapshots() async {

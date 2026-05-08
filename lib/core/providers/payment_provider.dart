@@ -12,7 +12,7 @@ import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'dart:async';
@@ -20,7 +20,7 @@ import 'dart:async';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
 
 class PaymentNotifier extends StateNotifier<List<Payment>> {
-  final OutboxDatabase _db;
+  final db.OutboxDatabase _db;
   final ISequenceRepository _sequenceRepo;
   final IEventRepository _eventRepo;
   final IPaymentRepository _paymentRepo;
@@ -33,7 +33,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   StreamSubscription? _eventSubscription;
 
   PaymentNotifier(
-    this._db,
+    db.OutboxDatabase db,
     this._sequenceRepo,
     this._eventRepo,
     this._paymentRepo,
@@ -41,7 +41,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     this._clock,
     this._hmac,
     this._coordinator,
-  ) : super([]) {
+  ) : _db = db, super([]) {
     _init();
   }
 
@@ -52,31 +52,42 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   }
 
   Future<void> _init() async {
-    _deviceId = await _hmac.getInstallationId();
+    try {
+      _deviceId = await _hmac.getInstallationId();
 
-    // 1. Listen for payment events (Single Source of Truth)
-    _eventSubscription = _eventRepo.watch().listen((event) async {
-      if (event.eventType == EventType.paymentRecorded) {
-        debugPrint('[STATE] PaymentNotifier: Processing payment event for ${event.entityId}');
-        await _paymentRepo.applyEvent(event);
-        final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
-        if (paymentId != null) {
-          final payment = await _paymentRepo.getPayment(paymentId);
-          if (payment != null && mounted) {
-            final exists = state.any((p) => p.id == payment.id);
-            if (!exists) {
-              state = [payment, ...state];
+      // 1. Listen for payment events (Single Source of Truth)
+      _eventSubscription = _eventRepo.watch().listen((event) async {
+        if (event.eventType == EventType.paymentRecorded) {
+          if (!mounted) return;
+          debugPrint('[STATE] PaymentNotifier: Processing payment event for ${event.entityId}');
+          await _paymentRepo.applyEvent(event);
+          if (!mounted) return;
+          final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
+          if (paymentId != null) {
+            final payment = await _paymentRepo.getPayment(paymentId);
+            if (payment != null && mounted) {
+              final exists = state.any((p) => p.id == payment.id);
+              if (!exists) {
+                state = [payment, ...state];
+              }
             }
           }
         }
+      });
+
+      // 2. Load all payments from Drift
+      final payments = (await _paymentRepo.getAllPayments()).reversed.toList();
+      if (mounted) {
+        state = payments;
       }
-    });
 
-    // 2. Load all payments from Drift
-    state = (await _paymentRepo.getAllPayments()).reversed.toList();
-
-    // 3. Reconcile
-    await _reconcilePayments();
+      // 3. Reconcile
+      if (mounted) {
+        await _reconcilePayments();
+      }
+    } catch (e) {
+      debugPrint('[WARN] PaymentNotifier: Init failed (likely due to disposal/teardown): $e');
+    }
   }
 
   Future<void> _reconcilePayments() async {
@@ -213,6 +224,7 @@ final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((
   final clock = ref.watch(clockProvider);
   final hmac = ref.watch(hmacServiceProvider);
   final db = ref.watch(outboxDatabaseProvider);
+  final coordinator = ref.watch(syncCoordinatorProvider);
   
   return PaymentNotifier(db, sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, coordinator);
 });

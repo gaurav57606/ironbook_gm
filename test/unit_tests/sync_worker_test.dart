@@ -1,12 +1,8 @@
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
-import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import '../test_helper.dart';
 

@@ -128,6 +128,48 @@ class OwnerProfile extends HiveObject {
       'hmacSignature': hmacSignature,
     };
   }
+
+  Map<String, dynamic> toJson() => toFirestore();
+
+  OwnerProfile copyWith({
+    String? gymName,
+    String? ownerName,
+    String? phone,
+    String? address,
+    String? gstin,
+    String? bankName,
+    String? accountNumber,
+    String? ifsc,
+    String? upiId,
+    String? logoPath,
+    String? hmacSignature,
+    int? level,
+    int? exp,
+    double? strength,
+    double? endurance,
+    double? dexterity,
+    String? selectedCharacterId,
+  }) {
+    return OwnerProfile(
+      gymName: gymName ?? this.gymName,
+      ownerName: ownerName ?? this.ownerName,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
+      gstin: gstin ?? this.gstin,
+      bankName: bankName ?? this.bankName,
+      accountNumber: accountNumber ?? this.accountNumber,
+      ifsc: ifsc ?? this.ifsc,
+      upiId: upiId ?? this.upiId,
+      logoPath: logoPath ?? this.logoPath,
+      hmacSignature: hmacSignature ?? this.hmacSignature,
+      level: level ?? this.level,
+      exp: exp ?? this.exp,
+      strength: strength ?? this.strength,
+      endurance: endurance ?? this.endurance,
+      dexterity: dexterity ?? this.dexterity,
+      selectedCharacterId: selectedCharacterId ?? this.selectedCharacterId,
+    );
+  }
 }
 
 

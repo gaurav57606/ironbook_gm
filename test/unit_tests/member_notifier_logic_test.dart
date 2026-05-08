@@ -1,18 +1,8 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
-import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
-import 'package:ironbook_gm/core/providers/member_provider.dart';
-import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
-import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
-import 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
-import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:drift/native.dart';
-import 'package:mocktail/mocktail.dart';
 import 'dart:async';
-
 import '../test_helper.dart';
 
 class FakePreferences extends Fake implements IPreferencesRepository {
@@ -64,6 +54,7 @@ void main() {
     coordinator = TrackingSyncCoordinator();
 
     notifier = MemberNotifier(
+      db,
       eventRepo,
       memberRepo,
       planRepo,
@@ -146,7 +137,7 @@ void main() {
   group('MemberNotifier.deleteMember', () {
     test('archives member — does NOT hard-delete Drift row', () async {
       // Setup member
-      final memberId = 'm-1';
+      const memberId = 'm-1';
       final snap = MemberSnapshot(
         memberId: memberId,
         name: 'Old Name',
@@ -175,7 +166,7 @@ void main() {
 
     test('archived member does not reappear after rebuildCache', () async {
        // Add member via events, add memberArchived event
-      final memberId = 'm-1';
+      const memberId = 'm-1';
       final now = clock.now;
       eventRepo.persist(DomainEvent(
         entityId: memberId,
@@ -226,7 +217,7 @@ void main() {
     });
 
     test('does not include archived members after rebuild', () async {
-      final memberId = 'm-1';
+      const memberId = 'm-1';
       final now = clock.now;
       eventRepo.persist(DomainEvent(
         entityId: memberId,
@@ -252,7 +243,7 @@ void main() {
   group('MemberNotifier.updateMember', () {
     test('updates Drift row immediately without waiting for watch stream',
         () async {
-      final memberId = 'm-1';
+      const memberId = 'm-1';
       final snap = MemberSnapshot(
         memberId: memberId,
         name: 'Old Name',
@@ -275,7 +266,7 @@ void main() {
 
   group('MemberNotifier.recordAttendance', () {
     test('updates lastCheckedIn immediately without watch stream', () async {
-      final memberId = 'm-1';
+      const memberId = 'm-1';
       final snap = MemberSnapshot(
         memberId: memberId,
         name: 'John',

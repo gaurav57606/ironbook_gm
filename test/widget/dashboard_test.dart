@@ -1,6 +1,5 @@
 import '../test_helper.dart';
 import 'package:ironbook_gm/features/home/presentation/screens/dashboard_screen.dart';
-import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/features/nutrition/domain/repositories/nutrition_repository.dart';
 import 'package:ironbook_gm/features/nutrition/presentation/providers/nutrition_provider.dart';
 

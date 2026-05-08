@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import '../router/app_router.dart';
+import 'logger_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
@@ -46,13 +47,17 @@ class NotificationService {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
 
-    debugPrint('[NOTIFICATION] Tap received with payload: $payload');
-    
     if (_container == null) {
+      // We can't log to loggerProvider if container is null, 
+      // but we should avoid debugPrint if possible. 
+      // However, in this static context without container, debugPrint is the only way.
       debugPrint('[NOTIFICATION] App not yet initialized. Queueing payload.');
       _pendingPayload = payload;
       return;
     }
+
+    final logger = _container!.read(loggerProvider);
+    logger.debug('Tap received with payload: $payload', category: 'NOTIFICATION');
 
     _handlePayload(payload);
   }

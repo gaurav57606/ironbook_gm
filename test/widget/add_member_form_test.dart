@@ -1,18 +1,16 @@
 import '../test_helper.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
-import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
-import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
 
 // Mocks for Notifiers
 class MockMemberNotifier extends StateNotifier<List<MemberSnapshot>> with Mock implements MemberNotifier {
-  MockMemberNotifier([List<MemberSnapshot> state = const []]) : super(state);
+  MockMemberNotifier([super.state = const []]);
 }
 class MockPaymentNotifier extends StateNotifier<List<Payment>> with Mock implements PaymentNotifier {
-  MockPaymentNotifier([List<Payment> state = const []]) : super(state);
+  MockPaymentNotifier([super.state = const []]);
 }
 class MockPlanNotifier extends StateNotifier<List<Plan>> with Mock implements PlanNotifier {
-  MockPlanNotifier([List<Plan> state = const []]) : super(state);
+  MockPlanNotifier([super.state = const []]);
 }
 
 class PlanFake extends Fake implements Plan {}

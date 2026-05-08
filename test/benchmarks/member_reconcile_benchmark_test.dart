@@ -11,6 +11,7 @@ import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as drift;
 import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide MemberSnapshotAdapter;
 
@@ -21,6 +22,7 @@ class MockPreferencesRepository extends Mock implements IPreferencesRepository {
 class MockClock extends Mock implements IClock {}
 class MockHmacService extends Mock implements HmacService {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
+class MockOutboxDatabase extends Mock implements drift.OutboxDatabase {}
 
 void main() {
   late MockEventRepository mockRepo;
@@ -30,6 +32,7 @@ void main() {
   late MockClock mockClock;
   late MockSyncCoordinator mockCoordinator;
   late MockHmacService mockHmac;
+  late MockOutboxDatabase mockDb;
   late Directory tempDir;
 
   setUpAll(() async {
@@ -55,6 +58,7 @@ void main() {
     mockClock = MockClock();
     mockCoordinator = MockSyncCoordinator();
     mockHmac = MockHmacService();
+    mockDb = MockOutboxDatabase();
 
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
     when(() => mockHmac.signSnapshot(any(), any())).thenAnswer((_) async => 'mock-sig');
@@ -118,7 +122,7 @@ void main() {
     await snapshotBox.clear();
 
     final stopwatch = Stopwatch()..start();
-    final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
+    final notifier = MemberNotifier(mockDb as drift.OutboxDatabase, mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
 
     await notifier.init();
     stopwatch.stop();

@@ -10,6 +10,7 @@ class AppRadius {
   static const double xxl = 24.0;
   static const double pill = 999.0;
 
+  static BorderRadius get radiusXS => BorderRadius.circular(xs);
   static BorderRadius get radiusS => BorderRadius.circular(s);
   static BorderRadius get radiusM => BorderRadius.circular(m);
   static BorderRadius get radiusL => BorderRadius.circular(l);

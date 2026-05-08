@@ -1,10 +1,12 @@
 import '../local/drift/outbox_database.dart';
 import '../local/models/app_settings_model.dart';
 import 'package:drift/drift.dart';
+import '../local/models/domain_event_model.dart';
 
 abstract class ISettingsRepository {
   Future<AppSettings> getSettings();
   Future<void> updateSettings(AppSettings settings);
+  Future<void> applyEvent(DomainEvent event);
 }
 
 class DriftSettingsRepository implements ISettingsRepository {
@@ -42,5 +44,11 @@ class DriftSettingsRepository implements ISettingsRepository {
         lastBackupAt: Value(settings.lastBackupAt),
       ),
     );
+  }
+
+  @override
+  Future<void> applyEvent(DomainEvent event) async {
+    final settings = AppSettings.fromFirestore(event.payload);
+    await updateSettings(settings);
   }
 }

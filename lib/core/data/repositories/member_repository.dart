@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../local/drift/outbox_database.dart';
 import '../local/models/member_snapshot_model.dart';

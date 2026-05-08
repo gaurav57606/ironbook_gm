@@ -69,7 +69,18 @@ export 'package:ironbook_gm/features/members/presentation/screens/members_list_s
 export 'package:ironbook_gm/features/home/presentation/widgets/member_row.dart';
 export 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 export 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+export 'package:ironbook_gm/core/data/local/models/payment_model.dart';
+export 'package:ironbook_gm/core/data/local/models/plan_model.dart';
 export 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+export 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+export 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
+export 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
+export 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
+export 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
+export 'package:ironbook_gm/features/billing/data/billing_repository.dart';
+export 'package:ironbook_gm/core/services/sync_coordinator.dart';
+export 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Payment, Plan, Sale, Product, InvoiceSequence, OwnerProfile;
+export 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 
 // Import and re-export mocks from integration_test/mocks
 import '../integration_test/mocks/mock_secure_storage.dart';
@@ -86,16 +97,24 @@ class TestHelper {
     final tempDir =
         Directory.systemTemp.createTempSync('ironbook_test_${subDir}_');
     Hive.init(tempDir.path);
-    if (!Hive.isAdapterRegistered(6))
+    if (!Hive.isAdapterRegistered(6)) {
       Hive.registerAdapter(AppSettingsAdapter());
-    if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(PaymentAdapter());
-    if (!Hive.isAdapterRegistered(12))
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(PaymentAdapter());
+    }
+    if (!Hive.isAdapterRegistered(12)) {
       Hive.registerAdapter(InvoiceSequenceAdapter());
-    if (!Hive.isAdapterRegistered(13))
+    }
+    if (!Hive.isAdapterRegistered(13)) {
       Hive.registerAdapter(PlanComponentSnapshotAdapter());
-    if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(PlanAdapter());
-    if (!Hive.isAdapterRegistered(3))
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(PlanAdapter());
+    }
+    if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(PlanComponentAdapter());
+    }
 
     await Hive.openBox<AppSettings>('settings');
     await Hive.openBox('meta');
@@ -340,7 +359,6 @@ class FakeAuth extends AuthNotifier {
           FakeDriftEventRepository(),
           MockOwnerRepo(),
           MockSettingsRepo(),
-          MockSyncWorker(),
           FakeHmacService(),
           MockRef(),
         ) {
@@ -350,12 +368,6 @@ class FakeAuth extends AuthNotifier {
       isPinSetup: isPinSetup,
       isFirstLaunch: isFirstLaunch,
       isLoading: isLoading,
-      settings: AppSettings(),
-      owner: OwnerProfile(
-          gymName: 'Test Gym',
-          ownerName: 'Tester',
-          phone: '12345',
-          address: ''),
     );
   }
 

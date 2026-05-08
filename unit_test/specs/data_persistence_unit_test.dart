@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'dart:io';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
-import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' as manualAdapters;
+import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' as manual_adapters;
 
 void main() {
   test('Hive Data Persistence Logic Verification', () async {
@@ -12,7 +12,7 @@ void main() {
     
     // Register adapters
     if (!Hive.isAdapterRegistered(11)) {
-      Hive.registerAdapter(manualAdapters.MemberSnapshotAdapter());
+      Hive.registerAdapter(manual_adapters.MemberSnapshotAdapter());
     }
 
     const boxName = 'test_members_box';

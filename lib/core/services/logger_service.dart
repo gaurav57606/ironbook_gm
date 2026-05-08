@@ -98,11 +98,11 @@ class LoggerService {
   void debug(String message, {String category = 'APP'}) => 
       log(message, level: LogLevel.debug, category: category);
   
-  void info(String message, {String category = 'APP'}) => 
-      log(message, level: LogLevel.info, category: category);
+  void info(String message, {String category = 'APP', Object? error, StackTrace? stackTrace}) => 
+      log(message, level: LogLevel.info, category: category, error: error, stackTrace: stackTrace);
   
-  void warn(String message, {String category = 'APP'}) => 
-      log(message, level: LogLevel.warning, category: category);
+  void warn(String message, {String category = 'APP', Object? error, StackTrace? stackTrace}) => 
+      log(message, level: LogLevel.warning, category: category, error: error, stackTrace: stackTrace);
   
   void error(String message, {String category = 'APP', Object? error, StackTrace? stackTrace}) => 
       log(message, level: LogLevel.error, category: category, error: error, stackTrace: stackTrace);

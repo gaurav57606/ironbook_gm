@@ -8,8 +8,8 @@ enum EntitlementStatus { valid, grace, expired }
 
 class EntitlementGuard {
   final FlutterSecureStorage _storage;
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
+  final FirebaseAuth? _auth;
+  final FirebaseFirestore? _firestore;
   final IClock _clock;
 
   EntitlementGuard(this._storage, this._auth, this._firestore, this._clock);
@@ -41,10 +41,22 @@ class EntitlementGuard {
 
     // 3. Fresh Cloud Check
     try {
-      final user = _auth.currentUser;
+      final auth = _auth;
+      final firestore = _firestore;
+      
+      if (auth == null || firestore == null) {
+        // Degraded mode: If offline/uninitialized, rely on heartbeat
+        if (lastHeartbeat != null) {
+          final graceDays = now.difference(lastHeartbeat).inDays;
+          if (graceDays < 7) return EntitlementStatus.grace;
+        }
+        return EntitlementStatus.expired;
+      }
+
+      final user = auth.currentUser;
       if (user == null) return EntitlementStatus.expired;
 
-      final doc = await _firestore
+      final doc = await firestore
           .collection('entitlements')
           .doc(user.uid)
           .get();

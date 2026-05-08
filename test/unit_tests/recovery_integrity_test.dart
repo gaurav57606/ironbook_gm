@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
@@ -21,6 +22,7 @@ class MockMemberRepo extends Mock implements IMemberRepository {}
 class MockPlanRepo extends Mock implements IPlanRepository {}
 class MockPrefRepo extends Mock implements IPreferencesRepository {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
+class MockOutboxDatabase extends Mock implements OutboxDatabase {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 class FakeMemberSnapshot extends Fake implements MemberSnapshot {}
 
@@ -109,7 +111,7 @@ void main() {
       when(() => mockMemberRepo.upsertMember(any())).thenAnswer((_) async => {});
       when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => [snapshot]);
 
-      final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
+      final notifier = MemberNotifier(MockOutboxDatabase(), mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
       
       // Wait for init/reconcile
       await Future.delayed(const Duration(milliseconds: 100));
@@ -126,7 +128,7 @@ void main() {
        when(() => mockRepo.getAll()).thenAnswer((_) async => []);
        when(() => mockRepo.persist(any())).thenAnswer((_) async {});
        
-       final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
+       final notifier = MemberNotifier(MockOutboxDatabase(), mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
        await Future.delayed(const Duration(milliseconds: 50));
        
        // Note: addMember requires 'plans' box

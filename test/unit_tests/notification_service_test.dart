@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:ironbook_gm/core/services/notification_service.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
@@ -40,7 +41,7 @@ void main() {
 
   group('NotificationService', () {
     test('init calls initialize on plugin', () async {
-      await NotificationService.init();
+      await NotificationService.init(ProviderContainer());
 
       verify(() => mockPlugin.initialize(
             any(),

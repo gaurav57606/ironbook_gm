@@ -1,12 +1,7 @@
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
-import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import '../test_helper.dart';
 
 DomainEvent _makeEvent({

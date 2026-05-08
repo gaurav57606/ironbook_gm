@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthNotifier extends StateNotifier<AuthState> with Mock implements AuthNotifier {
-  MockAuthNotifier() : super(AuthState(settings: AppSettings(), isLoading: false, unlocked: false));
+  MockAuthNotifier() : super(AuthState(isLoading: false, unlocked: false));
 }
 
 void main() {

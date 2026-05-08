@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_radius.dart';
 import '../../../../shared/widgets/app_section_header.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../shared/utils/greeting_formatter.dart';
+import '../../../../shared/utils/date_formatter.dart';
+import '../../../../core/data/local/models/member_snapshot_model.dart';
+import '../../../../core/providers/member_provider.dart';
+import '../../../../core/providers/owner_provider.dart';
+import '../../../../core/data/sync_worker.dart';
+import '../providers/dashboard_provider.dart';
 import '../widgets/sync_status_badge.dart';
+import '../widgets/member_health_donut.dart';
+import '../widgets/alert_banner.dart';
+import '../widgets/stats_card.dart';
+import '../widgets/nutrition_summary_card.dart';
+import '../widgets/member_row.dart';
+import 'package:go_router/go_router.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -336,7 +351,5 @@ class DashboardScreen extends ConsumerWidget {
         }),
       ),
     );
-  }
-
   }
 }

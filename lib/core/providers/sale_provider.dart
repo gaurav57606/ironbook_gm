@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -9,31 +10,34 @@ import 'package:ironbook_gm/core/data/repositories/sale_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 
 import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 
 class SaleNotifier extends StateNotifier<List<Sale>> {
-  final OutboxDatabase _db;
+  final db.OutboxDatabase _db;
   final IProductRepository _productRepo;
   final ISequenceRepository _sequenceRepo;
   final IEventRepository _eventRepo;
   final ISaleRepository _saleRepo;
   final IClock _clock;
   final HmacService _hmac;
+  final SyncCoordinator _coordinator;
   String _deviceId = 'device-loading';
   StreamSubscription? _eventSubscription;
 
   SaleNotifier(
-    this._db,
+    db.OutboxDatabase db,
     this._productRepo,
     this._sequenceRepo,
     this._eventRepo,
     this._saleRepo,
     this._clock,
     this._hmac,
-  ) : super([]) {
+    this._coordinator,
+  ) : _db = db, super([]) {
     _init();
     _seedProductsIfEmpty();
   }
@@ -165,6 +169,8 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
       await _saleRepo.upsertSale(sale);
       debugPrint('[TRANSACTION] SaleNotifier: recordSale transaction complete');
     });
+
+    _coordinator.triggerSync();
   }
 }
 
@@ -180,8 +186,10 @@ final saleProvider = StateNotifierProvider<SaleNotifier, List<Sale>>((ref) {
   final saleRepo = ref.watch(saleRepositoryProvider);
   final clock = ref.watch(clockProvider);
   final db = ref.watch(outboxDatabaseProvider);
+  final hmac = ref.watch(hmacServiceProvider);
+  final coordinator = ref.watch(syncCoordinatorProvider);
   
-  return SaleNotifier(db, productRepo, sequenceRepo, eventRepo, saleRepo, clock, hmac);
+  return SaleNotifier(db, productRepo, sequenceRepo, eventRepo, saleRepo, clock, hmac, coordinator);
 });
 
 

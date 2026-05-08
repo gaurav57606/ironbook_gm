@@ -62,6 +62,8 @@ class AppSettings extends HiveObject {
     );
   }
 
+  Map<String, dynamic> toJson() => toFirestore();
+
   Map<String, dynamic> toFirestore() {
     return {
       'gstRate': gstRate,

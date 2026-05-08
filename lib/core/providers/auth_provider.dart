@@ -6,7 +6,6 @@ import "package:hive/hive.dart";
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:ironbook_gm/core/sync/recovery_service.dart';
 import 'package:ironbook_gm/core/data/local/models/owner_profile_model.dart';
-import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
@@ -19,6 +18,7 @@ import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
+import '../services/logger_service.dart';
 import 'base_providers.dart';
 
 class AuthState {
@@ -64,8 +64,7 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final FlutterSecureStorage _storage;
   final PinService _pinService;
-  final fb.FirebaseAuth _firebaseAuth;
-  final SyncWorker _syncWorker;
+  final fb.FirebaseAuth? _firebaseAuth;
   final IEventRepository _eventRepo;
   final IOwnerRepository _ownerRepo;
   final ISettingsRepository _settingsRepo;
@@ -82,7 +81,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     this._eventRepo,
     this._ownerRepo,
     this._settingsRepo,
-    this._syncWorker,
     this._hmacService,
     this._ref,
   ) : super(AuthState()) {
@@ -99,6 +97,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _deviceId = await _hmacService.getInstallationId();
 
     final logger = _ref.read(loggerProvider);
+    
+    final pinHash = await _storage.read(key: 'pin_hash');
+    final pinSalt = await _storage.read(key: 'pin_salt');
+    final onboardingDone = await _storage.read(key: 'onboarding_done');
 
     bool isPinSetup = pinHash != null && pinSalt != null;
     if (pinHash != null && pinSalt == null) {
@@ -106,11 +108,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       isPinSetup = false;
     }
 
-    final owner = await _ownerRepo.getOwner();
-    final settings = await _settingsRepo.getSettings();
+    // Trigger repo loading
+    try {
+      await _ownerRepo.getOwner();
+      await _settingsRepo.getSettings();
+    } catch (e) {
+      logger.error('Failed to load owner/settings: $e', category: 'AUTH');
+    }
 
     if (mounted) {
-      debugPrint('[AUTH] AuthNotifier: Initializing. PIN set: $isPinSetup, First launch: ${onboardingDone != 'true'}');
+      logger.info('Initializing AuthNotifier. PIN set: $isPinSetup, First launch: ${onboardingDone != 'true'}', category: 'AUTH');
       state = state.copyWith(
         isPinSetup: isPinSetup,
         isFirstLaunch: onboardingDone != 'true',
@@ -159,8 +166,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true);
     try {
-      if (kDebugMode && _firebaseAuth.currentUser == null) {
-         // Debug/Test flow - should be overridden in tests via MockFirebaseAuth
+      if (_firebaseAuth == null) {
+         throw Exception('Firebase not initialized');
       }
       
       await _firebaseAuth.signInWithEmailAndPassword(
@@ -192,9 +199,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 
   Future<void> _performFullLogout() async {
-    debugPrint('[AUTH] AuthNotifier: Starting full logout and data purge');
+    _ref.read(loggerProvider).info('Starting full logout and data purge', category: 'AUTH');
     try {
-      await _firebaseAuth.signOut();
+      if (_firebaseAuth != null) {
+        await _firebaseAuth.signOut();
+      }
       await _storage.deleteAll();
 
       // OPTIMIZED: Parallel Hive clearing + Batched Drift clearing
@@ -236,6 +245,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       {String? gymName, String? ownerName, String? phone}) async {
     state = state.copyWith(isLoading: true);
     try {
+      if (_firebaseAuth == null) {
+         throw Exception('Firebase not initialized');
+      }
       await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -288,8 +300,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isPinSetup: true, unlocked: true);
   }
 
+  Future<void> setBiometricOptIn(bool enabled) async {
+    final settings = await _settingsRepo.getSettings();
+    await _settingsRepo.updateSettings(settings.copyWith(useBiometrics: enabled));
+  }
+
 
   Future<void> sendPasswordReset(String email) async {
+    if (_firebaseAuth == null) throw Exception('Firebase not initialized');
     await _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 }
@@ -327,7 +345,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     eventRepo, 
     ownerRepo, 
     settingsRepo, 
-    syncWorker, 
     hmac, 
     ref
   );

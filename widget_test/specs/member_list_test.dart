@@ -12,6 +12,7 @@ import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockSyncWorker extends Mock implements SyncWorker {}
@@ -21,6 +22,7 @@ class MockMemberRepo extends Mock implements IMemberRepository {}
 class MockPlanRepo extends Mock implements IPlanRepository {}
 class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
+class MockOutboxDatabase extends Mock implements OutboxDatabase {}
 
 void main() {
   late MockSyncWorker mockSyncWorker;
@@ -48,7 +50,7 @@ void main() {
         clockProvider.overrideWithValue(FrozenClock(DateTime(2026, 1, 1))),
         syncCoordinatorProvider.overrideWithValue(mockCoordinator),
         membersProvider.overrideWith((ref) {
-          final notifier = MemberNotifier(mockRepo, MockMemberRepo(), MockPlanRepo(), MockPreferencesRepo(), FrozenClock(DateTime(2026, 1, 1)), mockHmac, mockCoordinator);
+          final notifier = MemberNotifier(MockOutboxDatabase(), mockRepo, MockMemberRepo(), MockPlanRepo(), MockPreferencesRepo(), FrozenClock(DateTime(2026, 1, 1)), mockHmac, mockCoordinator);
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = members;
           return notifier;

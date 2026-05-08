@@ -18,14 +18,14 @@ class ProductionErrorBoundary extends StatelessWidget {
         backgroundColor: const Color(0xFF0F172A), // Slate 900
         body: Center(
           child: Padding(
-            padding: EdgeInsets.all(AppSpacing.xl),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: EdgeInsets.all(AppSpacing.l),
+                  padding: const EdgeInsets.all(AppSpacing.l),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.1),
+                    color: Colors.redAccent.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -34,7 +34,7 @@ class ProductionErrorBoundary extends StatelessWidget {
                     size: 48,
                   ),
                 ),
-                SizedBox(height: AppSpacing.l),
+                const SizedBox(height: AppSpacing.l),
                 const Text(
                   'Something went wrong',
                   style: TextStyle(
@@ -43,16 +43,16 @@ class ProductionErrorBoundary extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: AppSpacing.s),
+                 const SizedBox(height: AppSpacing.s),
                 Text(
                   'A visual error occurred in this section. We\'ve logged the details and our team will look into it.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.slate.shade400,
+                    color: Colors.blueGrey.shade400,
                     fontSize: 14,
                   ),
                 ),
-                SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.xl),
                 ElevatedButton(
                   onPressed: () {
                     // In a real app, we might try to trigger a rebuild or navigate back
@@ -66,7 +66,7 @@ class ProductionErrorBoundary extends StatelessWidget {
                       vertical: AppSpacing.m,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.radiusM),
+                      borderRadius: AppRadius.radiusM,
                     ),
                   ),
                   child: const Text('Try Again'),

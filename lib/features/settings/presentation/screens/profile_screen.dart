@@ -7,6 +7,7 @@ import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/owner_provider.dart';
+import '../../../../core/providers/settings_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {

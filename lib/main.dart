@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/bootstrap.dart';
 import 'core/providers/base_providers.dart';
+import 'core/services/logger_service.dart';
 import 'app.dart';
 import 'shared/widgets/production_error_boundary.dart';
 
@@ -79,7 +80,7 @@ void main() async {
                   Text(
                     'A critical error occurred while starting the app.\n\nError: $e',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.slate.shade400, fontSize: 16),
+                    style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 16),
                   ),
                 ],
               ),

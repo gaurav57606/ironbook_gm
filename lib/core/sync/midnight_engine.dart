@@ -3,8 +3,11 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/firebase_options.dart';
+import 'package:ironbook_gm/core/services/logger_service.dart';
+import 'package:ironbook_gm/core/providers/base_providers.dart';
 
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/services/notification_service.dart';
@@ -37,9 +40,8 @@ class MidnightEngine {
           }
           firebaseReady = true;
         } catch (e) {
+          // If logger isn't ready yet, we use debugPrint for boot failures
           debugPrint("[WORKER] Firebase init failed/timed out in background: $e");
-          // Note: Logger cannot be used yet as it depends on Firebase init for full flushing
-          // but we can proceed in degraded mode if local DB is enough
         }
 
         // 4. Setup Container with necessary overrides
@@ -82,6 +84,7 @@ class MidnightEngine {
           container.dispose();
         }
       } catch (e, stack) {
+        // Use debugPrint if container/logger failed to initialize
         debugPrint("MidnightEngine Fatal Error: $e\n$stack");
         try {
            FirebaseCrashlytics.instance.recordError(e, stack, reason: 'MidnightEngine Fatal Background Failure');

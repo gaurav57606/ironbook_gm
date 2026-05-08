@@ -26,4 +26,12 @@ class AppShadows {
       offset: const Offset(0, 2),
     ),
   ];
+
+  static List<BoxShadow> get card => [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.1),
+      blurRadius: 8,
+      offset: const Offset(0, 4),
+    ),
+  ];
 }

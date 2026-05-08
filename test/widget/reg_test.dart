@@ -1,23 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mocktail/mocktail.dart';
 import '../test_helper.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
-import 'package:ironbook_gm/core/data/sync_worker.dart';
-import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'package:ironbook_gm/features/billing/data/billing_repository.dart';
-import 'package:ironbook_gm/core/providers/auth_provider.dart';
 
 void main() {
   setUpAll(() async {
-    print('TEST: setUpAll started');
+    debugPrint('TEST: setUpAll started');
     await TestHelper.setupHive('registration_real');
     registerFallbackValue(DateTime.now());
     registerFallbackValue(FakePayment());
-    registerFallbackValue(db.Plan(
+    registerFallbackValue(const db.Plan(
       id: 'f', 
       name: 'f', 
       durationMonths: 1, 
@@ -26,18 +17,18 @@ void main() {
       componentsJson: '', 
       hmacSignature: ''
     ));
-    print('TEST: setUpAll finished');
+    debugPrint('TEST: setUpAll finished');
   });
 
   tearDownAll(() async {
-    print('TEST: tearDownAll started');
+    debugPrint('TEST: tearDownAll started');
     await TestHelper.cleanHive();
-    print('TEST: tearDownAll finished');
+    debugPrint('TEST: tearDownAll finished');
   });
 
   group('Registration Flow (Real Notifiers + Fake Repo)', () {
     testWidgets('QuickAddMemberScreen flow', (tester) async {
-      print('TEST: test started');
+      debugPrint('TEST: test started');
       
       final fakeRepo = FakeRepo();
       final fakeHmac = FakeHmacService();
@@ -45,7 +36,7 @@ void main() {
       final mockSync = MockSyncWorker();
       final mockBilling = MockBillingRepository();
       
-      final testPlan = db.Plan(
+      const testPlan = db.Plan(
         id: 'plan-1',
         name: 'Basic Plan',
         durationMonths: 1,
@@ -72,7 +63,7 @@ void main() {
         ],
       );
 
-      print('TEST: pumping widget');
+      debugPrint('TEST: pumping widget');
       await TestHelper.pumpIronBookWidget(
         tester,
         const SizedBox(),
@@ -86,32 +77,32 @@ void main() {
           authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
         ],
       );
-      print('TEST: widget pumped');
+      debugPrint('TEST: widget pumped');
       
       await tester.runAsync(() async {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        print('TEST: after initial pumps');
+        debugPrint('TEST: after initial pumps');
 
         // Enter data
-        print('TEST: entering text');
+        debugPrint('TEST: entering text');
         await tester.enterText(find.byType(TextField).at(0), 'John Doe');
         await tester.enterText(find.byType(TextField).at(1), '9876543210');
         await tester.pump();
-        print('TEST: text entered');
+        debugPrint('TEST: text entered');
 
         // Tap Register
         final registerBtn = find.byKey(const Key('register_button'));
         expect(registerBtn, findsOneWidget);
-        print('TEST: tapping register');
+        debugPrint('TEST: tapping register');
         await tester.tap(registerBtn);
         
-        print('TEST: pumping after tap');
+        debugPrint('TEST: pumping after tap');
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
       });
       
-      print('TEST: test finished');
+      debugPrint('TEST: test finished');
     });
   });
 }

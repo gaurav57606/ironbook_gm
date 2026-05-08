@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_radius.dart';
 import '../../../../core/constants/app_shadows.dart';
-import '../../../../core/constants/app_text_styles.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_bottom_nav.dart';
