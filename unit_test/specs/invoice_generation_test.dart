@@ -3,11 +3,13 @@ import 'package:hive/hive.dart';
 import 'package:ironbook_gm/core/services/invoice_service.dart';
 import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
+import '../../test/fakes/fake_sequence_repository.dart';
 
 void main() {
   group('Invoice Generation Logic (TC-UNIT-03)', () {
     late InvoiceService service;
     late Box<InvoiceSequence> box;
+    late FakeSequenceRepository sequenceRepo;
 
     setUp(() async {
       Hive.init('.');
@@ -15,7 +17,8 @@ void main() {
         Hive.registerAdapter(InvoiceSequenceAdapter());
       }
       box = await Hive.openBox<InvoiceSequence>('invoice_seq');
-      service = InvoiceService(box, SystemClock());
+      sequenceRepo = FakeSequenceRepository(box);
+      service = InvoiceService(sequenceRepo, SystemClock());
     });
 
     tearDown(() async {
@@ -53,7 +56,9 @@ void main() {
     test('Should handle large sequences with correct padding', () async {
       final seq = box.get('active_seq') ??
           InvoiceSequence(prefix: 'INV-2026-', nextNumber: 999);
-      await box.put('active_seq', seq.copyWith(nextNumber: 999));
+      await box.put('active_seq', seq);
+      // Wait, nextNumber is the value to use for the NEXT invoice.
+      // So if nextNumber is 999, the next() call should return 0999.
 
       final inv999 = await service.next();
       final inv1000 = await service.next();

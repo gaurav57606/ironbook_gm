@@ -5,39 +5,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ironbook_gm/core/data/remote/firestore_backup.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 
-class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
-
 class MockUser extends Mock implements User {}
 
-class MockWriteBatch extends Mock implements WriteBatch {}
-
-class MockCollectionReference extends Mock
-    implements CollectionReference<Map<String, dynamic>> {}
-
-class MockDocumentReference extends Mock
-    implements DocumentReference<Map<String, dynamic>> {}
-
-class FakeDocumentReference extends Fake
-    implements DocumentReference<Map<String, dynamic>> {}
-
 void main() {
-  late MockFirebaseFirestore mockFirestore;
+  late FakeFirebaseFirestore mockFirestore;
   late MockFirebaseAuth mockAuth;
   late MockUser mockUser;
-  late MockWriteBatch mockBatch;
   late FirestoreBackupService service;
 
-  setUpAll(() {
-    registerFallbackValue(FakeDocumentReference());
-  });
-
   setUp(() {
-    mockFirestore = MockFirebaseFirestore();
+    mockFirestore = FakeFirebaseFirestore();
     mockAuth = MockFirebaseAuth();
     mockUser = MockUser();
-    mockBatch = MockWriteBatch();
 
     service = FirestoreBackupService(
       firestore: mockFirestore,
@@ -60,21 +42,6 @@ void main() {
       const uid = 'test-uid';
       when(() => mockAuth.currentUser).thenReturn(mockUser);
       when(() => mockUser.uid).thenReturn(uid);
-      when(() => mockFirestore.batch()).thenReturn(mockBatch);
-
-      final mockUsersColl = MockCollectionReference();
-      final mockUserDoc = MockDocumentReference();
-      final mockSnapshotsColl = MockCollectionReference();
-      final mockLatestDoc = MockDocumentReference();
-
-      when(() => mockFirestore.collection(any())).thenReturn(mockUsersColl);
-      when(() => mockUsersColl.doc(any())).thenReturn(mockUserDoc);
-      when(() => mockUserDoc.collection(any())).thenReturn(mockSnapshotsColl);
-      when(() => mockSnapshotsColl.doc(any())).thenReturn(mockLatestDoc);
-
-      when(() => mockBatch.set<Map<String, dynamic>>(any(), any()))
-          .thenReturn(null);
-      when(() => mockBatch.commit()).thenAnswer((_) async {});
 
       final snapshots = [
         MemberSnapshot(
@@ -86,45 +53,48 @@ void main() {
 
       await service.backupLatestSnapshots(snapshots);
 
-      final captured = verify(() => mockBatch.set<Map<String, dynamic>>(
-            any(),
-            captureAny(),
-          )).captured;
+      final doc = await mockFirestore
+          .collection('users')
+          .doc(uid)
+          .collection('backups')
+          .doc('latest')
+          .get();
 
-      final data = captured.first as Map<String, dynamic>;
+      expect(doc.exists, true);
+      final data = doc.data()!;
       expect(data['memberCount'], 1);
       expect(data['data'], isA<List>());
       expect((data['data'] as List).length, 1);
-      expect(data['timestamp'], isA<FieldValue>());
-
-      verify(() => mockBatch.commit()).called(1);
+      expect(data['timestamp'], isA<Timestamp>());
     });
 
     test('backupLatestSnapshots should propagate Firestore errors', () async {
-      const uid = 'test-uid';
+      final errorFirestore = MockFirestoreForErrors();
+      final errorService = FirestoreBackupService(
+        firestore: errorFirestore,
+        auth: mockAuth,
+      );
+
       when(() => mockAuth.currentUser).thenReturn(mockUser);
-      when(() => mockUser.uid).thenReturn(uid);
-      when(() => mockFirestore.batch()).thenReturn(mockBatch);
-
-      final mockUsersColl = MockCollectionReference();
-      final mockUserDoc = MockDocumentReference();
-      final mockSnapshotsColl = MockCollectionReference();
-      final mockLatestDoc = MockDocumentReference();
-
-      when(() => mockFirestore.collection(any())).thenReturn(mockUsersColl);
-      when(() => mockUsersColl.doc(any())).thenReturn(mockUserDoc);
-      when(() => mockUserDoc.collection(any())).thenReturn(mockSnapshotsColl);
-      when(() => mockSnapshotsColl.doc(any())).thenReturn(mockLatestDoc);
-
-      when(() => mockBatch.set<Map<String, dynamic>>(any(), any()))
-          .thenReturn(null);
-      when(() => mockBatch.commit()).thenThrow(
-          FirebaseException(plugin: 'firestore', code: 'permission-denied'));
+      when(() => mockUser.uid).thenReturn('test-uid');
 
       expect(
-        () => service.backupLatestSnapshots([]),
+        () => errorService.backupLatestSnapshots([]),
         throwsA(isA<FirebaseException>()),
       );
     });
   });
 }
+
+class MockFirestoreForErrors extends Mock implements FirebaseFirestore {
+  @override
+  WriteBatch batch() {
+    final mockBatch = MockWriteBatch();
+    when(() => mockBatch.set<Map<String, dynamic>>(any(), any())).thenReturn(null);
+    when(() => mockBatch.commit()).thenThrow(
+        FirebaseException(plugin: 'firestore', code: 'permission-denied'));
+    return mockBatch;
+  }
+}
+
+class MockWriteBatch extends Mock implements WriteBatch {}

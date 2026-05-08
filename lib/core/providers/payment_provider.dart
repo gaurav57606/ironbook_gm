@@ -11,6 +11,7 @@ import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'dart:async';
@@ -24,6 +25,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   final IMemberRepository _memberRepo;
   final IClock _clock;
   final HmacService _hmac;
+  final SyncCoordinator _coordinator;
   String _deviceId = 'device-loading';
   
   Completer<void>? _syncLock;
@@ -35,6 +37,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     this._memberRepo,
     this._clock,
     this._hmac,
+    this._coordinator,
   ) : super([]) {
     _init();
   }
@@ -174,6 +177,8 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
         state = [signed, ...state];
       }
 
+      _coordinator.triggerSync();
+
       return signed ?? payment;
     } finally {
       final lock = _syncLock;
@@ -194,8 +199,9 @@ final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((
   final memberRepo = ref.watch(memberRepositoryProvider);
   final clock = ref.watch(clockProvider);
   final hmac = ref.watch(hmacServiceProvider);
+  final coordinator = ref.watch(syncCoordinatorProvider);
   
-  return PaymentNotifier(sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac);
+  return PaymentNotifier(sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, coordinator);
 });
 
 final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, memberId) {

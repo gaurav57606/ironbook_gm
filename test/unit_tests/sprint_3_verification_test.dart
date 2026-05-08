@@ -13,12 +13,14 @@ import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 
 class MockSequenceRepository extends Mock implements ISequenceRepository {}
 class MockEventRepository extends Mock implements IEventRepository {}
 class MockPaymentRepository extends Mock implements IPaymentRepository {}
 class MockMemberRepository extends Mock implements IMemberRepository {}
 class MockHmacService extends Mock implements HmacService {}
+class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 class FakePayment extends Fake implements Payment {}
 
@@ -43,6 +45,7 @@ void main() {
     late MockPaymentRepository paymentRepo;
     late MockMemberRepository memberRepo;
     late MockHmacService hmacService;
+    late MockSyncCoordinator syncCoordinator;
     late IClock clock;
     int invoiceCounter = 0;
 
@@ -53,12 +56,14 @@ void main() {
       paymentRepo = MockPaymentRepository();
       memberRepo = MockMemberRepository();
       hmacService = MockHmacService();
+      syncCoordinator = MockSyncCoordinator();
       clock = FrozenClock(DateTime(2026, 4, 16));
 
       when(() => hmacService.getInstallationId()).thenAnswer((_) async => 'test-device');
       when(() => eventRepo.watch()).thenAnswer((_) => const Stream.empty());
       when(() => paymentRepo.getAllPayments()).thenAnswer((_) async => []);
       when(() => eventRepo.getAll()).thenAnswer((_) async => []);
+      when(() => syncCoordinator.triggerSync()).thenReturn(null);
     });
 
     test('Concurrent payments produce unique, sequential invoice numbers', () async {
@@ -84,6 +89,7 @@ void main() {
         memberRepo,
         clock,
         hmacService,
+        syncCoordinator,
       );
 
       final plan = Plan(

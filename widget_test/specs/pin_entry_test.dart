@@ -16,8 +16,8 @@ void main() {
 
   setUp(() {
     mockAuth = MockAuthNotifier();
-    when(() => mockAuth.verifyPin(any())).thenAnswer((_) async => false);
-    when(() => mockAuth.unlockWithBiometrics()).thenAnswer((_) async => false);
+    when(() => mockAuth.authenticate(pin: any(named: 'pin'))).thenAnswer((_) async => false);
+    when(() => mockAuth.authenticate()).thenAnswer((_) async => false);
   });
 
   Widget wrap(Widget child) {
@@ -51,7 +51,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      when(() => mockAuth.verifyPin('1234')).thenAnswer((_) async => true);
+      when(() => mockAuth.authenticate(pin: '1234')).thenAnswer((_) async => true);
 
       await tester.pumpWidget(wrap(const PinEntryScreen()));
       await tester.pumpAndSettle();
@@ -63,7 +63,7 @@ void main() {
       
       await tester.pumpAndSettle();
 
-      verify(() => mockAuth.verifyPin('1234')).called(1);
+      verify(() => mockAuth.authenticate(pin: '1234')).called(1);
       expect(find.text('Dashboard Page'), findsOneWidget);
     });
 
@@ -72,7 +72,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      when(() => mockAuth.verifyPin('0000')).thenAnswer((_) async => false);
+      when(() => mockAuth.authenticate(pin: '0000')).thenAnswer((_) async => false);
 
       await tester.pumpWidget(wrap(const PinEntryScreen()));
       await tester.pumpAndSettle();
@@ -84,7 +84,7 @@ void main() {
       
       await tester.pumpAndSettle();
 
-      verify(() => mockAuth.verifyPin('0000')).called(1);
+      verify(() => mockAuth.authenticate(pin: '0000')).called(1);
       expect(find.text('Incorrect PIN. Please try again.'), findsOneWidget);
     });
 
@@ -94,7 +94,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       // Stub specifically for the expected pin after backspace
-      when(() => mockAuth.verifyPin('1345')).thenAnswer((_) async => true);
+      when(() => mockAuth.authenticate(pin: '1345')).thenAnswer((_) async => true);
 
       await tester.pumpWidget(wrap(const PinEntryScreen()));
       await tester.pumpAndSettle();
@@ -111,7 +111,7 @@ void main() {
       await tester.tap(find.text('5'));
       
       await tester.pumpAndSettle();
-      verify(() => mockAuth.verifyPin('1345')).called(1);
+      verify(() => mockAuth.authenticate(pin: '1345')).called(1);
     });
   });
 }

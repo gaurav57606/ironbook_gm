@@ -10,6 +10,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide AppSettingsAdapter, MemberSnapshotAdapter;
 import 'dart:io';
 
@@ -19,6 +20,7 @@ class MockHmacService extends Mock implements HmacService {}
 class MockMemberRepo extends Mock implements IMemberRepository {}
 class MockPlanRepo extends Mock implements IPlanRepository {}
 class MockPrefRepo extends Mock implements IPreferencesRepository {}
+class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 class FakeMemberSnapshot extends Fake implements MemberSnapshot {}
 
@@ -28,6 +30,7 @@ void main() {
   late MockPlanRepo mockPlanRepo;
   late MockPrefRepo mockPrefRepo;
   late MockClock mockClock;
+  late MockSyncCoordinator mockCoordinator;
   late MockHmacService mockHmac;
   late Box<DomainEvent> eventBox;
   late LazyBox<MemberSnapshot> snapshotBox;
@@ -53,11 +56,13 @@ void main() {
     mockPlanRepo = MockPlanRepo();
     mockPrefRepo = MockPrefRepo();
     mockClock = MockClock();
+    mockCoordinator = MockSyncCoordinator();
     mockHmac = MockHmacService();
 
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
     when(() => mockHmac.signSnapshot(any(), any())).thenAnswer((_) async => 'mock-sig');
     when(() => mockHmac.verifySnapshot(any(), any(), any())).thenAnswer((_) async => true);
+    when(() => mockCoordinator.triggerSync()).thenReturn(null);
     when(() => mockClock.now).thenReturn(DateTime(2026, 1, 1));
     when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
     when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => []);
@@ -104,7 +109,7 @@ void main() {
       when(() => mockMemberRepo.upsertMember(any())).thenAnswer((_) async => {});
       when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => [snapshot]);
 
-      final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac);
+      final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
       
       // Wait for init/reconcile
       await Future.delayed(const Duration(milliseconds: 100));
@@ -121,7 +126,7 @@ void main() {
        when(() => mockRepo.getAll()).thenAnswer((_) async => []);
        when(() => mockRepo.persist(any())).thenAnswer((_) async {});
        
-       final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac);
+       final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
        await Future.delayed(const Duration(milliseconds: 50));
        
        // Note: addMember requires 'plans' box

@@ -32,7 +32,6 @@ import '../../features/settings/presentation/screens/help_center_screen.dart';
 import '../../features/settings/presentation/screens/about_screen.dart';
 import '../../features/settings/presentation/screens/ownership_transfer_screen.dart';
 import '../../features/backup/presentation/backup_restore_screen.dart';
-import '../../features/home/presentation/widgets/main_shell.dart';
 
 // Newly Added Screens
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
@@ -92,8 +91,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       if (!onboardingDone) {
         if (isOnboarding) return null;
         return '/onboarding';
-         if (isOnboarding || isLoggingIn) return null;
-         return '/onboarding';
       }
 
       // 4. Tier 2 Guard for Protected Routes
@@ -116,16 +113,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
         if (isPinSetup && !unlocked) return '/unlock';
         if (!isPinSetup) return '/setup-pin';
         return '/dashboard';
-      // 5. Auth Guard
-      if (!isAuth && !isLoggingIn && !isOnboarding) {
-         return '/login';
-      }
-
-      // 6. Post-Auth Routing (PIN & Landing)
-      if (isAuth && (isSplash || isLoggingIn || isOnboarding)) {
-         if (isPinSetup && !unlocked) return '/unlock';
-         if (!isPinSetup) return '/setup-pin';
-         return '/dashboard';
       }
 
       // 7. PIN Enforcement
@@ -134,10 +121,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
           return '/unlock';
         }
 
-      if (!isPinSetup &&
-          !isPinSetupPath &&
-          !state.matchedLocation.startsWith('/settings')) {
-        return '/setup-pin';
         if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
           return '/setup-pin';
         }

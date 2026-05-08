@@ -173,7 +173,15 @@ final syncWorkerProvider = Provider<SyncWorker>((ref) {
     outboxRepo,
     coordinator,
     prefs,
-    (coll, id, data) => FirebaseFirestore.instance.collection(coll).doc(id).set(data), // Create-only/Full overwrite
+    (coll, id, data) async {
+      final ref = FirebaseFirestore.instance.collection(coll).doc(id);
+      final existing = await ref.get();
+      if (!existing.exists) {
+        await ref.set(data);
+      }
+      // Document already exists: already synced from another device.
+      // Do NOT overwrite — just fall through so markSynced runs below.
+    },
     () => FirebaseAuth.instance.currentUser?.uid,
     syncWorkerStatusProvider,
     ref,

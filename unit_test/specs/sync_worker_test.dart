@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
@@ -12,6 +13,7 @@ class MockOutboxRepository extends Mock implements OutboxRepository {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockRef extends Mock implements Ref {}
 class MockStatusNotifier extends Mock implements StateController<SyncWorkerState> {}
+class MockSharedPreferences extends Mock implements SharedPreferences {}
 
 void main() {
   late FakeEventRepository mockRepo;
@@ -19,6 +21,7 @@ void main() {
   late MockOutboxRepository mockOutbox;
   late MockSyncCoordinator mockCoordinator;
   late MockRef mockRef;
+  late MockSharedPreferences mockPrefs;
   late SyncWorker syncWorker;
   final statusProvider = StateProvider<SyncWorkerState>((ref) => SyncWorkerState(status: SyncWorkerStatus.idle));
 
@@ -32,6 +35,7 @@ void main() {
     mockOutbox = MockOutboxRepository();
     mockCoordinator = MockSyncCoordinator();
     mockRef = MockRef();
+    mockPrefs = MockSharedPreferences();
 
     // Default stubs
     when(() => mockCoordinator.onSyncRequested).thenAnswer((_) => const Stream.empty());
@@ -39,6 +43,8 @@ void main() {
     when(() => mockCoordinator.releaseLock(any())).thenAnswer((_) async {});
     when(() => mockOutbox.markSynced(any())).thenAnswer((_) async {});
     when(() => mockOutbox.getUnsyncedEvents()).thenAnswer((_) async => []);
+    when(() => mockPrefs.getInt(any())).thenReturn(null);
+    when(() => mockPrefs.setInt(any(), any())).thenAnswer((_) async => true);
 
     // Mock status provider interaction
     final mockStatusNotifier = MockStatusNotifier();
@@ -46,9 +52,9 @@ void main() {
     when(() => mockStatusNotifier.state = any()).thenReturn(SyncWorkerState(status: SyncWorkerStatus.idle));
 
     syncWorker = SyncWorker(
-      mockRepo, 
       mockOutbox, 
       mockCoordinator, 
+      mockPrefs,
       mockFirestore.set, 
       () => 'user-1',
       statusProvider,

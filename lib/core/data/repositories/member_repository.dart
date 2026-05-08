@@ -10,6 +10,7 @@ import '../../providers/base_providers.dart';
 abstract class IMemberRepository {
   Future<void> upsertMember(MemberSnapshot member);
   Future<void> upsertMembers(List<MemberSnapshot> members);
+  Future<void> archiveMember(String memberId);
   Future<void> deleteMember(String id);
   Future<MemberSnapshot?> getMember(String id);
   Future<List<MemberSnapshot>> getMembers(List<String> ids);
@@ -101,8 +102,14 @@ class DriftMemberRepository implements IMemberRepository {
     if (updated != null) {
       await upsertMember(updated);
     } else if (event.eventType == EventType.memberArchived) {
-      await deleteMember(event.entityId);
+      await archiveMember(event.entityId);
     }
+  }
+
+  @override
+  Future<void> archiveMember(String memberId) async {
+    await (_db.update(_db.members)..where((t) => t.id.equals(memberId)))
+        .write(MembersCompanion(archived: const Value(true)));
   }
 
   @override

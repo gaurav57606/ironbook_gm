@@ -11,6 +11,7 @@ import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockSyncWorker extends Mock implements SyncWorker {}
@@ -19,20 +20,24 @@ class MockHmacService extends Mock implements HmacService {}
 class MockMemberRepo extends Mock implements IMemberRepository {}
 class MockPlanRepo extends Mock implements IPlanRepository {}
 class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
+class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 
 void main() {
   late MockSyncWorker mockSyncWorker;
   late MockEventRepo mockRepo;
+  late MockSyncCoordinator mockCoordinator;
   late MockHmacService mockHmac;
 
   setUp(() {
     mockSyncWorker = MockSyncWorker();
     mockRepo = MockEventRepo();
+    mockCoordinator = MockSyncCoordinator();
     mockHmac = MockHmacService();
     
     when(() => mockSyncWorker.performSync()).thenAnswer((_) async {});
     when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
+    when(() => mockCoordinator.triggerSync()).thenReturn(null);
   });
 
   Widget wrap(Widget child, List<MemberSnapshot> members) {
@@ -41,8 +46,9 @@ void main() {
         syncWorkerProvider.overrideWithValue(mockSyncWorker),
         eventRepositoryProvider.overrideWithValue(mockRepo),
         clockProvider.overrideWithValue(FrozenClock(DateTime(2026, 1, 1))),
+        syncCoordinatorProvider.overrideWithValue(mockCoordinator),
         membersProvider.overrideWith((ref) {
-          final notifier = MemberNotifier(mockRepo, MockMemberRepo(), MockPlanRepo(), MockPreferencesRepo(), FrozenClock(DateTime(2026, 1, 1)), mockHmac as HmacService);
+          final notifier = MemberNotifier(mockRepo, MockMemberRepo(), MockPlanRepo(), MockPreferencesRepo(), FrozenClock(DateTime(2026, 1, 1)), mockHmac, mockCoordinator);
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = members;
           return notifier;

@@ -21,6 +21,7 @@ import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 
 class MockEventRepo extends Mock implements IEventRepository {}
 class MockSyncWorker extends Mock implements SyncWorker {}
@@ -31,11 +32,13 @@ class MockPlanRepo extends Mock implements IPlanRepository {}
 class MockPaymentRepo extends Mock implements IPaymentRepository {}
 class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
 class MockSequenceRepo extends Mock implements ISequenceRepository {}
+class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 
 void main() {
   late MockEventRepo mockRepo;
   late MockSyncWorker mockSyncWorker;
+  late MockSyncCoordinator mockCoordinator;
   late MockHmacService mockHmac;
   late List<Plan> testPlans;
 
@@ -46,12 +49,14 @@ void main() {
   setUp(() {
     mockRepo = MockEventRepo();
     mockSyncWorker = MockSyncWorker();
+    mockCoordinator = MockSyncCoordinator();
     mockHmac = MockHmacService();
 
     when(() => mockSyncWorker.performSync()).thenAnswer((_) async {});
     when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
     when(() => mockRepo.persist(any())).thenAnswer((_) async {});
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
+    when(() => mockCoordinator.triggerSync()).thenReturn(null);
 
     testPlans = [
       Plan(
@@ -74,6 +79,7 @@ void main() {
       overrides: [
         syncWorkerProvider.overrideWithValue(mockSyncWorker),
         eventRepositoryProvider.overrideWithValue(mockRepo),
+        syncCoordinatorProvider.overrideWithValue(mockCoordinator),
         clockProvider.overrideWithValue(FrozenClock(DateTime(2024, 1, 1))),
         // Mock Notifiers
         planProvider.overrideWith((ref) {
@@ -89,7 +95,8 @@ void main() {
             MockPlanRepo(), 
             MockPreferencesRepo(),
             FrozenClock(DateTime(2024, 1, 1)), 
-            mockHmac as HmacService
+            mockHmac,
+            mockCoordinator
           );
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = [];
@@ -104,7 +111,8 @@ void main() {
             MockPaymentRepo(), 
             MockMemberRepo(),
             clock, 
-            mockHmac as HmacService
+            mockHmac,
+            mockCoordinator
           )..debugState = [];
         }),
       ],

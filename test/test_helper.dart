@@ -293,6 +293,15 @@ class FakeDriftEventRepository implements IEventRepository {
   @override
   Future<List<DomainEvent>> getByEntityId(String entityId) async =>
       _events.where((e) => e.entityId == entityId).toList();
+
+  @override
+  Future<Map<String, List<DomainEvent>>> getByEntityIds(List<String> entityIds) async {
+    final result = <String, List<DomainEvent>>{};
+    for (final id in entityIds) {
+      result[id] = _events.where((e) => e.entityId == id).toList();
+    }
+    return result;
+  }
   @override
   Future<List<DomainEvent>> getAll() async => List.unmodifiable(_events);
   @override
@@ -445,6 +454,10 @@ class FakeSyncCoordinator extends Fake implements SyncCoordinator {
   void triggerSync() {}
   @override
   Stream<void> get onSyncRequested => const Stream.empty();
+  @override
+  Future<bool> acquireLock(String holderId) async => true;
+  @override
+  Future<void> releaseLock(String holderId) async {}
 }
 
 class FakePaymentNotifier extends StateNotifier<List<Payment>>

@@ -86,6 +86,7 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   mocktail: ^1.0.3
+  fake_cloud_firestore: ^3.1.0
 
 
 flutter:

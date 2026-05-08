@@ -10,6 +10,7 @@ import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide MemberSnapshotAdapter;
 
@@ -19,6 +20,7 @@ class MockPlanRepository extends Mock implements IPlanRepository {}
 class MockPreferencesRepository extends Mock implements IPreferencesRepository {}
 class MockClock extends Mock implements IClock {}
 class MockHmacService extends Mock implements HmacService {}
+class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 
 void main() {
   late MockEventRepository mockRepo;
@@ -26,6 +28,7 @@ void main() {
   late MockPlanRepository mockPlanRepo;
   late MockPreferencesRepository mockPrefRepo;
   late MockClock mockClock;
+  late MockSyncCoordinator mockCoordinator;
   late MockHmacService mockHmac;
   late Directory tempDir;
 
@@ -50,12 +53,14 @@ void main() {
     mockPlanRepo = MockPlanRepository();
     mockPrefRepo = MockPreferencesRepository();
     mockClock = MockClock();
+    mockCoordinator = MockSyncCoordinator();
     mockHmac = MockHmacService();
 
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
     when(() => mockHmac.signSnapshot(any(), any())).thenAnswer((_) async => 'mock-sig');
     when(() => mockHmac.verifySnapshot(any(), any(), any())).thenAnswer((_) async => true);
     when(() => mockHmac.verifyInstance(any())).thenAnswer((_) async => true);
+    when(() => mockCoordinator.triggerSync()).thenReturn(null);
 
     when(() => mockClock.now).thenReturn(DateTime(2026, 1, 1));
     when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
@@ -113,7 +118,7 @@ void main() {
     await snapshotBox.clear();
 
     final stopwatch = Stopwatch()..start();
-    final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac);
+    final notifier = MemberNotifier(mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockCoordinator);
 
     await notifier.init();
     stopwatch.stop();

@@ -39,6 +39,15 @@ class FakeEventRepository implements IEventRepository {
       _events.where((e) => e.entityId == entityId).toList();
 
   @override
+  Future<Map<String, List<DomainEvent>>> getByEntityIds(List<String> entityIds) async {
+    final Map<String, List<DomainEvent>> result = {};
+    for (final id in entityIds) {
+      result[id] = _events.where((e) => e.entityId == id).toList();
+    }
+    return result;
+  }
+
+  @override
   Future<List<DomainEvent>> getAll() async => List.from(_events);
 
   @override
