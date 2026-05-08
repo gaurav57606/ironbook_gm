@@ -116,13 +116,23 @@ class OutboxRepository {
       mode: InsertMode.insertOrReplace,
     );
   }
+
+  Future<void> clearAll() async {
+    await _db.batch((batch) {
+      batch.deleteAll(_db.outboxEvents);
+      batch.deleteAll(_db.members);
+      batch.deleteAll(_db.payments);
+      batch.deleteAll(_db.plans);
+      batch.deleteAll(_db.sales);
+      batch.deleteAll(_db.pinAttempts);
+      batch.deleteAll(_db.invoiceSequences);
+      batch.deleteAll(_db.products);
+      batch.deleteAll(_db.preferences);
+      batch.deleteAll(_db.ownerProfiles);
+      batch.deleteAll(_db.appSettingsTable);
+      batch.deleteAll(_db.nutritionPlans);
+      batch.deleteAll(_db.mealItems);
+      batch.deleteAll(_db.waterLogs);
+    });
+  }
 }
-
-
-
-
-
-
-
-
-
