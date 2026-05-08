@@ -1,37 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_text_styles.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
-import '../../../../core/providers/member_provider.dart';
-import '../../../../core/providers/auth_provider.dart';
-import '../../../../core/data/local/models/member_snapshot_model.dart';
-import '../../../../shared/utils/date_formatter.dart';
-import '../../../../shared/utils/greeting_formatter.dart';
-import 'package:go_router/go_router.dart';
-import '../widgets/stats_card.dart';
-import '../widgets/member_health_donut.dart';
-import '../widgets/alert_banner.dart';
-import '../widgets/member_row.dart';
-import '../../../../core/data/sync_worker.dart';
-import '../../../../core/providers/bootstrap_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../widgets/nutrition_summary_card.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../shared/widgets/app_section_header.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../widgets/sync_status_badge.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ⚡ Bolt: Use .select() to only rebuild when the specific field changes
     final membersLength = ref.watch(membersProvider.select((m) => m.length));
-    final auth = ref.watch(authProvider);
-    final unsyncedCount = ref.watch(unsyncedCountProvider).valueOrNull ?? 0;
-    final tier2Status = ref.watch(tier2StatusProvider);
-    final syncState = ref.watch(syncWorkerStatusProvider);
-
-    // ⚡ Bolt: Extract expensive O(N) calculations to memoized providers
-    // This prevents recalculating member states and revenue on every UI rebuild
-    // (e.g., when the syncState badge updates every second).
+    final gymName = ref.watch(ownerProvider.select((o) => o?.gymName ?? 'IRONBOOK GM'));
+    
+    // ⚡ Bolt: Moved frequently updating sync state to isolated SyncStatusBadge widget
+    // Removing these watches from the top-level DashboardScreen prevents 
+    // the entire screen (including charts) from rebuilding every second during sync.
     final memberStats = ref.watch(dashboardMemberStatsProvider);
     final revenueStats = ref.watch(dashboardRevenueProvider);
 
@@ -49,10 +35,9 @@ class DashboardScreen extends ConsumerWidget {
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
-                    child: _buildHeader(
-                        auth, unsyncedCount, tier2Status, syncState)),
+                    child: _buildHeader(gymName)),
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
                   sliver: SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,14 +47,15 @@ class DashboardScreen extends ConsumerWidget {
                             memberStats.activeCount,
                             memberStats.expiringCount,
                             memberStats.expiredCount),
-                        const SizedBox(height: 20),
+                        AppSpacing.gapXL,
                         MemberHealthDonut(
                           active: memberStats.activeCount,
                           expiring: memberStats.expiringCount,
                           expired: memberStats.expiredCount,
                         ),
-                        const SizedBox(height: 24),
-                        _buildSyncDebtBanner(unsyncedCount, syncState),
+                        AppSpacing.gapXL,
+                        const SyncStatusBadge(), // Rebuilds isolated here
+                        AppSpacing.gapL,
                         if (memberStats.expiredCount > 0)
                           AlertBanner(
                             title:
@@ -81,7 +67,7 @@ class DashboardScreen extends ConsumerWidget {
                         if (memberStats.expiringCount > 0)
                           Padding(
                             padding: EdgeInsets.only(
-                                top: memberStats.expiredCount > 0 ? 8 : 0),
+                                top: memberStats.expiredCount > 0 ? AppSpacing.s : 0),
                             child: AlertBanner(
                               title:
                                   '${memberStats.expiringCount} expiring in 7 days',
@@ -90,11 +76,32 @@ class DashboardScreen extends ConsumerWidget {
                               isError: false,
                             ),
                           ),
-                        _buildSectionHeader(context, 'DUE TODAY', 'Show all'),
+                        AppSectionHeader(
+                          title: 'DUE TODAY',
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sectionGap),
+                          trailing: GestureDetector(
+                            onTap: () => context.go('/gym'),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'SHOW ALL',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary),
+                                ),
+                                AppSpacing.gapXS,
+                                const Icon(Icons.arrow_forward_ios_rounded,
+                                    size: 8, color: AppColors.primary),
+                              ],
+                            ),
+                          ),
+                        ),
                         _buildDueList(memberStats.dueMembers),
-                        const SizedBox(height: 32),
-                        _buildSectionHeader(
-                            context, 'REVENUE THIS MONTH', null),
+                        const AppSectionHeader(
+                          title: 'REVENUE THIS MONTH',
+                          padding: EdgeInsets.symmetric(vertical: AppSpacing.sectionGap),
+                        ),
                         _buildRevenueCard(revenueStats.currentRevenue.toInt(),
                             revenueStats.trend, revenueStats.dailyRevenue),
                         const NutritionSummaryCard(),
@@ -112,10 +119,9 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(AuthState auth, int unsyncedCount,
-      Tier2Status tier2Status, SyncWorkerState syncState) {
+  Widget _buildHeader(String gymName) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, AppSpacing.xl, AppSpacing.screenPadding, AppSpacing.sectionGap),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -124,14 +130,11 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               Text(
                 '${GreetingFormatter.greeting()},'.toUpperCase(),
-                style: AppTextStyles.sectionTitle.copyWith(
-                    fontSize: 8,
-                    letterSpacing: 1.5,
-                    color: AppColors.textMuted),
+                style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted),
               ),
-              const SizedBox(height: 4),
+              AppSpacing.gapXS,
               Text(
-                auth.owner?.gymName ?? 'IRONBOOK GM',
+                gymName,
                 style: AppTextStyles.cardTitle
                     .copyWith(fontSize: 22, fontWeight: FontWeight.w900),
               ),
@@ -144,15 +147,13 @@ class DashboardScreen extends ConsumerWidget {
                     color: AppColors.textMuted,
                     letterSpacing: 1.0),
               ),
-              const SizedBox(height: 8),
-              _buildSyncBadge(unsyncedCount, tier2Status, syncState),
             ],
           ),
           Container(
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: AppRadius.radiusL,
             ),
             child: Container(
               width: 44,
@@ -161,7 +162,7 @@ class DashboardScreen extends ConsumerWidget {
                 color: AppColors.elevation4,
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(AppSpacing.s),
               child: Image.asset(
                 'assets/images/logo.png',
                 fit: BoxFit.contain,
@@ -177,104 +178,16 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSyncBadge(
-      int count, Tier2Status status, SyncWorkerState syncState) {
-    if (count == 0 &&
-        status != Tier2Status.degraded &&
-        syncState.status == SyncWorkerStatus.idle) {
-      if (syncState.lastSuccessAt == null) return const SizedBox.shrink();
-
-      return Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          'LAST SECURED: ${syncState.lastSuccessAt!.hour}:${syncState.lastSuccessAt!.minute.toString().padLeft(2, "0")}',
-          style: AppTextStyles.sectionTitle.copyWith(
-              fontSize: 6, letterSpacing: 0.5, color: AppColors.textMuted),
-        ),
-      );
-    }
-
-    final isSyncing = syncState.status == SyncWorkerStatus.syncing || count > 0;
-    final isFailed = syncState.status == SyncWorkerStatus.failed;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TweenAnimationBuilder<double>(
-          duration: const Duration(seconds: 1),
-          tween: Tween(begin: 0.5, end: 1.0),
-          curve: Curves.easeInOut,
-          onEnd: () {},
-          builder: (context, value, child) {
-            return Opacity(
-              opacity: isSyncing ? value : 1.0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isFailed
-                      ? AppColors.expired.withValues(alpha: 0.1)
-                      : AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isFailed
-                        ? AppColors.expired.withValues(alpha: 0.2)
-                        : AppColors.primary.withValues(alpha: 0.2),
-                    width: 0.5,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isFailed
-                          ? Icons.sync_problem_rounded
-                          : (isSyncing
-                              ? Icons.cloud_sync_rounded
-                              : Icons.cloud_done_rounded),
-                      size: 10,
-                      color: isFailed ? AppColors.expired : AppColors.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isFailed
-                          ? 'SYNC ERROR'
-                          : (isSyncing
-                              ? '$count ITEM(S) SECURING'
-                              : 'DATA SECURED'),
-                      style: AppTextStyles.sectionTitle.copyWith(
-                        fontSize: 7,
-                        letterSpacing: 0.5,
-                        color: isFailed ? AppColors.expired : AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-        if (syncState.lastSuccessAt != null && !isSyncing)
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: Text(
-              '${syncState.lastSuccessAt!.hour}:${syncState.lastSuccessAt!.minute.toString().padLeft(2, "0")}',
-              style: AppTextStyles.sectionTitle
-                  .copyWith(fontSize: 6, color: AppColors.textMuted),
-            ),
-          ),
-      ],
-    );
-  }
 
   Widget _buildStatsGrid(int total, int active, int expiring, int expired) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: GridView.count(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: 2,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
+        mainAxisSpacing: AppSpacing.s,
+        crossAxisSpacing: AppSpacing.s,
         childAspectRatio: 1.8,
         children: [
           StatsCard(
@@ -296,40 +209,6 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionHeader(
-      BuildContext context, String title, String? action) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 32, 0, 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: AppTextStyles.sectionTitle
-                .copyWith(fontSize: 9, letterSpacing: 2.0),
-          ),
-          if (action != null)
-            GestureDetector(
-              onTap: () => context.go('/gym'),
-              child: Row(
-                children: [
-                  Text(
-                    action.toUpperCase(),
-                    style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward_ios_rounded,
-                      size: 8, color: AppColors.primary),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildDueList(List<MemberSnapshot> due) {
     if (due.isEmpty) {
@@ -338,19 +217,18 @@ class DashboardScreen extends ConsumerWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.elevation1,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: AppRadius.radiusXL,
           border: Border.all(color: AppColors.border),
         ),
         child: Text('NO TASKS DUE TODAY',
-            style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 9, letterSpacing: 1.0, color: AppColors.textMuted)),
+            style: AppTextStyles.tiny.copyWith(letterSpacing: 1.0, color: AppColors.textMuted)),
       );
     }
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.elevation1,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppRadius.radiusXXL,
         border: Border.all(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
@@ -383,10 +261,10 @@ class DashboardScreen extends ConsumerWidget {
     final isPositive = trend >= 0;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: AppColors.elevation2,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: AppRadius.radiusXXL,
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
@@ -397,16 +275,15 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               Text(
                 'COLLECTED REVENUE'.toUpperCase(),
-                style: AppTextStyles.sectionTitle
-                    .copyWith(fontSize: 8, color: AppColors.textMuted),
+                style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted),
               ),
-              const SizedBox(height: 6),
+              AppSpacing.gapS,
               Text(
                 '₹$totalRevenue',
                 style: AppTextStyles.cardTitle
                     .copyWith(fontSize: 24, color: AppColors.primary),
               ),
-              const SizedBox(height: 4),
+              AppSpacing.gapXS,
               Row(
                 children: [
                   Icon(
@@ -416,7 +293,7 @@ class DashboardScreen extends ConsumerWidget {
                     size: 12,
                     color: isPositive ? AppColors.green : AppColors.red,
                   ),
-                  const SizedBox(width: 4),
+                  AppSpacing.gapXS,
                   Text(
                     '${trend.abs().toStringAsFixed(1)}% ${isPositive ? "increase" : "decrease"}',
                     style: AppTextStyles.bodySmall.copyWith(
@@ -453,7 +330,7 @@ class DashboardScreen extends ConsumerWidget {
             margin: const EdgeInsets.only(left: 3),
             decoration: BoxDecoration(
               color: isLast ? AppColors.orange : AppColors.bg4,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: AppRadius.radiusXS,
             ),
           );
         }),
@@ -461,23 +338,5 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSyncDebtBanner(int count, SyncWorkerState state) {
-    if (count < 10 && state.status != SyncWorkerStatus.failed) {
-      return const SizedBox.shrink();
-    }
-
-    final isHighDebt = count > 20;
-    final isError = state.status == SyncWorkerStatus.failed;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: AlertBanner(
-        title: isError ? 'SYNC ENGINE ERROR' : 'PENDING SYNC DEBT',
-        subtitle: isError
-            ? 'Recent changes are not secured in the cloud. Check connection.'
-            : 'Warning: $count items unsynced. Do NOT uninstall the app.',
-        isError: isHighDebt || isError,
-      ),
-    );
   }
 }

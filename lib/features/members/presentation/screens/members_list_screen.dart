@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_shadows.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import '../../../../shared/utils/date_formatter.dart';
 import '../../../../shared/utils/clock.dart';
 import 'package:go_router/go_router.dart';
+import '../widgets/member_list_item.dart';
 
 class MembersListScreen extends ConsumerWidget {
   const MembersListScreen({super.key});
@@ -14,8 +17,8 @@ class MembersListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filteredMembers = ref.watch(filteredMembersProvider);
-    final allMembers = ref.watch(membersProvider);
-    final allMembersCount = allMembers.length;
+    // ⚡ Bolt: Use .select() to avoid rebuilds when member data changes but count stays same
+    final allMembersCount = ref.watch(membersProvider.select((m) => m.length));
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -29,20 +32,29 @@ class MembersListScreen extends ConsumerWidget {
             _buildQuickStats(context, ref),
             _buildSearchAndFilters(context, ref),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                children: [
-                  _buildMemberListContainer(context, filteredMembers, ref),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Text(
-                      'Showing ${filteredMembers.length} of $allMembersCount members',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-                    ),
+              child: filteredMembers.isEmpty 
+                ? const AppEmptyState(
+                    title: 'No members found',
+                    icon: Icons.people_outline_rounded,
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
+                    itemCount: filteredMembers.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == filteredMembers.length) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                          child: Center(
+                            child: Text(
+                              'Showing ${filteredMembers.length} of $allMembersCount members',
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                            ),
+                          ),
+                        );
+                      }
+                      return MemberListItem(member: filteredMembers[index]);
+                    },
                   ),
-                  const SizedBox(height: 20),
-                ],
-              ),
             ),
           ],
         ),
@@ -50,9 +62,10 @@ class MembersListScreen extends ConsumerWidget {
     );
   }
 
+
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 14, right: 14, top: 44, bottom: 8),
+      padding: const EdgeInsets.only(left: AppSpacing.screenPadding, right: AppSpacing.screenPadding, top: AppSpacing.xxxl, bottom: AppSpacing.s),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -63,22 +76,16 @@ class MembersListScreen extends ConsumerWidget {
           GestureDetector(
              onTap: () => context.push('/gym/add-member'),
              child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
               decoration: BoxDecoration(
                 gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                borderRadius: AppRadius.radiusM,
+                boxShadow: AppShadows.primary,
               ),
               child: const Row(
                 children: [
                   Icon(Icons.add_rounded, size: 16, color: Colors.white),
-                  SizedBox(width: 6),
+                  AppSpacing.gapS,
                   Text('New Member', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                 ],
               ),
@@ -106,13 +113,13 @@ class MembersListScreen extends ConsumerWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
       child: Row(
         children: [
           _buildStatItem('ACTIVE', active.toString(), AppColors.active),
-          const SizedBox(width: 10),
+          AppSpacing.gapS,
           _buildStatItem('EXPIRING', expiring.toString(), AppColors.expiring),
-          const SizedBox(width: 10),
+          AppSpacing.gapS,
           _buildStatItem('TOTAL', all.length.toString(), AppColors.primary),
         ],
       ),
@@ -122,17 +129,17 @@ class MembersListScreen extends ConsumerWidget {
   Widget _buildStatItem(String label, String value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.m),
         decoration: BoxDecoration(
           color: AppColors.elevation2,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: AppRadius.radiusXL,
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted, fontSize: 8)),
-            const SizedBox(height: 4),
+            Text(label, style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted)),
+            AppSpacing.gapXS,
             Text(value, style: AppTextStyles.cardTitle.copyWith(color: color, fontSize: 18)),
           ],
         ),
@@ -144,12 +151,12 @@ class MembersListScreen extends ConsumerWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
           child: Container(
             height: 44,
             decoration: BoxDecoration(
               color: AppColors.elevation2,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: AppRadius.radiusL,
               border: Border.all(color: AppColors.border),
             ),
             child: TextField(
@@ -160,29 +167,29 @@ class MembersListScreen extends ConsumerWidget {
                 hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
                 prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textMuted),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.m),
               ),
             ),
           ),
         ),
         _buildPillTabs(ref),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
           child: Row(
             children: [
-              Text('SORT BY', style: AppTextStyles.sectionTitle.copyWith(fontSize: 8)),
-              const SizedBox(width: 8),
+              Text('SORT BY', style: AppTextStyles.sectionTitle),
+              AppSpacing.gapS,
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s, vertical: AppSpacing.xs),
                 decoration: BoxDecoration(
                   color: AppColors.elevation2,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: AppRadius.radiusS,
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
                   children: [
                     Text('Expiry (Soonest)', style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.text, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 4),
+                    AppSpacing.gapXS,
                     const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textMuted),
                   ],
                 ),
@@ -223,11 +230,11 @@ class MembersListScreen extends ConsumerWidget {
     ];
     
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
       height: 40,
       decoration: BoxDecoration(
         color: AppColors.elevation1,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppRadius.radiusM,
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
@@ -255,7 +262,7 @@ class MembersListScreen extends ConsumerWidget {
                         color: isSelected ? Colors.white : AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    AppSpacing.gapXS,
                     Text(
                       '(${tab['count']})',
                       style: TextStyle(
@@ -270,131 +277,6 @@ class MembersListScreen extends ConsumerWidget {
             ),
           );
         }),
-      ),
-    );
-  }
-
-  Widget _buildMemberListContainer(BuildContext context, List<MemberSnapshot> members, WidgetRef ref) {
-    if (members.isEmpty) {
-      return Container(
-        height: 200,
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline_rounded, size: 48, color: AppColors.textMuted.withValues(alpha: 0.3)),
-            const SizedBox(height: 12),
-            Text('No members found', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
-          ],
-        ),
-      );
-    }
-
-    // ⚡ Bolt: Extracted `ref.watch` outside loop to prevent O(N) dependency evaluations
-    final now = ref.watch(clockProvider).now;
-
-    return Column(
-      children: List.generate(members.length, (index) {
-        final m = members[index];
-        final statusMsg = _getStatusMessage(m, now);
-        final statusColor = _getStatusColor(m, now);
-        
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _buildMemberItem(
-            context,
-            m,
-            m.name.isNotEmpty ? m.name.substring(0, 1).toUpperCase() : '?',
-            '${m.planName ?? "N/A"} · Since ${_formatDate(m.joinDate)}',
-            statusMsg,
-            statusColor,
-          ),
-        );
-      }),
-    );
-  }
-
-  String _getStatusMessage(MemberSnapshot m, DateTime now) {
-    final days = m.getDaysRemaining(now);
-    if (days < 0) return 'Expired';
-    if (days == 0) return 'Today';
-    if (days <= 7) return '$days days';
-    return '${days}d';
-  }
-
-  Color _getStatusColor(MemberSnapshot m, DateTime now) {
-    final status = m.getStatus(now);
-    switch (status) {
-      case MemberStatus.active: return AppColors.green;
-      case MemberStatus.expiring: return AppColors.amber;
-      case MemberStatus.expired: return AppColors.red;
-      case MemberStatus.pending: return AppColors.text3;
-    }
-  }
-
-  String _formatDate(DateTime d) => DateFormatter.formatShort(d);
-
-  Widget _buildMemberItem(BuildContext context, MemberSnapshot member, String initials, String subtitle, String status, Color color) {
-    return GestureDetector(
-      onTap: () => context.push('/gym/member-details/${member.memberId}'),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.elevation2,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.1)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: color.withValues(alpha: 0.2)),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                initials,
-                style: AppTextStyles.cardTitle.copyWith(fontSize: 16, color: color),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(member.name, style: AppTextStyles.memberName.copyWith(fontSize: 14)),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.textMuted)),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: color.withValues(alpha: 0.1)),
-              ),
-              child: Row(
-                children: [
-                  Container(width: 5, height: 5, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-                  const SizedBox(width: 6),
-                  Text(
-                    status,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: color),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

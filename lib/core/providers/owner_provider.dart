@@ -1,6 +1,11 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/repositories/owner_repository.dart';
+import '../data/repositories/event_repository.dart';
 import '../data/local/models/owner_profile_model.dart';
+import '../data/local/models/domain_event_model.dart';
+import '../services/hmac_service.dart';
 import 'base_providers.dart';
 
 final ownerRepositoryProvider = Provider<IOwnerRepository>((ref) {
@@ -10,22 +15,58 @@ final ownerRepositoryProvider = Provider<IOwnerRepository>((ref) {
 
 final ownerProvider = StateNotifierProvider<OwnerNotifier, OwnerProfile?>((ref) {
   final repo = ref.watch(ownerRepositoryProvider);
-  return OwnerNotifier(repo);
+  final eventRepo = ref.watch(eventRepositoryProvider);
+  final hmac = ref.watch(hmacServiceProvider);
+  return OwnerNotifier(repo, eventRepo, hmac);
 });
 
 class OwnerNotifier extends StateNotifier<OwnerProfile?> {
   final IOwnerRepository _repo;
+  final IEventRepository _eventRepo;
+  final HmacService _hmac;
+  StreamSubscription? _eventSubscription;
+  String _deviceId = 'device-unknown';
 
-  OwnerNotifier(this._repo) : super(null) {
+  OwnerNotifier(this._repo, this._eventRepo, this._hmac) : super(null) {
     _init();
   }
 
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> _init() async {
+    _deviceId = await _hmac.getInstallationId();
+    
+    // 1. Listen for owner events
+    _eventSubscription = _eventRepo.watch().listen((event) async {
+      if (event.eventType == EventType.ownerProfileCreated || 
+          event.eventType == EventType.ownerProfileUpdated) {
+        debugPrint('[STATE] OwnerNotifier: Processing owner event');
+        await _repo.applyEvent(event);
+        if (mounted) {
+          state = await _repo.getOwner();
+        }
+      }
+    });
+
+    // 2. Load initial state
     state = await _repo.getOwner();
   }
 
   Future<void> updateOwner(OwnerProfile profile) async {
+    // Emit event
+    final event = DomainEvent(
+      entityId: 'owner',
+      eventType: EventType.ownerProfileUpdated,
+      deviceId: _deviceId,
+      deviceTimestamp: DateTime.now(),
+      payload: profile.toJson(),
+    );
+
+    await _eventRepo.persist(event);
     await _repo.upsertOwner(profile);
-    state = profile;
   }
 }

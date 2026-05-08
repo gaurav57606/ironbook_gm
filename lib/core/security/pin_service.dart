@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
@@ -139,21 +140,45 @@ class PinService {
 
   Future<AuthResult> authenticateWithBiometric() async {
     try {
-      if (kIsWeb) return AuthResult.failure; // Biometrics not supported on web in this implementation
+      if (kIsWeb) return AuthResult.failure; 
+      
       final canCheck = await _localAuth.canCheckBiometrics;
       final isSupported = await _localAuth.isDeviceSupported();
-      if (!canCheck || !isSupported) return AuthResult.failure;
+      
+      if (!isSupported) {
+        debugPrint('[BIOMETRIC] Hardware not supported on this device.');
+        return AuthResult.failure;
+      }
+      
+      if (!canCheck) {
+        debugPrint('[BIOMETRIC] No biometrics enrolled or permission denied.');
+        return AuthResult.failure;
+      }
 
       final success = await _localAuth.authenticate(
         localizedReason: 'Verify your identity to open IronBook GM',
         options: const AuthenticationOptions(
           biometricOnly: true,
           stickyAuth: true,
+          useErrorDialogs: true,
         ),
       );
-      return success ? AuthResult.success : AuthResult.canceled;
+      
+      if (success) {
+        debugPrint('[BIOMETRIC] Authentication successful.');
+        return AuthResult.success;
+      } else {
+        debugPrint('[BIOMETRIC] Authentication canceled or failed.');
+        return AuthResult.canceled;
+      }
+    } on PlatformException catch (e) {
+      debugPrint('[BIOMETRIC] Platform Error: ${e.code} - ${e.message}');
+      if (e.code == 'LockedOut' || e.code == 'PermanentlyLockedOut') {
+        return AuthResult.lockedOut;
+      }
+      return AuthResult.failure;
     } catch (e) {
-      debugPrint('PinService: Biometric Auth Error: $e');
+      debugPrint('[BIOMETRIC] Unexpected Error: $e');
       return AuthResult.failure;
     }
   }

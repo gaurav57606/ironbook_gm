@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/utils/date_utils.dart';
-import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
@@ -120,7 +123,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
               _buildAppBar(context),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
                   children: [
                     AppTextField(label: 'Full Name', hint: 'Enter member name', controller: _nameController, enabled: !_isSaving),
                     AppTextField(label: 'Phone Number', hint: '10-digit mobile number', keyboardType: TextInputType.phone, controller: _phoneController, enabled: !_isSaving),
@@ -131,18 +134,18 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildSectionHeader('GENDER'),
+                              const AppSectionHeader(title: 'Gender'),
                               _buildGenderChips(),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        AppSpacing.gapM,
                         Expanded(
                           child: AppTextField(label: 'Age', hint: 'Years', keyboardType: TextInputType.number, controller: _ageController, enabled: !_isSaving),
                         ),
                       ],
                     ),
-                    _buildSectionHeader('SELECT PLAN'),
+                    const AppSectionHeader(title: 'Select Plan'),
                     if (plans.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(8.0),
@@ -151,11 +154,11 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                       )
                     else
                       _buildPlanChips(plans),
-                    const SizedBox(height: 12),
+                    AppSpacing.gapM,
                     if (plans.isNotEmpty) _buildPlanSummary(plans[_selectedPlanIndex]),
-                    _buildSectionHeader('PAYMENT METHOD'),
+                    const AppSectionHeader(title: 'Payment Method'),
                     _buildPaymentChips(),
-                    const SizedBox(height: 32),
+                    AppSpacing.gapXL,
                     AppButton(
                       key: const Key('register_button'),
                       text: _isSaving ? 'Registering...' : 'Register & Generate Invoice',
@@ -173,7 +176,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
   }
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 14, right: 14, top: 12, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -184,7 +187,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
               height: 40,
               decoration: BoxDecoration(
                 color: AppColors.elevation2,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: AppRadius.radiusM,
                 border: Border.all(color: AppColors.border),
               ),
               child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.text),
@@ -200,15 +203,6 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
-      child: Text(
-        title,
-        style: AppTextStyles.sectionTitle.copyWith(fontSize: 9, letterSpacing: 2.0),
-      ),
-    );
-  }
 
   Widget _buildPlanChips(List<db.Plan> plans) {
     return Wrap(
@@ -219,11 +213,11 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
         return GestureDetector(
           onTap: _isSaving ? null : () => setState(() => _selectedPlanIndex = index),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.s),
             decoration: BoxDecoration(
               gradient: isSelected ? AppColors.primaryGradient : null,
               color: isSelected ? null : AppColors.elevation1,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppRadius.radiusM,
               border: isSelected ? null : Border.all(color: AppColors.border),
               boxShadow: isSelected ? [
                 BoxShadow(
@@ -261,7 +255,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
               decoration: BoxDecoration(
                 gradient: isSelected ? AppColors.primaryGradient : null,
                 color: isSelected ? null : AppColors.elevation1,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: AppRadius.radiusS,
                 border: Border.all(color: AppColors.border),
               ),
               alignment: Alignment.center,
@@ -293,7 +287,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
               decoration: BoxDecoration(
                 gradient: isSelected ? AppColors.primaryGradient : null,
                 color: isSelected ? null : AppColors.elevation1,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: AppRadius.radiusS,
                 border: isSelected ? null : Border.all(color: AppColors.border),
               ),
               alignment: Alignment.center,
@@ -317,12 +311,13 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     final expiryStr = '${expiryDate.day} ${_getMonthName(expiryDate.month)} ${expiryDate.year}';
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 24),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(vertical: AppSpacing.l),
+      padding: const EdgeInsets.all(AppSpacing.l),
       decoration: BoxDecoration(
         color: AppColors.elevation2,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: AppRadius.radiusXL,
         border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,10 +330,10 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                 style: AppTextStyles.sectionTitle.copyWith(fontSize: 9, letterSpacing: 1.5),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s, vertical: AppSpacing.xs),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: AppRadius.radiusXS,
                 ),
                 child: Text(
                   plan.name.toUpperCase(),

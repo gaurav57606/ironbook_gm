@@ -3,9 +3,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ConfigService {
+  bool _isHealthy = false;
+  bool get isHealthy => _isHealthy;
+
   Future<void> init() async {
     try {
       await dotenv.load(fileName: ".env");
+      _isHealthy = dotenv.maybeGet('HMAC_SECRET') != null;
     } catch (e) {
       debugPrint('Warning: Failed to load .env file: $e');
       if (kIsWeb) {
@@ -16,19 +20,27 @@ ENV=development
 HMAC_SECRET=ironbook_secret_key_2026
 APP_NAME=IronBook GM
 ''');
+        _isHealthy = true;
+      } else {
+        _isHealthy = false;
       }
     }
   }
 
   String get apiUrl => dotenv.get('API_URL', fallback: 'https://api.ironbook.gym');
   String get env => dotenv.get('ENV', fallback: 'development');
+  
   String get hmacSecret {
     final secret = dotenv.maybeGet('HMAC_SECRET');
     if (secret == null || secret.isEmpty || secret == 'default_secret' || secret == 'dev_secret_only') {
+      if (kDebugMode) {
+        return 'debug_fallback_secret_not_for_production';
+      }
       throw StateError('CRITICAL: HMAC_SECRET is missing or insecure! Please set a strong secret in your .env file.');
     }
     return secret;
   }
+  
   String get appName => dotenv.get('APP_NAME', fallback: 'IronBook GM');
 }
 

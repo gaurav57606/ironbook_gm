@@ -45,7 +45,10 @@ import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
   final refreshListenable = ValueNotifier<int>(0);
   ref.onDispose(() => refreshListenable.dispose());
-  ref.listen(authProvider, (_, __) => refreshListenable.value++);
+  ref.listen(authProvider.select((s) => s.isAuthenticated), (_, __) => refreshListenable.value++);
+  ref.listen(authProvider.select((s) => s.isFirstLaunch), (_, __) => refreshListenable.value++);
+  ref.listen(authProvider.select((s) => s.isPinSetup), (_, __) => refreshListenable.value++);
+  ref.listen(authProvider.select((s) => s.unlocked), (_, __) => refreshListenable.value++);
   ref.listen(tier2StatusProvider, (_, __) => refreshListenable.value++);
   ref.listen(bootstrapStateProvider, (_, __) => refreshListenable.value++);
   ref.listen(entitlementStatusProvider, (_, __) => refreshListenable.value++);
@@ -79,6 +82,8 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       final onboardingDone = !authState.isFirstLaunch;
       final isPinSetup = authState.isPinSetup;
       final unlocked = authState.unlocked;
+
+      debugPrint('[NAV] Redirect Audit: path=${state.matchedLocation}, auth=$isAuth, pinSetup=$isPinSetup, unlocked=$unlocked, tier2=$tier2Status');
 
       final isLoggingIn = state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup' ||

@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../router/app_router.dart';
 
 // Top-level handler for background/terminated messages
 @pragma('vm:entry-point')
@@ -19,9 +21,11 @@ Future<void> _processKillSignalInternal(RemoteMessage message) async {
 }
 
 class FcmService {
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static ProviderContainer? _container;
 
-  static Future<void> init() async {
+  static Future<void> init(ProviderContainer container) async {
+    _container = container;
+    
     // 1. Request Permissions (Required for Android 13+)
     final messaging = FirebaseMessaging.instance;
     final settings = await messaging.requestPermission(
@@ -31,13 +35,11 @@ class FcmService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      debugPrint('User granted notification permissions');
+      debugPrint('[FCM] User granted notification permissions');
       
       // 2. Get Token for backend targeting
       final token = await messaging.getToken();
-      debugPrint('FCM Token: $token');
-    } else {
-      debugPrint('User declined or has not yet granted notification permissions');
+      debugPrint('[FCM] Token: $token');
     }
 
     // 3. Foreground
@@ -55,18 +57,10 @@ class FcmService {
     await _processKillSignalInternal(message);
     
     if (message.data['action'] == 'block_access') {
-      navigatorKey.currentState?.pushNamedAndRemoveUntil('/paywall', (_) => false);
+      debugPrint('[FCM] Block access signal received. Redirecting to paywall.');
+      // routerProvider(true) is used as fallback for storageHealthy
+      final router = _container?.read(routerProvider(true));
+      router?.go('/paywall');
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-

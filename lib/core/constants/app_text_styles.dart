@@ -27,24 +27,26 @@ class AppTextStyles {
     );
   }
 
-  // Sizing Constants from FrontUI
-  static const double h1Size = 11.0;
+  // Sizing Constants
+  static const double h1Size = 32.0;
   static const double h2Size = 24.0;
-  static const double bodySize = 12.0;
-  static const double smallSize = 10.0;
-  static const double tinySize = 9.0;
+  static const double h3Size = 18.0;
+  static const double h4Size = 16.0;
+  static const double bodySize = 14.0;
+  static const double smallSize = 12.0;
+  static const double tinySize = 10.0;
   static const double microSize = 8.0;
 
   static TextStyle get heroNumber => _font(fontSize: 48, fontWeight: FontWeight.w900, color: AppColors.primary);
 
   static TextStyle get sectionTitle => _font(
-    fontSize: tinySize,
+    fontSize: microSize,
     fontWeight: FontWeight.w700,
     color: AppColors.textSecondary,
-    letterSpacing: 1.0,
+    letterSpacing: 1.5,
   );
 
-  static TextStyle get cardTitle => _font(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
+  static TextStyle get cardTitle => _font(fontSize: h4Size, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
 
   static TextStyle get cardSubtitle => _font(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary);
 
@@ -58,13 +60,15 @@ class AppTextStyles {
 
   static TextStyle get invoiceValue => _font(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary);
 
-  static TextStyle get h1 => _font(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textPrimary);
+  static TextStyle get h1 => _font(fontSize: h1Size, fontWeight: FontWeight.w900, color: AppColors.textPrimary);
 
-  static TextStyle get h2 => _font(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary);
+  static TextStyle get h2 => _font(fontSize: h2Size, fontWeight: FontWeight.w800, color: AppColors.textPrimary);
   
-  static TextStyle get h3 => _font(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
+  static TextStyle get h3 => _font(fontSize: h3Size, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
 
   static TextStyle get buttonSmall => _font(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
+
+  static TextStyle get tiny => _font(fontSize: tinySize, fontWeight: FontWeight.w500, color: AppColors.textSecondary);
 }
 
 

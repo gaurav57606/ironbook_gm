@@ -52,24 +52,25 @@ class SyncWorker {
   Future<void> performSync() async {
     final uid = _currentUserId();
     if (uid == null) {
-      debugPrint('SyncWorker: No authenticated user, skipping sync.');
+      _ref.read(loggerProvider).info('No authenticated user, skipping sync.', category: 'SYNC');
       return;
     }
 
     if (_isSyncing) {
-      debugPrint('SyncWorker: In-memory sync flag active, skipping...');
+      _ref.read(loggerProvider).info('In-memory sync flag active, skipping...', category: 'SYNC');
       return;
     }
 
     const holderId = 'foreground_worker';
     if (!await _coordinator.acquireLock(holderId)) {
-      debugPrint('SyncWorker: Global sync lock held, skipping push.');
+      _ref.read(loggerProvider).info('Global sync lock held, skipping push.', category: 'SYNC');
       return;
     }
 
     // Connectivity guard: prevent unneeded attempts while offline
-    if (!await _checkConnectivity()) {
-      debugPrint('SyncWorker: Device offline, skipping sync.');
+    final connectivity = await _checkConnectivity();
+    if (!connectivity) {
+      _ref.read(loggerProvider).info('Device offline, skipping sync.', category: 'SYNC');
       await _coordinator.releaseLock(holderId);
       return;
     }
@@ -79,32 +80,37 @@ class SyncWorker {
 
     try {
       final unsynced = await _outboxRepo.getUnsyncedEvents();
-      debugPrint('SyncWorker: Found ${unsynced.length} unsynced events in Drift Outbox for user $uid');
       if (unsynced.isEmpty) {
-         _consecutiveFailures = 0; // Reset on "success" (even if empty)
+         _ref.read(loggerProvider).info('Outbox empty, nothing to sync.', category: 'SYNC');
+         _consecutiveFailures = 0; 
          await _prefs.setInt('sync_consecutive_failures', 0);
          return;
       }
 
-      debugPrint('SyncWorker: Starting sync for ${unsynced.length} events');
+      _ref.read(loggerProvider).info('Starting sync for ${unsynced.length} events', category: 'SYNC');
 
       for (final event in unsynced) {
-        debugPrint('SyncWorker: Syncing event ${event.id} (${event.eventType})');
-        await _recordPusher('users/$uid/events', event.id, event.toFirestore());
-        // REMOVED: await _repo.markAsSynced(event.id); - Drift is the only authority now
-        await _outboxRepo.markSynced(event.id); // Mark synced in Drift
+        _ref.read(loggerProvider).debug('Syncing event ${event.id} (${event.eventType})', category: 'SYNC');
+        try {
+          await _recordPusher('users/$uid/events', event.id, event.toFirestore());
+          await _outboxRepo.markSynced(event.id); // Mark synced in Drift
+        } catch (itemError) {
+          _ref.read(loggerProvider).error('Failed to sync individual event ${event.id}', category: 'SYNC', error: itemError);
+          // Continue with next event if one fails, unless it's a network error
+          if (itemError.toString().contains('network')) rethrow;
+        }
       }
       
       _consecutiveFailures = 0;
       await _prefs.setInt('sync_consecutive_failures', 0);
       _lastSuccessAt = DateTime.now();
-      debugPrint('SyncWorker: Sync completed successfully');
-    } catch (e) {
+      _ref.read(loggerProvider).info('Sync batch completed successfully', category: 'SYNC');
+    } catch (e, stack) {
       _consecutiveFailures++;
       await _prefs.setInt('sync_consecutive_failures', _consecutiveFailures);
       _lastErrorAt = DateTime.now();
       _lastErrorMessage = e.toString();
-      debugPrint('SyncWorker Error: $e (Failure count: $_consecutiveFailures)');
+      _ref.read(loggerProvider).error('Sync batch failure (Attempt $_consecutiveFailures)', category: 'SYNC', error: e, stackTrace: stack);
       rethrow; // Rethrow to allow scheduler to handle backoff
     } finally {
       _isSyncing = false;
@@ -134,7 +140,7 @@ class SyncWorker {
     }
 
     if (_consecutiveFailures > 0) {
-      debugPrint('SyncWorker: Backing off. Next sync in ${nextDelay.inSeconds}s');
+      _ref.read(loggerProvider).info('Sync backoff: retry in ${nextDelay.inSeconds}s', category: 'SYNC');
     }
 
     Timer(nextDelay, () async {
@@ -157,8 +163,17 @@ class SyncWorker {
   }
 
   Future<bool> _checkConnectivity() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    return !connectivityResult.contains(ConnectivityResult.none);
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final hasConnection = !connectivityResult.contains(ConnectivityResult.none);
+      if (!hasConnection) {
+        _ref.read(loggerProvider).warn('Connectivity check: Offline', category: 'SYNC');
+      }
+      return hasConnection;
+    } catch (e) {
+      _ref.read(loggerProvider).error('Connectivity check failed', category: 'SYNC', error: e);
+      return false; // Assume offline if check fails
+    }
   }
 }
 
@@ -168,21 +183,31 @@ final syncWorkerProvider = Provider<SyncWorker>((ref) {
   final outboxRepo = ref.watch(outboxRepositoryProvider);
   final coordinator = ref.watch(syncCoordinatorProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
+  final logger = ref.watch(loggerProvider);
   
   final worker = SyncWorker(
     outboxRepo,
     coordinator,
     prefs,
     (coll, id, data) async {
-      final ref = FirebaseFirestore.instance.collection(coll).doc(id);
-      final existing = await ref.get();
-      if (!existing.exists) {
-        await ref.set(data);
+      if (!ref.read(firebaseInitializedProvider)) {
+        logger.warn('Skipping record push: Firebase not initialized.', category: 'SYNC');
+        return;
       }
-      // Document already exists: already synced from another device.
-      // Do NOT overwrite — just fall through so markSynced runs below.
+      debugPrint('[FIREBASE] SyncWorker: Pushing to $coll/$id');
+      final dbRef = FirebaseFirestore.instance.collection(coll).doc(id);
+      final existing = await dbRef.get();
+      if (!existing.exists) {
+        await dbRef.set(data);
+        debugPrint('[FIREBASE] SyncWorker: Successfully pushed $id');
+      } else {
+        debugPrint('[FIREBASE] SyncWorker: Document $id already exists, skipping.');
+      }
     },
-    () => FirebaseAuth.instance.currentUser?.uid,
+    () {
+      if (!ref.read(firebaseInitializedProvider)) return null;
+      return FirebaseAuth.instance.currentUser?.uid;
+    },
     syncWorkerStatusProvider,
     ref,
   );

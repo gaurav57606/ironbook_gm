@@ -6,32 +6,46 @@ import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'base_providers.dart';
 
 class PlanNotifier extends StateNotifier<List<Plan>> {
+  final OutboxDatabase _db;
   final IEventRepository _eventRepo;
   final IPlanRepository _planRepo;
   final SyncWorker _syncWorker;
   final HmacService _hmac;
   String _deviceId = 'device-plan-sync';
+  StreamSubscription? _eventSubscription;
 
-  PlanNotifier(this._eventRepo, this._planRepo, this._syncWorker, this._hmac) : super([]) {
+  PlanNotifier(this._db, this._eventRepo, this._planRepo, this._syncWorker, this._hmac) : super([]) {
     _init();
+  }
+
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _init() async {
     _deviceId = await _hmac.getInstallationId();
 
-    // 1. Listen for events
-    _eventRepo.watch().listen((event) async {
+    // 1. Listen for events (Single Source of Truth)
+    _eventSubscription = _eventRepo.watch().listen((event) async {
       if (event.eventType == EventType.plansUpdated) {
+        debugPrint('[STATE] PlanNotifier: Processing plans update event');
         await _planRepo.applyEvent(event);
-        state = await _planRepo.getAllPlans();
+        if (mounted) {
+          state = await _planRepo.getAllPlans();
+        }
       }
     });
 
     // 2. Load all plans from Drift
+    debugPrint('[DB] PlanNotifier: Loading initial plans from repository');
     state = await _planRepo.getAllPlans();
+    debugPrint('[STATE] PlanNotifier: Loaded ${state.length} plans');
 
     // 3. Reconcile
     await _reconcilePlans();
@@ -72,12 +86,17 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
       }).toList()},
     );
 
-    await _eventRepo.persist(event);
+    await _db.transaction(() async {
+      debugPrint('[TRANSACTION] PlanNotifier: Starting addPlan for ${plan.id}');
+      await _eventRepo.persist(event);
 
-    // Persist Locally in Drift
-    await _planRepo.upsertPlan(plan);
-    state = await _planRepo.getAllPlans();
-    
+      // Persist Locally in Drift
+      debugPrint('[DB] PlanNotifier: Adding plan ${plan.name}');
+      await _planRepo.upsertPlan(plan);
+      debugPrint('[TRANSACTION] PlanNotifier: addPlan transaction complete');
+    });
+
+    debugPrint('[SYNC] PlanNotifier: Triggering sync');
     await _syncWorker.performSync();
   }
 
@@ -100,11 +119,14 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
       }).toList()},
     );
 
-    await _eventRepo.persist(event);
+    await _db.transaction(() async {
+      debugPrint('[TRANSACTION] PlanNotifier: Starting updatePlan for ${plan.id}');
+      await _eventRepo.persist(event);
 
-    // Persist Locally in Drift
-    await _planRepo.upsertPlan(plan);
-    state = await _planRepo.getAllPlans();
+      // Persist Locally in Drift
+      await _planRepo.upsertPlan(plan);
+      debugPrint('[TRANSACTION] PlanNotifier: updatePlan transaction complete');
+    });
     
     await _syncWorker.performSync();
   }
@@ -114,9 +136,8 @@ final planProvider = StateNotifierProvider<PlanNotifier, List<Plan>>((ref) {
   final eventRepo = ref.watch(eventRepositoryProvider);
   final planRepo = ref.watch(planRepositoryProvider);
   final syncWorker = ref.watch(syncWorkerProvider);
-  final hmac = ref.watch(hmacServiceProvider);
-  
-  return PlanNotifier(eventRepo, planRepo, syncWorker, hmac);
+  final db = ref.watch(outboxDatabaseProvider);
+  return PlanNotifier(db, eventRepo, planRepo, syncWorker, hmac);
 });
 
 

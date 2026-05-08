@@ -5,6 +5,7 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/settings_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/settings_toggle_tile.dart';
@@ -15,6 +16,7 @@ class SecuritySettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    final settings = ref.watch(settingsProvider);
 
     return StatusBarWrapper(
       child: Scaffold(
@@ -70,11 +72,11 @@ class SecuritySettingsScreen extends ConsumerWidget {
                       icon: Icons.fingerprint_rounded,
                       title: 'Biometric Unlock',
                       subtitle: 'Use fingerprint or face ID',
-                      value: auth.settings.useBiometrics,
+                      value: settings.useBiometrics,
                       onChanged: (val) async {
                         await ref
-                            .read(authProvider.notifier)
-                            .setBiometricOptIn(val);
+                            .read(settingsProvider.notifier)
+                            .updateSettings(settings.copyWith(useBiometrics: val));
                       },
                     ),
                   ],

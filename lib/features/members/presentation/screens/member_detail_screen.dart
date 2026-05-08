@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_shadows.dart';
+import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
@@ -11,51 +13,25 @@ import '../../../../shared/utils/date_formatter.dart';
 import '../../../../shared/utils/currency_formatter.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/utils/clock.dart';
+import '../widgets/payment_history_item.dart';
 
-class MemberDetailScreen extends ConsumerStatefulWidget {
+class MemberDetailScreen extends ConsumerWidget {
   final String memberId;
   const MemberDetailScreen({super.key, required this.memberId});
 
   @override
-  ConsumerState<MemberDetailScreen> createState() => _MemberDetailScreenState();
-}
-
-class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final member = ref.watch(memberProvider(widget.memberId));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final member = ref.watch(memberProvider(memberId));
 
     if (member == null) {
-      return Scaffold(
-        backgroundColor: AppColors.bg,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.person_off_outlined, size: 48, color: AppColors.text3),
-              const SizedBox(height: 12),
-              const Text('Member not found', style: TextStyle(color: AppColors.text)),
-              const SizedBox(height: 20),
-              AppButton(
-                text: 'Go Back',
-                width: 120,
-                onPressed: () => context.pop(),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildNotFound(context);
     }
 
-    final status = member.getStatus(ref.watch(clockProvider).now);
+    // ⚡ Bolt: Watch only the specific fields needed for the status to minimize rebuilds
+    final now = ref.watch(clockProvider.select((c) => c.now));
+    final status = member.getStatus(now);
     final statusColor = _getStatusColor(status);
-    final statusMsg = _getStatusMessage(member);
+    final statusMsg = _getStatusMessage(member, now);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -66,7 +42,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
         child: StatusBarWrapper(
           child: Column(
             children: [
-              _buildAppBar(context, member, statusColor, statusMsg),
+              _buildAppBar(context),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.only(bottom: 40),
@@ -74,13 +50,13 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeaderAvatar(member, statusColor, statusMsg),
-                      _buildQuickActions(context, member),
-                      _buildSectionHeader('SUBSCRIPTION'),
-                      _buildSubscriptionCard(member, statusColor, statusMsg),
-                      _buildSectionHeader('FINANCIALS'),
-                      _buildFinancialsCard(member),
-                      _buildSectionHeader('HISTORY'),
-                      _buildPaymentHistory(member.memberId),
+                      _buildQuickActions(context, member, ref),
+                      const AppSectionHeader(title: 'SUBSCRIPTION'),
+                      _buildSubscriptionCard(member, statusColor),
+                      const AppSectionHeader(title: 'FINANCIALS'),
+                      _buildFinancialsCard(ref, memberId),
+                      const AppSectionHeader(title: 'HISTORY'),
+                      _buildPaymentHistory(ref, memberId),
                     ],
                   ),
                 ),
@@ -89,6 +65,104 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildNotFound(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.person_off_outlined, size: 48, color: AppColors.text3),
+            const SizedBox(height: 12),
+            const Text('Member not found', style: TextStyle(color: AppColors.text)),
+            const SizedBox(height: 20),
+            AppButton(
+              text: 'Go Back',
+              width: 120,
+              onPressed: () => context.pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinancialsCard(WidgetRef ref, String memberId) {
+    // ⚡ Bolt: Use .select() to compute totals outside the main build method
+    final financials = ref.watch(paymentsProvider(memberId).select((p) {
+      final list = p.value ?? [];
+      final total = list.fold(0.0, (sum, item) => sum + item.amount);
+      return (count: list.length, total: total);
+    }));
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      padding: const EdgeInsets.all(AppSpacing.m),
+      decoration: BoxDecoration(
+        color: AppColors.elevation2,
+        borderRadius: AppRadius.radiusXL,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow(
+            'Total Contribution', 
+            CurrencyFormatter.format(financials.total), 
+            valueColor: AppColors.primary, 
+            valueSize: 20, 
+            valueWeight: FontWeight.w800,
+            labelColor: AppColors.textPrimary,
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.m),
+            child: Divider(color: AppColors.border, height: 1),
+          ),
+          _buildInfoRow('Payments Count', financials.count.toString(), valueWeight: FontWeight.w600),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentHistory(WidgetRef ref, String memberId) {
+    final paymentsAsync = ref.watch(paymentsProvider(memberId));
+    
+    return paymentsAsync.when(
+      loading: () => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
+      error: (e, s) => const Center(child: Text('Error loading history', style: TextStyle(color: Colors.red))),
+      data: (payments) {
+        if (payments.isEmpty) {
+          return Center(child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              children: [
+                Icon(Icons.history_rounded, size: 40, color: AppColors.text3.withValues(alpha: 0.3)),
+                AppSpacing.gapS,
+                const Text('No history recorded yet', style: TextStyle(color: AppColors.text3)),
+              ],
+            ),
+          ));
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+          child: Column(
+            children: List.generate(payments.length, (index) {
+              final payment = payments[index];
+              return PaymentHistoryItem(
+                title: 'PAYMENT RECEIVED',
+                subtitle: '${DateFormatter.format(payment.date)} · Confirmed',
+                amount: CurrencyFormatter.format(payment.amount),
+                icon: Icons.payments_rounded,
+                color: AppColors.primary,
+                isLast: index == payments.length - 1,
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 
@@ -106,7 +180,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(32),
+              borderRadius: AppRadius.radiusXL,
               border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
             ),
             alignment: Alignment.center,
@@ -128,17 +202,17 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s, vertical: AppSpacing.xs),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: AppRadius.radiusL,
               border: Border.all(color: statusColor.withValues(alpha: 0.2)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(width: 6, height: 6, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
-                const SizedBox(width: 8),
+                AppSpacing.gapS,
                 Text(statusMsg, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: statusColor)),
               ],
             ),
@@ -149,9 +223,9 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, MemberSnapshot member, Color color, String status) {
+  Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 14, right: 14, top: 12, bottom: 8),
+      padding: const EdgeInsets.only(left: AppSpacing.screenPadding, right: AppSpacing.screenPadding, top: AppSpacing.m, bottom: AppSpacing.s),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -162,7 +236,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
               height: 40,
               decoration: BoxDecoration(
                 color: AppColors.elevation2,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: AppRadius.radiusS,
                 border: Border.all(color: AppColors.border),
               ),
               child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.text),
@@ -177,7 +251,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
               height: 40,
               decoration: BoxDecoration(
                 color: AppColors.elevation2,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: AppRadius.radiusS,
                 border: Border.all(color: AppColors.border),
               ),
               child: const Icon(Icons.edit_outlined, size: 20, color: AppColors.text),
@@ -188,9 +262,9 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, MemberSnapshot member) {
+  Widget _buildQuickActions(BuildContext context, MemberSnapshot member, WidgetRef ref) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
       child: Column(
         children: [
           Row(
@@ -214,7 +288,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          AppSpacing.gapS,
           Row(
             children: [
               Expanded(
@@ -241,7 +315,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                 child: AppButton(
                   text: 'Delete',
                   style: AppButtonStyle.outline,
-                  onPressed: () => _showDeleteConfirmation(context, member),
+                  onPressed: () => _showDeleteConfirmation(context, member, ref),
                 ),
               ),
             ],
@@ -251,12 +325,12 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, MemberSnapshot member) {
+  void _showDeleteConfirmation(BuildContext context, MemberSnapshot member, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.elevation2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderRadiusXL),
         title: Text('Delete Member', style: AppTextStyles.cardTitle),
         content: Text('Are you sure you want to delete ${member.name}?', style: AppTextStyles.body),
         actions: [
@@ -274,35 +348,26 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 24, 14, 12),
-      child: Text(
-        title,
-        style: AppTextStyles.sectionTitle.copyWith(fontSize: 10, letterSpacing: 2.0),
-      ),
-    );
-  }
 
-  Widget _buildSubscriptionCard(MemberSnapshot member, Color color, String status) {
+  Widget _buildSubscriptionCard(MemberSnapshot member, Color color) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      padding: const EdgeInsets.all(AppSpacing.m),
       decoration: BoxDecoration(
         color: AppColors.elevation2,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: AppRadius.radiusXL,
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
           _buildInfoRow('Current Plan', member.planName ?? 'N/A', valueSize: 14, labelWeight: FontWeight.w700),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.m),
             child: Divider(color: AppColors.border, height: 1),
           ),
           _buildInfoRow('Joined on', DateFormatter.format(member.joinDate), suffix: _buildLockedEdit()),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.m),
             child: Divider(color: AppColors.border, height: 1),
           ),
           _buildInfoRow(
@@ -311,39 +376,6 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             valueColor: color,
             valueWeight: FontWeight.w700,
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinancialsCard(MemberSnapshot member) {
-    final paymentsAsync = ref.watch(paymentsProvider(member.memberId));
-    final payments = paymentsAsync.value ?? [];
-    final totalPaid = payments.fold(0.0, (sum, p) => sum + p.amount);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.elevation2,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          _buildInfoRow(
-            'Total Contribution', 
-            CurrencyFormatter.format(totalPaid), 
-            valueColor: AppColors.primary, 
-            valueSize: 20, 
-            valueWeight: FontWeight.w800,
-            labelColor: AppColors.textPrimary,
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(color: AppColors.border, height: 1),
-          ),
-          _buildInfoRow('Payments Count', payments.length.toString(), valueWeight: FontWeight.w600),
         ],
       ),
     );
@@ -364,108 +396,13 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildPaymentHistory(String memberId) {
-    final paymentsAsync = ref.watch(paymentsProvider(memberId));
-    
-    return paymentsAsync.when(
-      loading: () => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
-      error: (e, s) => const Center(child: Text('Error loading history', style: TextStyle(color: Colors.red))),
-      data: (payments) {
-        if (payments.isEmpty) {
-          return Center(child: Padding(
-            padding: const EdgeInsets.all(40),
-            child: Column(
-              children: [
-                Icon(Icons.history_rounded, size: 40, color: AppColors.text3.withValues(alpha: 0.3)),
-                const SizedBox(height: 12),
-                const Text('No history recorded yet', style: TextStyle(color: AppColors.text3)),
-              ],
-            ),
-          ));
-        }
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Column(
-            children: List.generate(payments.length, (index) {
-              final payment = payments[index];
-              final isLast = index == payments.length - 1;
-              
-              return _buildTimelineItem(
-                'PAYMENT RECEIVED',
-                '${DateFormatter.format(payment.date)} · Confirmed',
-                CurrencyFormatter.format(payment.amount),
-                icon: Icons.payments_rounded,
-                color: AppColors.primary,
-                isLast: isLast,
-              );
-            }),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTimelineItem(String title, String subtitle, String amount, {required IconData icon, required Color color, bool isLast = false}) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: color.withValues(alpha: 0.2)),
-                ),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 1.5,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: AppColors.border,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(title, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, fontSize: 13)),
-                      if (amount.isNotEmpty)
-                        Text(amount, style: AppTextStyles.cardTitle.copyWith(fontSize: 14, color: AppColors.primary)),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 10)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildLockedEdit() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       margin: const EdgeInsets.only(left: 8),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: AppRadius.radiusS,
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: const Row(
@@ -488,8 +425,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     }
   }
 
-  String _getStatusMessage(MemberSnapshot m) {
-    final now = ref.watch(clockProvider).now;
+  String _getStatusMessage(MemberSnapshot m, DateTime now) {
     final days = m.getDaysRemaining(now);
     if (days < 0) return 'Membership Expired';
     if (days == 0) return 'Expires Today';

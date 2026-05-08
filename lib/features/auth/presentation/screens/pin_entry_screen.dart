@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/settings_provider.dart';
 
 class PinEntryScreen extends ConsumerStatefulWidget {
   final bool isLockout;
@@ -222,7 +223,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
           children: [
             ...['1', '2', '3', '4', '5', '6', '7', '8', '9']
                 .map((k) => _buildKey(k)),
-            if (ref.watch(authProvider).settings.useBiometrics)
+            if (ref.watch(settingsProvider).useBiometrics)
               _buildSpecialKey(Icons.fingerprint_rounded, _handleBiometric,
                   isBiometric: true)
             else

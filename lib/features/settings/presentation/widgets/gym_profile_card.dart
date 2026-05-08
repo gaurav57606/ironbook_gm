@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/data/local/models/owner_profile_model.dart';
 
 class GymProfileCard extends StatelessWidget {
-  final AuthState auth;
+  final String? gymName;
 
-  const GymProfileCard({super.key, required this.auth});
+  const GymProfileCard({super.key, required this.gymName});
 
   @override
   Widget build(BuildContext context) {
-    final String initial = (auth.owner?.gymName ?? 'R').substring(0, 1).toUpperCase();
+    final String initial = (gymName ?? 'R').substring(0, 1).toUpperCase();
     return GestureDetector(
       onTap: () => context.push('/settings/gym-profile'),
       child: Container(
@@ -61,7 +61,7 @@ class GymProfileCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    auth.owner?.gymName ?? 'Raj\'s Fitness',
+                    gymName ?? 'Raj\'s Fitness',
                     style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
                   ),
                   const SizedBox(height: 2),

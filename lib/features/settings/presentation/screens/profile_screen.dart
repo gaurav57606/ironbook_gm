@@ -6,6 +6,7 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/owner_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -22,7 +23,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final owner = ref.read(authProvider).owner;
+    final owner = ref.read(ownerProvider);
     _nameController = TextEditingController(text: owner?.ownerName ?? '');
     _phoneController = TextEditingController(text: owner?.phone ?? '');
   }
@@ -35,14 +36,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _save() async {
-    final auth = ref.read(authProvider);
-    if (auth.owner == null) return;
+    final owner = ref.read(ownerProvider);
+    final settings = ref.read(settingsProvider);
+    if (owner == null) return;
 
-    final updated = auth.owner!;
-    updated.ownerName = _nameController.text;
-    updated.phone = _phoneController.text;
+    final updatedOwner = owner.copyWith(
+      ownerName: _nameController.text,
+      phone: _phoneController.text,
+    );
+    final updatedSettings = settings;
 
-    await ref.read(authProvider.notifier).updateOwner(updated);
+    await ref.read(ownerProvider.notifier).updateOwner(updatedOwner);
+    await ref.read(settingsProvider.notifier).updateSettings(updatedSettings);
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully')),

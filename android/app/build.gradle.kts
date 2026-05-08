@@ -4,6 +4,7 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 import java.util.Properties
 import java.io.FileInputStream
@@ -16,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.ironbook.gym"
-    compileSdk = 36
+    compileSdk = 35
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -35,7 +36,7 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
         multiDexEnabled = true
-        targetSdk = 36
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -53,12 +54,15 @@ android {
 
     buildTypes {
         release {
-            // Only set signingConfig if keystore properties are available
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Enforce signing for release builds
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
+                // If building release without key.properties, fail the build to prevent debug-signed prod APKs
+                val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+                if (isReleaseTask) {
+                    throw GradleException("FATAL: key.properties is missing! Release builds MUST be signed with the production keystore.")
+                }
                 signingConfig = signingConfigs.getByName("debug")
             }
             isMinifyEnabled = true
@@ -75,6 +79,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.10.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-crashlytics")
 }
 
 flutter {

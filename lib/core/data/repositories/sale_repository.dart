@@ -23,6 +23,7 @@ class DriftSaleRepository implements ISaleRepository {
 
   @override
   Future<void> upsertSale(domain.Sale sale) async {
+    debugPrint('[DB] SaleRepository: Upserting sale ${sale.id} (Invoice: ${sale.invoiceNumber})');
     await _db.into(_db.sales).insertOnConflictUpdate(
       db.SalesCompanion.insert(
         id: sale.id,
@@ -62,13 +63,16 @@ class DriftSaleRepository implements ISaleRepository {
 
   @override
   Future<void> applyEvent(DomainEvent event) async {
-    if (event.eventType == EventType.saleRecorded) {
-      final saleId = event.payload[EventPayloadKeys.saleId] as String?;
-      if (saleId != null) {
-        final sale = domain.Sale.fromPayload(saleId, event.payload, event.deviceTimestamp);
-        await upsertSale(sale);
+    await _db.transaction(() async {
+      if (event.eventType == EventType.saleRecorded) {
+        final saleId = event.payload[EventPayloadKeys.saleId] as String?;
+        if (saleId != null) {
+          debugPrint('[DB] SaleRepository: Applying saleRecorded event for $saleId');
+          final sale = domain.Sale.fromPayload(saleId, event.payload, event.deviceTimestamp);
+          await upsertSale(sale);
+        }
       }
-    }
+    });
   }
 }
 

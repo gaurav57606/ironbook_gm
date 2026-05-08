@@ -13,11 +13,15 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be initialized in bootstrap and overridden in ProviderScope');
 });
 
-final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
+final firebaseInitializedProvider = StateProvider<bool>((ref) => false);
+
+final firebaseAuthProvider = Provider<FirebaseAuth?>((ref) {
+  if (!ref.watch(firebaseInitializedProvider)) return null;
   return FirebaseAuth.instance;
 });
 
-final firestoreProvider = Provider<FirebaseFirestore>((ref) {
+final firestoreProvider = Provider<FirebaseFirestore?>((ref) {
+  if (!ref.watch(firebaseInitializedProvider)) return null;
   return FirebaseFirestore.instance;
 });
 

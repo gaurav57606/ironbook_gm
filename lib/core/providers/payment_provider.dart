@@ -12,6 +12,7 @@ import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'dart:async';
@@ -19,6 +20,7 @@ import 'dart:async';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
 
 class PaymentNotifier extends StateNotifier<List<Payment>> {
+  final OutboxDatabase _db;
   final ISequenceRepository _sequenceRepo;
   final IEventRepository _eventRepo;
   final IPaymentRepository _paymentRepo;
@@ -27,10 +29,11 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   final HmacService _hmac;
   final SyncCoordinator _coordinator;
   String _deviceId = 'device-loading';
-  
   Completer<void>? _syncLock;
- 
+  StreamSubscription? _eventSubscription;
+
   PaymentNotifier(
+    this._db,
     this._sequenceRepo,
     this._eventRepo,
     this._paymentRepo,
@@ -42,18 +45,28 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     _init();
   }
 
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> _init() async {
     _deviceId = await _hmac.getInstallationId();
 
-    // 1. Listen for payment events
-    _eventRepo.watch().listen((event) async {
+    // 1. Listen for payment events (Single Source of Truth)
+    _eventSubscription = _eventRepo.watch().listen((event) async {
       if (event.eventType == EventType.paymentRecorded) {
+        debugPrint('[STATE] PaymentNotifier: Processing payment event for ${event.entityId}');
         await _paymentRepo.applyEvent(event);
         final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
         if (paymentId != null) {
           final payment = await _paymentRepo.getPayment(paymentId);
-          if (payment != null) {
-            state = [payment, ...state];
+          if (payment != null && mounted) {
+            final exists = state.any((p) => p.id == payment.id);
+            if (!exists) {
+              state = [payment, ...state];
+            }
           }
         }
       }
@@ -167,19 +180,19 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
         },
       );
       
-      await _eventRepo.persist(event);
+      await _db.transaction(() async {
+        debugPrint('[TRANSACTION] PaymentNotifier: Starting recordMemberPayment for $memberId');
+        // 5. Emit Domain Event
+        await _eventRepo.persist(event);
 
-      // 6. Persist Cache in Drift
-      await _paymentRepo.upsertPayment(payment);
+        // 6. Persist Cache in Drift
+        await _paymentRepo.upsertPayment(payment);
+        debugPrint('[TRANSACTION] PaymentNotifier: recordMemberPayment transaction complete');
+      });
       
-      final signed = await _paymentRepo.getPayment(payment.id);
-      if (signed != null) {
-        state = [signed, ...state];
-      }
-
       _coordinator.triggerSync();
 
-      return signed ?? payment;
+      return payment;
     } finally {
       final lock = _syncLock;
       _syncLock = null;
@@ -199,9 +212,9 @@ final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((
   final memberRepo = ref.watch(memberRepositoryProvider);
   final clock = ref.watch(clockProvider);
   final hmac = ref.watch(hmacServiceProvider);
-  final coordinator = ref.watch(syncCoordinatorProvider);
+  final db = ref.watch(outboxDatabaseProvider);
   
-  return PaymentNotifier(sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, coordinator);
+  return PaymentNotifier(db, sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, coordinator);
 });
 
 final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, memberId) {

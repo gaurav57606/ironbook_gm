@@ -15,6 +15,7 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:collection/collection.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 
 final membersProvider =
     StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
@@ -24,9 +25,9 @@ final membersProvider =
   final prefRepo = ref.watch(preferencesRepositoryProvider);
   final clock = ref.watch(clockProvider);
   final hmac = ref.watch(hmacServiceProvider);
-  final coordinator = ref.watch(syncCoordinatorProvider);
+  final db = ref.watch(outboxDatabaseProvider);
   return MemberNotifier(
-      eventRepo, memberRepo, planRepo, prefRepo, clock, hmac, coordinator);
+      db, eventRepo, memberRepo, planRepo, prefRepo, clock, hmac, coordinator);
 });
 
 final memberSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -77,6 +78,7 @@ final memberByIdProvider =
 });
 
 class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
+  final OutboxDatabase _db;
   final IEventRepository _eventRepo;
   final IMemberRepository _memberRepo;
   final IPlanRepository _planRepo;
@@ -85,8 +87,10 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   final HmacService _hmac;
   final SyncCoordinator _coordinator;
   String _deviceId = 'device-unknown';
+  StreamSubscription? _eventSubscription;
 
   MemberNotifier(
+    this._db,
     this._eventRepo,
     this._memberRepo,
     this._planRepo,
@@ -98,14 +102,20 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     init();
   }
 
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
+  }
+
   @visibleForTesting
   set debugState(List<MemberSnapshot> members) => state = members;
 
   Future<void> init() async {
     _deviceId = await _hmac.getInstallationId();
 
-    // 1. Real-time updates via Event Bus
-    _eventRepo.watch().listen((event) async {
+    // 1. Real-time updates via Event Bus (Single Source of Truth)
+    _eventSubscription = _eventRepo.watch().listen((event) async {
       if (![
         EventType.memberCreated,
         EventType.memberUpdated,
@@ -116,23 +126,28 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         return;
       }
 
+      debugPrint('[STATE] MemberNotifier: Processing event ${event.eventType} for ${event.entityId}');
       await _memberRepo.applyEvent(event);
 
       final updatedMember = await _memberRepo.getMember(event.entityId);
-      if (updatedMember != null) {
-        final index = state.indexWhere((m) => m.memberId == event.entityId);
-        if (index != -1) {
-          state = [...state]..[index] = updatedMember;
-        } else {
-          state = [...state, updatedMember];
+      if (mounted) {
+        if (updatedMember != null) {
+          final index = state.indexWhere((m) => m.memberId == event.entityId);
+          if (index != -1) {
+            state = [...state]..[index] = updatedMember;
+          } else {
+            state = [...state, updatedMember];
+          }
+        } else if (event.eventType == EventType.memberArchived) {
+          state = state.where((m) => m.memberId != event.entityId).toList();
         }
-      } else if (event.eventType == EventType.memberArchived) {
-        state = state.where((m) => m.memberId != event.entityId).toList();
       }
     });
 
     // 2. Load all members from Drift
+    debugPrint('[DB] MemberNotifier: Loading initial members from repository');
     state = await _memberRepo.getAllMembers();
+    debugPrint('[STATE] MemberNotifier: Loaded ${state.length} members');
 
     // 3. Reconcile
     await _reconcileSnapshots();
@@ -236,32 +251,28 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     );
 
     try {
-      // 1. Sign and persist the event FIRST
-      await _eventRepo.persist(memberEvent);
+      await _db.transaction(() async {
+        debugPrint('[TRANSACTION] MemberNotifier: Starting addMember for $memberId');
+        // 1. Sign and persist the event FIRST
+        await _eventRepo.persist(memberEvent);
 
-      // 2. THEN derive snapshot from event payload
-      final snapshot =
-          MemberSnapshot.fromPayload(memberId, memberEvent.payload);
+        // 2. THEN derive snapshot from event payload
+        final snapshot = MemberSnapshot.fromPayload(memberId, memberEvent.payload);
 
-      // 3. THEN store snapshot in Drift
-      await _memberRepo.upsertMember(snapshot);
+        // 3. THEN store snapshot in Drift
+        await _memberRepo.upsertMember(snapshot);
+        debugPrint('[TRANSACTION] MemberNotifier: addMember transaction complete');
+      });
 
-      // 4. Reload from Drift to get the authoritative version
-      final stored = await _memberRepo.getMember(memberId);
-      if (stored != null && mounted) {
-        state = [...state, stored];
-      }
+      // 4. Trigger immediate sync
+      _coordinator.triggerSync();
+      return memberId;
     } catch (e) {
       // Event or snapshot write failed — clean up any partial state
       await _memberRepo.deleteMember(memberId); // safe: member was never valid
-      debugPrint('addMember failed for $memberId: $e');
+      debugPrint('[STATE] MemberNotifier: addMember failed for $memberId: $e');
       rethrow;
     }
-
-    // Trigger immediate sync outside the try block
-    _coordinator.triggerSync();
-
-    return memberId;
   }
 
   Future<void> deleteMember(String memberId) async {
@@ -273,16 +284,17 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       payload: {'memberId': memberId},
     );
 
-    await _eventRepo.persist(archiveEvent);
+    debugPrint('[DB] MemberNotifier: Archiving member $memberId');
+    await _db.transaction(() async {
+      debugPrint('[TRANSACTION] MemberNotifier: Starting deleteMember for $memberId');
+      await _eventRepo.persist(archiveEvent);
 
-    // Archive in Drift — keep the row, mark as archived
-    await _memberRepo.archiveMember(memberId);
+      // Archive in Drift — keep the row, mark as archived
+      await _memberRepo.archiveMember(memberId);
+      debugPrint('[TRANSACTION] MemberNotifier: deleteMember transaction complete');
+    });
 
-    // Remove from active state list (archived members are not shown)
-    if (mounted) {
-      state = state.where((m) => m.memberId != memberId).toList();
-    }
-
+    debugPrint('[SYNC] MemberNotifier: Triggering sync after archive');
     _coordinator.triggerSync();
   }
 
@@ -303,18 +315,18 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       },
     );
 
-    await _eventRepo.persist(updateEvent);
+    debugPrint('[DB] MemberNotifier: Updating member $memberId');
+    
+    await _db.transaction(() async {
+      debugPrint('[TRANSACTION] MemberNotifier: Starting updateMember for $memberId');
+      await _eventRepo.persist(updateEvent);
 
-    // Apply directly to Drift without waiting for watch stream
-    await _memberRepo.applyEvent(updateEvent);
-    final updated = await _memberRepo.getMember(memberId);
-    if (updated != null && mounted) {
-      final index = state.indexWhere((m) => m.memberId == memberId);
-      if (index != -1) {
-        state = [...state]..[index] = updated;
-      }
-    }
+      // Apply directly to Drift without waiting for watch stream
+      await _memberRepo.applyEvent(updateEvent);
+      debugPrint('[TRANSACTION] MemberNotifier: updateMember transaction complete');
+    });
 
+    debugPrint('[SYNC] MemberNotifier: Triggering sync after update');
     _coordinator.triggerSync();
   }
 
@@ -331,16 +343,12 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       },
     );
 
-    await _eventRepo.persist(checkInEvent);
-    await _memberRepo.applyEvent(checkInEvent);
-
-    final updated = await _memberRepo.getMember(memberId);
-    if (updated != null && mounted) {
-      final index = state.indexWhere((m) => m.memberId == memberId);
-      if (index != -1) {
-        state = [...state]..[index] = updated;
-      }
-    }
+    await _db.transaction(() async {
+      debugPrint('[TRANSACTION] MemberNotifier: Starting recordAttendance for $memberId');
+      await _eventRepo.persist(checkInEvent);
+      await _memberRepo.applyEvent(checkInEvent);
+      debugPrint('[TRANSACTION] MemberNotifier: recordAttendance transaction complete');
+    });
 
     _coordinator.triggerSync();
   }

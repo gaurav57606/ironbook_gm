@@ -23,6 +23,7 @@ class DriftPaymentRepository implements IPaymentRepository {
 
   @override
   Future<void> upsertPayment(domain.Payment payment) async {
+    debugPrint('[DB] PaymentRepository: Upserting payment ${payment.id} (Invoice: ${payment.invoiceNumber})');
     await _db.into(_db.payments).insertOnConflictUpdate(
       db.PaymentsCompanion.insert(
         id: payment.id,
@@ -67,13 +68,16 @@ class DriftPaymentRepository implements IPaymentRepository {
 
   @override
   Future<void> applyEvent(DomainEvent event) async {
-    if (event.eventType == EventType.paymentRecorded) {
-      final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
-      if (paymentId != null) {
-        final payment = domain.Payment.fromPayload(paymentId, event.payload, event.deviceTimestamp);
-        await upsertPayment(payment);
+    await _db.transaction(() async {
+      if (event.eventType == EventType.paymentRecorded) {
+        final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
+        if (paymentId != null) {
+          debugPrint('[DB] PaymentRepository: Applying paymentRecorded event for $paymentId');
+          final payment = domain.Payment.fromPayload(paymentId, event.payload, event.deviceTimestamp);
+          await upsertPayment(payment);
+        }
       }
-    }
+    });
   }
 }
 

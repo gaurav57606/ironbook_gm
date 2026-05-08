@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_text_styles.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_radius.dart';
 
 class AppTextField extends StatelessWidget {
   final String label;
@@ -35,13 +34,13 @@ class AppTextField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: AppTextStyles.sectionTitle.copyWith(fontSize: 8, letterSpacing: 1.5, color: AppColors.textMuted),
+          style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted),
         ),
-        const SizedBox(height: 8),
+        AppSpacing.gapS,
         Container(
           decoration: BoxDecoration(
             color: AppColors.elevation2,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: AppRadius.radiusL,
             border: Border.all(color: AppColors.border),
           ),
           child: TextFormField(
@@ -58,11 +57,11 @@ class AppTextField extends StatelessWidget {
               prefixIcon: prefixIcon != null ? IconTheme(data: const IconThemeData(color: AppColors.textMuted, size: 20), child: prefixIcon!) : null,
               suffixIcon: suffixIcon,
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.l, vertical: AppSpacing.inputPadding),
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        AppSpacing.gapXL,
       ],
     );
   }

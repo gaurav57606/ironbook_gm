@@ -41,6 +41,7 @@ class DriftEventRepository implements IEventRepository {
       event.hmacSignature = await _hmacService.signEvent(event);
     }
 
+    debugPrint('[OUTBOX] EventRepository: Persisting event ${event.id} (${event.eventType})');
     await _db.into(_db.outboxEvents).insert(
       OutboxEventsCompanion.insert(
         id: event.id,
@@ -57,6 +58,7 @@ class DriftEventRepository implements IEventRepository {
 
     _eventBus.publish(event);
     if (!kIsWeb) {
+      debugPrint('[SYNC] EventRepository: Triggering foreground sync coordinator');
       _syncCoordinator.triggerSync();
     }
   }

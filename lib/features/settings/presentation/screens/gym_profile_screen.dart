@@ -6,6 +6,7 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/owner_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class GymProfileScreen extends ConsumerStatefulWidget {
@@ -22,7 +23,7 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final owner = ref.read(authProvider).owner;
+    final owner = ref.read(ownerProvider);
     _gymNameController = TextEditingController(text: owner?.gymName ?? '');
     _addressController = TextEditingController(text: owner?.address ?? '');
   }
@@ -35,14 +36,14 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
   }
 
   Future<void> _save() async {
-    final auth = ref.read(authProvider);
-    if (auth.owner == null) return;
+    final owner = ref.read(ownerProvider);
+    if (owner == null) return;
 
-    final updated = auth.owner!;
+    final updated = owner;
     updated.gymName = _gymNameController.text;
     updated.address = _addressController.text;
 
-    await ref.read(authProvider.notifier).updateOwner(updated);
+    await ref.read(ownerProvider.notifier).updateOwner(updated);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Gym profile updated')),

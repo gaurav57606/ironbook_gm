@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_radius.dart';
+import '../../core/constants/app_shadows.dart';
 
 enum AppButtonStyle { primary, secondary, outline }
 
@@ -31,25 +33,21 @@ class AppButton extends StatelessWidget {
       width: width ?? double.infinity,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: AppRadius.radiusL,
           gradient: isPrimary ? AppColors.primaryGradient : null,
           color: isSecondary ? AppColors.elevation2 : (isOutline ? Colors.transparent : null),
           border: isOutline ? Border.all(color: AppColors.primary, width: 1.5) : (isSecondary ? Border.all(color: AppColors.border) : null),
-          boxShadow: isPrimary ? [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ] : [],
+          boxShadow: isPrimary ? AppShadows.primary : [],
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: isLoading ? null : onPressed,
-            borderRadius: BorderRadius.circular(14),
+        child: Opacity(
+          opacity: onPressed == null || isLoading ? 0.6 : 1.0,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isLoading ? null : onPressed,
+            borderRadius: AppRadius.radiusL,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.m, horizontal: AppSpacing.l),
               child: Center(
                 child: isLoading 
                   ? const SizedBox(
@@ -66,7 +64,7 @@ class AppButton extends StatelessWidget {
                       children: [
                         if (icon != null) ...[
                           icon!,
-                          const SizedBox(width: 8),
+                          AppSpacing.gapS,
                         ],
                         Text(
                           text,

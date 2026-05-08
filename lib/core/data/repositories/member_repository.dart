@@ -33,6 +33,7 @@ class DriftMemberRepository implements IMemberRepository {
       signature = await _hmac.signSnapshot(member.memberId, member.toFirestore());
     }
 
+    debugPrint('[DB] MemberRepository: Upserting member ${member.memberId} (${member.name})');
     await _db.into(_db.members).insert(
       MembersCompanion.insert(
         id: member.memberId,
@@ -69,6 +70,7 @@ class DriftMemberRepository implements IMemberRepository {
       signedMembers.addAll(results);
     }
 
+    debugPrint('[DB] MemberRepository: Batch upserting ${signedMembers.length} members');
     await _db.batch((batch) {
       for (final member in signedMembers) {
         batch.insert(
@@ -97,13 +99,15 @@ class DriftMemberRepository implements IMemberRepository {
 
   @override
   Future<void> applyEvent(DomainEvent event) async {
-    final current = await getMember(event.entityId);
-    final updated = SnapshotBuilder.apply(current, event);
-    if (updated != null) {
-      await upsertMember(updated);
-    } else if (event.eventType == EventType.memberArchived) {
-      await archiveMember(event.entityId);
-    }
+    await _db.transaction(() async {
+      final current = await getMember(event.entityId);
+      final updated = SnapshotBuilder.apply(current, event);
+      if (updated != null) {
+        await upsertMember(updated);
+      } else if (event.eventType == EventType.memberArchived) {
+        await archiveMember(event.entityId);
+      }
+    });
   }
 
   @override

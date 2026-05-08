@@ -6,6 +6,8 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/owner_provider.dart';
+import '../../../../core/providers/settings_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class TaxBillingScreen extends ConsumerStatefulWidget {
@@ -26,9 +28,8 @@ class _TaxBillingScreenState extends ConsumerState<TaxBillingScreen> {
   @override
   void initState() {
     super.initState();
-    final auth = ref.read(authProvider);
-    final owner = auth.owner;
-    final settings = auth.settings;
+    final owner = ref.read(ownerProvider);
+    final settings = ref.read(settingsProvider);
 
     _gstRateController = TextEditingController(text: settings.gstRate.toString());
     _gstinController = TextEditingController(text: owner?.gstin ?? '');
@@ -50,22 +51,23 @@ class _TaxBillingScreenState extends ConsumerState<TaxBillingScreen> {
   }
 
   Future<void> _save() async {
-    final auth = ref.read(authProvider);
-    if (auth.owner == null) return;
+    final owner = ref.read(ownerProvider);
+    final settings = ref.read(settingsProvider);
+    if (owner == null) return;
 
-    final updatedOwner = auth.owner!;
+    final updatedOwner = owner;
     updatedOwner.gstin = _gstinController.text;
     updatedOwner.bankName = _bankNameController.text;
     updatedOwner.accountNumber = _accNoController.text;
     updatedOwner.ifsc = _ifscController.text;
     updatedOwner.upiId = _upiController.text;
 
-    final updatedSettings = auth.settings.copyWith(
+    final updatedSettings = settings.copyWith(
       gstRate: double.tryParse(_gstRateController.text) ?? 18.0,
     );
 
-    await ref.read(authProvider.notifier).updateOwner(updatedOwner);
-    await ref.read(authProvider.notifier).updateSettings(updatedSettings);
+    await ref.read(ownerProvider.notifier).updateOwner(updatedOwner);
+    await ref.read(settingsProvider.notifier).updateSettings(updatedSettings);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

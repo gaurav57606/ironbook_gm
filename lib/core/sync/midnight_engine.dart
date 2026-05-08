@@ -1,7 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ironbook_gm/firebase_options.dart';
 
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/services/notification_service.dart';
@@ -15,41 +18,74 @@ class MidnightEngine {
   @pragma('vm:entry-point')
   static void callbackDispatcher() {
     Workmanager().executeTask((task, inputData) async {
-      debugPrint("MidnightEngine: Background task '$task' started.");
-
+      // 1. Initialize core binding for the background isolate
+      WidgetsFlutterBinding.ensureInitialized();
+      
       try {
-        // 1. Initialize core services in the background isolate
-        await Firebase.initializeApp();
-        await NotificationService.init();
+        // 2. Initialize critical local services
+        final prefs = await SharedPreferences.getInstance();
         
-        // Note: Drift initializes lazily when the database is accessed.
+        // 3. Attempt Firebase init with options (Required for Release Mode)
+        bool firebaseReady = false;
+        try {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          ).timeout(const Duration(seconds: 15));
+          
+          if (!kDebugMode) {
+            await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+          }
+          firebaseReady = true;
+        } catch (e) {
+          debugPrint("[WORKER] Firebase init failed/timed out in background: $e");
+          // Note: Logger cannot be used yet as it depends on Firebase init for full flushing
+          // but we can proceed in degraded mode if local DB is enough
+        }
 
-        // 2. Acquire global sync lock to prevent foreground/background conflict
-        final container = ProviderContainer();
+        // 4. Setup Container with necessary overrides
+        final container = ProviderContainer(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            firebaseInitializedProvider.overrideWith((ref) => firebaseReady),
+          ],
+        );
+        
+        final logger = container.read(loggerProvider);
+        if (firebaseReady) logger.setFirebaseInitialized(true);
+        
+        logger.info("[WORKER] Background task '$task' started.", category: 'BOOT');
+
         final syncCoord = container.read(syncCoordinatorProvider);
         const holderId = 'background_midnight_engine';
         
         if (!await syncCoord.acquireLock(holderId)) {
-          debugPrint("MidnightEngine: Lock held by another process. Skipping current run.");
+          logger.info("Lock held by another process. Skipping current run.", category: 'SYNC');
           container.dispose();
           return true; 
         }
 
         try {
-          // 3. Run Maintenance Tasks (Alerts, Cleanups)
+          // 5. Run Maintenance Tasks (Alerts, Cleanups)
           await _runMemberAlerts(container);
 
-          // 4. Run Cloud Sync
-          final syncWorker = container.read(syncWorkerProvider);
-          await syncWorker.performSync();
+          // 6. Run Cloud Sync
+          if (firebaseReady) {
+            final syncWorker = container.read(syncWorkerProvider);
+            await syncWorker.performSync();
+          } else {
+            logger.warn("Skipping Cloud Sync: Firebase not ready.", category: 'SYNC');
+          }
 
-          debugPrint("MidnightEngine: All background maintenance completed successfully.");
+          logger.info("All background maintenance completed successfully.", category: 'BOOT');
         } finally {
           await syncCoord.releaseLock(holderId);
           container.dispose();
         }
       } catch (e, stack) {
-        debugPrint("MidnightEngine Error: $e\n$stack");
+        debugPrint("MidnightEngine Fatal Error: $e\n$stack");
+        try {
+           FirebaseCrashlytics.instance.recordError(e, stack, reason: 'MidnightEngine Fatal Background Failure');
+        } catch (_) {}
       }
       
       return Future.value(true);
@@ -63,7 +99,7 @@ class MidnightEngine {
     final todayKey = '${today.year}-${today.month}-${today.day}';
 
     final members = await memberRepo.getAllMembers();
-    debugPrint("MidnightEngine: Checking alerts for ${members.length} members.");
+    container.read(loggerProvider).info("Checking alerts for ${members.length} members.", category: 'SYNC');
 
     for (final member in members) {
       if (member.archived) continue;

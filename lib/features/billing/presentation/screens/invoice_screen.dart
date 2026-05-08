@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_shadows.dart';
+import '../../../../core/constants/app_text_styles.dart';
+import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_bottom_nav.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
@@ -106,11 +110,11 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
                   ))
                 else ...[
                   _buildInvoiceCard(payment),
-                  _buildSectionHeader('Payment Method'),
+                  const AppSectionHeader(title: 'Payment Method'),
                   _buildPaymentChips(payment.method),
-                  const SizedBox(height: 12),
+                  AppSpacing.gapM,
                   Padding(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
                     child: AppButton(
                       text: _isProcessing ? 'Processing...' : 'Share via WhatsApp',
                       icon: _isProcessing 
@@ -143,7 +147,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
 
   Widget _buildAppBar(BuildContext context, Payment? payment) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
       child: Row(
         children: [
           GestureDetector(
@@ -152,14 +156,14 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: AppColors.bg3,
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.elevation2,
+                borderRadius: AppRadius.radiusS,
                 border: Border.all(color: AppColors.border),
               ),
               child: const Icon(Icons.chevron_left, size: 18, color: AppColors.text),
             ),
           ),
-          const SizedBox(width: 8),
+          AppSpacing.gapS,
           const Expanded(
             child: Text(
               'Invoice',
@@ -171,7 +175,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
             final memberName = members.firstWhereOrNull((m) => m.memberId == payment.memberId)?.name ?? 'Member';
             _printInvoice(payment, memberName); 
           } : null),
-          const SizedBox(width: 6),
+          AppSpacing.gapS,
           _buildAppBarIcon(Icons.print_rounded, onTap: payment != null ? () {
             final members = ref.read(membersProvider);
             final memberName = members.firstWhereOrNull((m) => m.memberId == payment.memberId)?.name ?? 'Member';
@@ -189,8 +193,8 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: AppColors.bg3,
-          borderRadius: BorderRadius.circular(8),
+          color: AppColors.elevation2,
+          borderRadius: AppRadius.radiusS,
           border: Border.all(color: AppColors.border),
         ),
         child: Icon(icon, size: 14, color: onTap != null ? AppColors.text : AppColors.text2),
@@ -207,16 +211,17 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
     final owner = ref.watch(ownerProvider);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
+      padding: const EdgeInsets.all(AppSpacing.m),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF1a1206), Color(0xFF2a1d0a)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppRadius.radiusL,
         border: Border.all(color: AppColors.amber.withValues(alpha: 0.2)),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         children: [
@@ -293,34 +298,20 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Text(
-        title.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w600,
-          color: AppColors.text2,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
 
   Widget _buildPaymentChips(String selectedMethod) {
     final payments = ['Cash', 'UPI', 'Card', 'Bank'];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
       child: Wrap(
         spacing: 5,
         children: payments.map((method) {
           final isSelected = method == selectedMethod;
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.s),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.orange.withValues(alpha: 0.1) : AppColors.bg3,
-              borderRadius: BorderRadius.circular(8),
+              color: isSelected ? AppColors.orange.withValues(alpha: 0.1) : AppColors.elevation2,
+              borderRadius: AppRadius.radiusS,
               border: Border.all(color: isSelected ? AppColors.orange : AppColors.border),
             ),
             child: Text(

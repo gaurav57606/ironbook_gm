@@ -26,8 +26,6 @@ class AuthState {
   final bool isFirstLaunch;
   final fb.User? user;
   final bool isAuthenticated;
-  final OwnerProfile? owner;
-  final AppSettings settings;
   final bool isPinSetup;
   final bool unlocked;
   final int authAttempts;
@@ -37,8 +35,6 @@ class AuthState {
     this.isFirstLaunch = true,
     this.user,
     this.isAuthenticated = false,
-    this.owner,
-    required this.settings,
     this.isPinSetup = false,
     this.unlocked = false,
     this.authAttempts = 0,
@@ -49,8 +45,6 @@ class AuthState {
     bool? isFirstLaunch,
     fb.User? user,
     bool? isAuthenticated,
-    OwnerProfile? owner,
-    AppSettings? settings,
     bool? isPinSetup,
     bool? unlocked,
     int? authAttempts,
@@ -60,8 +54,6 @@ class AuthState {
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
       user: user ?? this.user,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-      owner: owner ?? this.owner,
-      settings: settings ?? this.settings,
       isPinSetup: isPinSetup ?? this.isPinSetup,
       unlocked: unlocked ?? this.unlocked,
       authAttempts: authAttempts ?? this.authAttempts,
@@ -93,7 +85,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     this._syncWorker,
     this._hmacService,
     this._ref,
-  ) : super(AuthState(settings: AppSettings())) {
+  ) : super(AuthState()) {
     init();
   }
 
@@ -104,11 +96,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> init() async {
-    _syncWorker.startPeriodicSync(const Duration(seconds: 30));
-    final pinHash = await _storage.read(key: 'pin_hash');
-    final pinSalt = await _storage.read(key: 'pin_salt');
-    final onboardingDone = await _storage.read(key: 'onboarding_done');
     _deviceId = await _hmacService.getInstallationId();
+
+    final logger = _ref.read(loggerProvider);
 
     bool isPinSetup = pinHash != null && pinSalt != null;
     if (pinHash != null && pinSalt == null) {
@@ -120,11 +110,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final settings = await _settingsRepo.getSettings();
 
     if (mounted) {
+      debugPrint('[AUTH] AuthNotifier: Initializing. PIN set: $isPinSetup, First launch: ${onboardingDone != 'true'}');
       state = state.copyWith(
         isPinSetup: isPinSetup,
         isFirstLaunch: onboardingDone != 'true',
-        owner: owner,
-        settings: settings,
         isLoading: false,
       );
     }
@@ -133,6 +122,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void onFirebaseReady(fb.FirebaseAuth auth) {
     _authSubscription?.cancel();
     _authSubscription = auth.authStateChanges().listen((user) {
+      _ref.read(loggerProvider).info('Firebase state change. User: ${user?.email ?? 'anonymous'}', category: 'AUTH');
       if (mounted) {
         state = state.copyWith(
           user: user,
@@ -155,11 +145,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> authenticate({String? pin}) async {
     final result = await _pinService.authenticate(pinFallback: pin);
     if (result == AuthResult.success) {
+      _ref.read(loggerProvider).info('PIN Authentication successful', category: 'AUTH');
       if (mounted) {
         state = state.copyWith(unlocked: true, authAttempts: 0);
       }
       return true;
     }
+    _ref.read(loggerProvider).warn('PIN Authentication failed', category: 'AUTH');
     state = state.copyWith(authAttempts: state.authAttempts + 1);
     return false;
   }
@@ -191,8 +183,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: false);
   }
 
+  void lock() {
+    if (state.unlocked && state.isPinSetup) {
+      _ref.read(loggerProvider).info('Application locked due to lifecycle event', category: 'AUTH');
+      state = state.copyWith(unlocked: false);
+    }
+  }
+
 
   Future<void> _performFullLogout() async {
+    debugPrint('[AUTH] AuthNotifier: Starting full logout and data purge');
     try {
       await _firebaseAuth.signOut();
       await _storage.deleteAll();
@@ -207,6 +207,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
             final box = await Hive.openBox(name);
             await box.clear();
           }
+          debugPrint('[CACHE] AuthNotifier: Cleared Hive box: $name');
         } catch (e) {
           debugPrint('Error clearing box $name: $e');
         }
@@ -214,6 +215,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       try {
         await _ref.read(outboxRepositoryProvider).clearAll();
+        debugPrint('[DB] AuthNotifier: Cleared Drift Outbox');
       } catch (e) {
         debugPrint('Error clearing Drift Outbox: $e');
       }
@@ -224,10 +226,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isPinSetup: false,
         isFirstLaunch: true,
         isLoading: false,
-        settings: AppSettings(),
       );
+      debugPrint('[AUTH] AuthNotifier: Logout complete');
     } catch (e) {
-      debugPrint('Logout Error: $e');
+      _ref.read(loggerProvider).error('Logout Error: $e', category: 'AUTH', error: e);
     }
   }
   Future<bool> signUp(String email, String password,
@@ -265,7 +267,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _ref.read(syncWorkerProvider).performSync();
 
         state = state.copyWith(
-          owner: owner,
           isAuthenticated: true,
           authAttempts: 0,
         );
@@ -279,10 +280,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> updateOwner(OwnerProfile updated) async {
-    await _ownerRepo.upsertOwner(updated);
-    state = state.copyWith(owner: updated);
-  }
 
   Future<void> logout() => _performFullLogout();
 
@@ -291,20 +288,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isPinSetup: true, unlocked: true);
   }
 
-  Future<void> setBiometricOptIn(bool enabled) async {
-    final settings = state.settings.copyWith(
-      biometricEnabled: enabled,
-      useBiometrics: enabled,
-    );
-
-    await _settingsRepo.updateSettings(settings);
-    state = state.copyWith(settings: settings);
-  }
-
-  Future<void> updateSettings(AppSettings settings) async {
-    await _settingsRepo.updateSettings(settings);
-    state = state.copyWith(settings: settings);
-  }
 
   Future<void> sendPasswordReset(String email) async {
     await _firebaseAuth.sendPasswordResetEmail(email: email);

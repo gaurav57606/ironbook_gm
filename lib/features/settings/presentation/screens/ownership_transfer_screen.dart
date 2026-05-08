@@ -7,6 +7,7 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/data/local/models/owner_profile_model.dart';
 import '../../../../core/data/local/models/domain_event_model.dart';
 import '../../../../core/data/repositories/event_repository.dart';
@@ -29,7 +30,7 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
   @override
   void initState() {
     super.initState();
-    final owner = ref.read(authProvider).owner;
+    final owner = ref.read(ownerProvider);
     _nameController = TextEditingController(text: owner?.ownerName);
     _phoneController = TextEditingController(text: owner?.phone);
     _gymNameController = TextEditingController(text: owner?.gymName);
@@ -82,15 +83,16 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
     setState(() => _isProcessing = true);
 
     try {
+      final owner = ref.read(ownerProvider);
       final updated = OwnerProfile(
         gymName: _gymNameController.text.trim(),
         ownerName: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
-        address: ref.read(authProvider).owner?.address ?? '',
+        address: owner?.address ?? '',
       );
 
       // 1. Update local state
-      await ref.read(authProvider.notifier).updateOwner(updated);
+      await ref.read(ownerProvider.notifier).updateOwner(updated);
 
       // 2. record Handover Event
       final event = DomainEvent(
@@ -99,7 +101,7 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
         deviceId: 'manual-handover',
         deviceTimestamp: DateTime.now(),
         payload: {
-          'previousOwner': ref.read(authProvider).owner?.ownerName ?? 'Unknown',
+          'previousOwner': ref.read(ownerProvider)?.ownerName ?? 'Unknown',
           'newOwner': updated.ownerName,
           'gymName': updated.gymName,
           'newEmail': _newEmailController.text.trim(),

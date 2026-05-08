@@ -12,8 +12,10 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 
 import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 
 class SaleNotifier extends StateNotifier<List<Sale>> {
+  final OutboxDatabase _db;
   final IProductRepository _productRepo;
   final ISequenceRepository _sequenceRepo;
   final IEventRepository _eventRepo;
@@ -21,8 +23,10 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
   final IClock _clock;
   final HmacService _hmac;
   String _deviceId = 'device-loading';
-  
+  StreamSubscription? _eventSubscription;
+
   SaleNotifier(
+    this._db,
     this._productRepo,
     this._sequenceRepo,
     this._eventRepo,
@@ -34,18 +38,28 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     _seedProductsIfEmpty();
   }
 
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> _init() async {
     _deviceId = await _hmac.getInstallationId();
 
-    // 1. Listen for events
-    _eventRepo.watch().listen((event) async {
-      if (event.eventType == EventType.paymentRecorded && event.payload.containsKey('saleId')) {
+    // 1. Listen for events (Single Source of Truth)
+    _eventSubscription = _eventRepo.watch().listen((event) async {
+      if (event.eventType == EventType.saleRecorded && event.payload.containsKey('saleId')) {
+        debugPrint('[STATE] SaleNotifier: Processing sale event for ${event.entityId}');
         await _saleRepo.applyEvent(event);
         final saleId = event.payload['saleId'] as String?;
         if (saleId != null) {
           final sale = await _saleRepo.getSale(saleId);
-          if (sale != null) {
-            state = [sale, ...state];
+          if (sale != null && mounted) {
+            final exists = state.any((s) => s.id == sale.id);
+            if (!exists) {
+              state = [sale, ...state];
+            }
           }
         }
       }
@@ -60,7 +74,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
 
   Future<void> _reconcileSales() async {
     final recentEvents = await _eventRepo.getAll();
-    final saleEvents = recentEvents.where((e) => e.eventType == EventType.paymentRecorded && e.payload.containsKey('saleId')).toList();
+    final saleEvents = recentEvents.where((e) => e.eventType == EventType.saleRecorded && e.payload.containsKey('saleId')).toList();
     
     bool updatedAny = false;
     for (final event in saleEvents) {
@@ -125,7 +139,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     // Emit Domain Event FIRST
     final event = DomainEvent(
       entityId: saleId,
-      eventType: EventType.paymentRecorded,
+      eventType: EventType.saleRecorded,
       deviceId: _deviceId,
       deviceTimestamp: now,
       payload: {
@@ -143,15 +157,14 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
       },
     );
     
-    await _eventRepo.persist(event);
+    await _db.transaction(() async {
+      debugPrint('[TRANSACTION] SaleNotifier: Starting recordSale for $saleId');
+      await _eventRepo.persist(event);
 
-    // Persist Locally in Drift
-    await _saleRepo.upsertSale(sale);
-    
-    final saved = await _saleRepo.getSale(sale.id);
-    if (saved != null) {
-      state = [saved, ...state];
-    }
+      // Persist Locally in Drift
+      await _saleRepo.upsertSale(sale);
+      debugPrint('[TRANSACTION] SaleNotifier: recordSale transaction complete');
+    });
   }
 }
 
@@ -166,9 +179,9 @@ final saleProvider = StateNotifierProvider<SaleNotifier, List<Sale>>((ref) {
   final eventRepo = ref.watch(eventRepositoryProvider);
   final saleRepo = ref.watch(saleRepositoryProvider);
   final clock = ref.watch(clockProvider);
-  final hmac = ref.watch(hmacServiceProvider);
+  final db = ref.watch(outboxDatabaseProvider);
   
-  return SaleNotifier(productRepo, sequenceRepo, eventRepo, saleRepo, clock, hmac);
+  return SaleNotifier(db, productRepo, sequenceRepo, eventRepo, saleRepo, clock, hmac);
 });
 
 

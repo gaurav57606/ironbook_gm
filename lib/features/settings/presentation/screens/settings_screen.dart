@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ironbook_gm/core/sync/recovery_service.dart';
-import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/data/sync_worker.dart';
 import '../../../../core/providers/member_provider.dart';
+import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/services/csv_export_service.dart';
 import '../../../../core/providers/payment_provider.dart';
 import '../widgets/settings_group.dart';
@@ -24,7 +27,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authProvider);
+    final ownerName = ref.watch(ownerProvider.select((o) => o?.ownerName ?? 'Owner'));
+    final gymName = ref.watch(ownerProvider.select((o) => o?.gymName ?? 'Raj\'s Fitness'));
+    final isPinSetup = ref.watch(authProvider.select((s) => s.isPinSetup));
     final unsyncedCount = ref.watch(unsyncedCountProvider).value ?? 0;
 
     return StatusBarWrapper(
@@ -37,16 +42,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _buildAppBar(),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 40),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
                 children: [
                   if (unsyncedCount > 0) SyncBanner(count: unsyncedCount),
-                  GymProfileCard(auth: auth),
-                  _buildAccountSection(auth),
-                  _buildGymSettingsSection(auth),
+                  GymProfileCard(gymName: gymName),
+                  _buildAccountSection(ownerName, isPinSetup),
+                  _buildGymSettingsSection(gymName),
                   _buildDataSyncSection(),
                   _buildSupportSection(),
                   _buildTroubleshootingSection(),
-                  const SizedBox(height: 32),
+                  AppSpacing.gapXL,
                   _buildLogoutButton(),
                 ],
               ),
@@ -59,32 +64,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
       child: Row(
         children: [
           Text(
             'Settings',
-            style: AppTextStyles.h2.copyWith(fontSize: 24),
+            style: AppTextStyles.h2.copyWith(fontSize: 24, fontWeight: FontWeight.w900),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAccountSection(AuthState auth) {
+  Widget _buildAccountSection(String ownerName, bool isPinSetup) {
     return SettingsGroup(
-      title: 'Account',
+      title: 'Account & Security',
       children: [
         SettingsRow(
           icon: Icons.person_outline_rounded,
           label: 'My Profile',
-          value: auth.owner?.ownerName ?? 'Owner',
+          value: ownerName,
           onTap: () => context.push('/settings/profile'),
         ),
         SettingsRow(
           icon: Icons.lock_outline_rounded,
           label: 'Security & PIN',
-          value: auth.isPinSetup ? 'Set' : 'Not Set',
+          value: isPinSetup ? 'Set' : 'Not Set',
           onTap: () => context.push('/settings/security'),
         ),
         SettingsRow(
@@ -103,14 +108,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildGymSettingsSection(AuthState auth) {
+  Widget _buildGymSettingsSection(String gymName) {
     return SettingsGroup(
       title: 'Gym Settings',
       children: [
         SettingsRow(
           icon: Icons.fitness_center_rounded,
           label: 'Gym Profile',
-          value: auth.owner?.gymName ?? 'Raj\'s Fitness',
+          value: gymName,
           onTap: () => context.push('/settings/gym-profile'),
         ),
         SettingsRow(
@@ -239,16 +244,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildLogoutButton() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
       child: TextButton(
         onPressed: _handleLogout,
         style: TextButton.styleFrom(
           foregroundColor: AppColors.expired,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.m),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: AppRadius.radiusM,
             side: BorderSide(color: AppColors.expired.withValues(alpha: 0.2)),
           ),
         ),

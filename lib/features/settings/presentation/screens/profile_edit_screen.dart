@@ -7,6 +7,7 @@ import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/data/local/models/owner_profile_model.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/owner_provider.dart';
 
 class ProfileEditScreen extends ConsumerStatefulWidget {
   final bool isGymProfile;
@@ -28,7 +29,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   @override
   void initState() {
     super.initState();
-    final owner = ref.read(authProvider).owner;
+    final owner = ref.read(ownerProvider);
     _nameController = TextEditingController(text: widget.isGymProfile ? owner?.gymName : owner?.ownerName);
     _phoneController = TextEditingController(text: owner?.phone);
     _addressController = TextEditingController(text: owner?.address);
@@ -182,12 +183,12 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   void _saveHandler() async {
-    final auth = ref.read(authProvider);
-    final currentOwner = auth.owner;
+    final owner = ref.read(ownerProvider);
+    if (owner == null) return;
     
-    final updated = OwnerProfile(
-      gymName: widget.isGymProfile ? _nameController.text : currentOwner?.gymName ?? '',
-      ownerName: widget.isGymProfile ? currentOwner?.ownerName ?? '' : _nameController.text,
+    final updated = owner.copyWith(
+      gymName: widget.isGymProfile ? _nameController.text : owner.gymName,
+      ownerName: widget.isGymProfile ? owner.ownerName : _nameController.text,
       phone: _phoneController.text,
       address: _addressController.text,
       gstin: _gstinController.text,
@@ -196,7 +197,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       ifsc: _ifscController.text,
     );
 
-    await ref.read(authProvider.notifier).updateOwner(updated);
+    await ref.read(ownerProvider.notifier).updateOwner(updated);
     if (mounted) Navigator.pop(context);
   }
 }

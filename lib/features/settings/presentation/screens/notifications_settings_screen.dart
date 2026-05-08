@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/settings_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/settings_toggle_tile.dart';
@@ -14,7 +15,7 @@ class NotificationsSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
+    final settings = ref.watch(settingsProvider);
 
     return StatusBarWrapper(
       child: Scaffold(
@@ -54,10 +55,10 @@ class NotificationsSettingsScreen extends ConsumerWidget {
                       icon: Icons.chat_rounded,
                       title: 'WhatsApp Reminders',
                       subtitle: 'Auto-send payment reminders via WhatsApp',
-                      value: auth.settings.whatsappReminders,
+                      value: settings.whatsappReminders,
                       onChanged: (val) async {
-                        await ref.read(authProvider.notifier).updateSettings(
-                              auth.settings.copyWith(whatsappReminders: val),
+                        await ref.read(settingsProvider.notifier).updateSettings(
+                              settings.copyWith(whatsappReminders: val),
                             );
                       },
                     ),
@@ -69,10 +70,10 @@ class NotificationsSettingsScreen extends ConsumerWidget {
                   titleLeftPadding: 4,
                   children: [
                     MembershipExpirySlider(
-                      expiryReminderDays: auth.settings.expiryReminderDays,
+                      expiryReminderDays: settings.expiryReminderDays,
                       onChanged: (val) async {
-                        await ref.read(authProvider.notifier).updateSettings(
-                              auth.settings
+                        await ref.read(settingsProvider.notifier).updateSettings(
+                              settings
                                   .copyWith(expiryReminderDays: val.toInt()),
                             );
                       },

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_shadows.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../providers/billing_provider.dart';
@@ -66,14 +69,14 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
       child: Row(
         children: [
           IconButton(
             onPressed: () => context.pop(),
-            icon: const Icon(Icons.arrow_back, color: AppColors.text, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.text, size: 20),
           ),
-          const SizedBox(width: 8),
+          AppSpacing.gapS,
           const Text(
             'Supplements & Merch',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
@@ -87,18 +90,18 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final categories = ['All', 'Supplements', 'Merch'];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
       child: Row(
         children: categories.map((cat) {
           bool active = _selectedCategory == cat;
           return GestureDetector(
             onTap: () => setState(() => _selectedCategory = cat),
             child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.only(right: AppSpacing.s),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.s),
               decoration: BoxDecoration(
-                color: active ? AppColors.orange : AppColors.bg3,
-                borderRadius: BorderRadius.circular(20),
+                color: active ? AppColors.orange : AppColors.elevation2,
+                borderRadius: AppRadius.radiusL,
                 border: Border.all(color: active ? AppColors.orange : AppColors.border),
               ),
               child: Text(
@@ -122,11 +125,11 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       : products.where((p) => p.category == _selectedCategory).toList();
 
     return GridView.builder(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
+        mainAxisSpacing: AppSpacing.s,
+        crossAxisSpacing: AppSpacing.s,
         childAspectRatio: 0.85,
       ),
       itemCount: filtered.length,
@@ -134,8 +137,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         final product = filtered[index];
         return Container(
           decoration: BoxDecoration(
-            color: AppColors.bg2,
-            borderRadius: BorderRadius.circular(16),
+            color: AppColors.elevation2,
+            borderRadius: AppRadius.radiusXL,
             border: Border.all(color: AppColors.border),
           ),
           child: Column(
@@ -146,24 +149,24 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 product.category == 'Merch' ? Icons.checkroom : 
                 Icons.shopping_bag, 
                 color: AppColors.orange, size: 32),
-              const SizedBox(height: 12),
+              AppSpacing.gapM,
               Text(
                 product.name,
                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.text),
               ),
-              const SizedBox(height: 4),
+              AppSpacing.gapXS,
               Text(
                 '₹${product.price}',
                 style: const TextStyle(fontSize: 10, color: AppColors.text3),
               ),
-              const SizedBox(height: 12),
+              AppSpacing.gapM,
               InkWell(
                 onTap: () => setState(() => _cart[product.id] = (_cart[product.id] ?? 0) + 1),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xs),
                   decoration: BoxDecoration(
                     border: Border.all(color: AppColors.orange),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: AppRadius.radiusS,
                   ),
                   child: const Text('Add', style: TextStyle(color: AppColors.orange, fontSize: 9, fontWeight: FontWeight.w600)),
                 ),
@@ -181,19 +184,19 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     return Container(
       width: 140,
       decoration: const BoxDecoration(
-        color: AppColors.bg3,
+        color: AppColors.elevation1,
         border: Border(left: BorderSide(color: AppColors.border)),
       ),
       child: Column(
         children: [
           const Padding(
-            padding: EdgeInsets.all(12),
+            padding: EdgeInsets.all(AppSpacing.m),
             child: Text('Cart', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text)),
           ),
           const Divider(color: AppColors.border, height: 1),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(AppSpacing.s),
               children: _cart.entries.map((entry) {
                 final product = products.firstWhereOrNull((p) => p.id == entry.key);
                 if (product == null) return const SizedBox.shrink();
@@ -228,7 +231,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                     Text('₹$total', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.orange)),
                   ],
                 ),
-                const SizedBox(height: 12),
+                AppSpacing.gapM,
                 AppButton(
                   text: 'Charge',
                   isLoading: _isCharging,
