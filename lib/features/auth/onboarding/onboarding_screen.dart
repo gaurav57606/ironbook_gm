@@ -176,7 +176,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               final router = GoRouter.of(context);
               await ref.read(authProvider.notifier).completeOnboarding();
               if (!mounted) return;
-              router.go('/signup');
+              router.go('/dashboard');
             }
           },
         ),
@@ -186,7 +186,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onTap: () async {
               final router = GoRouter.of(context);
               await ref.read(authProvider.notifier).completeOnboarding();
-              if (mounted) router.go('/signup');
+              if (mounted) router.go('/dashboard');
             },
             child: Text(
               'Skip',

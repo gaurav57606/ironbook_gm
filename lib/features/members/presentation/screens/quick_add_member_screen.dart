@@ -117,6 +117,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     final plans = plansAsync.value ?? [];
 
     return Scaffold(
+      key: const Key('quick-add-member-root'),
       backgroundColor: AppColors.bg,
       body: Container(
         decoration: const BoxDecoration(
@@ -130,8 +131,21 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
                   children: [
-                    AppTextField(label: 'Full Name', hint: 'Enter member name', controller: _nameController, enabled: !_isSaving),
-                    AppTextField(label: 'Phone Number', hint: '10-digit mobile number', keyboardType: TextInputType.phone, controller: _phoneController, enabled: !_isSaving),
+                    AppTextField(
+                      key: const Key('input-member-name'),
+                      label: 'Full Name', 
+                      hint: 'Enter member name', 
+                      controller: _nameController, 
+                      enabled: !_isSaving,
+                    ),
+                    AppTextField(
+                      key: const Key('input-member-phone'),
+                      label: 'Phone Number', 
+                      hint: '10-digit mobile number', 
+                      keyboardType: TextInputType.phone, 
+                      controller: _phoneController, 
+                      enabled: !_isSaving,
+                    ),
                     Row(
                       children: [
                         Expanded(
@@ -146,7 +160,14 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                         ),
                         AppSpacing.gapM,
                         Expanded(
-                          child: AppTextField(label: 'Age', hint: 'Years', keyboardType: TextInputType.number, controller: _ageController, enabled: !_isSaving),
+                          child: AppTextField(
+                            key: const Key('input-member-age'),
+                            label: 'Age', 
+                            hint: 'Years', 
+                            keyboardType: TextInputType.number, 
+                            controller: _ageController, 
+                            enabled: !_isSaving,
+                          ),
                         ),
                       ],
                     ),
@@ -165,7 +186,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                     _buildPaymentChips(),
                     AppSpacing.gapXL,
                     AppButton(
-                      key: const Key('register_button'),
+                      key: const Key('btn-register'),
                       text: _isSaving ? 'Registering...' : 'Register & Generate Invoice',
                       onPressed: (_isSaving || plans.isEmpty) ? null : _handleSave,
                     ),

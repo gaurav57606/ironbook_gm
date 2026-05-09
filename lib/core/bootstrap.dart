@@ -22,6 +22,8 @@ import 'services/config_service.dart';
 import 'services/logger_service.dart';
 import 'package:ironbook_gm/core/sync/midnight_engine.dart';
 
+const bool isTestEnvironment = bool.fromEnvironment('FLUTTER_TEST');
+
 typedef BootstrapResult = ({bool initialized});
 
 class AppBootstrap {
@@ -137,7 +139,7 @@ class AppBootstrap {
       }
 
       // 2. Background Tasks (Native Only)
-      if (!kIsWeb) {
+      if (!kIsWeb && !isTestEnvironment) {
         logger.info('Initializing Workmanager...', category: 'WORKER');
         try {
           await Workmanager().initialize(
@@ -162,12 +164,18 @@ class AppBootstrap {
         } catch (e) {
           logger.error('Workmanager Init Failed: $e', category: 'WORKER', error: e);
         }
+      } else if (isTestEnvironment) {
+        logger.info('Skipping Workmanager in test environment.', category: 'WORKER');
       }
 
       // 3. Start Sync Worker (Only if Firebase initialized)
       if (container.read(firebaseInitializedProvider)) {
         logger.info('Starting Periodic Sync...', category: 'SYNC');
-        container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
+        if (!isTestEnvironment) {
+          container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
+        } else {
+          logger.info('Skipping Periodic Sync start in test environment.', category: 'SYNC');
+        }
         container.read(tier2StatusProvider.notifier).state = Tier2Status.ready;
         container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Ready;
       } else {

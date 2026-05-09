@@ -91,28 +91,35 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       final isSettingsPath = path.startsWith('/settings');
 
       // 4. Authentication validation
-      // Unauthenticated users always resolve first to prevent unauth onboarding/feature access
+      // Unauthenticated users always resolve first to prevent unauth feature access
       if (!isAuth) {
-        if (isLoginPath || isOnboardingPath) return null;
+        if (isLoginPath) return null;
         return '/login';
       }
 
-      // 5. PIN enforcement (Locked users must unlock BEFORE anything else)
-      // High priority: prevents bypassing security via onboarding or paywall redirects
-      if (isPinSetup && !unlocked) {
-        if (isUnlockPath) return null;
-        return '/unlock';
-      }
-      
-      // Mandatory PIN Setup for new/unconfigured accounts
-      if (!isPinSetup && !isPinSetupPath && !isSettingsPath) {
-          return '/setup-pin';
-      }
-
-      // 6. Onboarding flow
+      // 5. Onboarding flow (For new authenticated users)
       if (isFirstLaunch) {
         if (isOnboardingPath) return null;
         return '/onboarding';
+      }
+
+      // PIN ROUTING
+      // If authenticated but PIN not configured,
+      // force setup flow first.
+      if (isAuth && !isPinSetup) {
+        if (!isPinSetupPath) {
+          return '/setup-pin';
+        }
+        return null;
+      }
+
+      // If PIN exists but app locked,
+      // require unlock.
+      if (isAuth && isPinSetup && !unlocked) {
+        if (!isUnlockPath) {
+          return '/unlock';
+        }
+        return null;
       }
 
       // 7. Entitlement validation
@@ -124,7 +131,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       }
 
       // 8. Landing routing (If on non-feature screens after all gates passed)
-      if (path == '/' || isLoginPath || isOnboardingPath) {
+      if (path == '/' || isLoginPath || isOnboardingPath || isUnlockPath || isPinSetupPath) {
         return '/dashboard';
       }
 

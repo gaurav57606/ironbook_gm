@@ -3,33 +3,20 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import '../router/app_router.dart';
+import '../providers/base_providers.dart';
 import 'logger_service.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   static ProviderContainer? _container;
   static String? _pendingPayload;
-
-  @visibleForTesting
-  static void setPlugin(FlutterLocalNotificationsPlugin plugin) => _plugin.runtimeType; // Mocking helper if needed
 
   static Future<void> init(ProviderContainer container) async {
     _container = container;
     final logger = container.read(loggerProvider);
+    final gateway = container.read(notificationGatewayProvider);
     
     try {
-      const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const ios = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
-      const initSettings = InitializationSettings(android: android, iOS: ios);
-      
-      await _plugin.initialize(
-        initSettings,
-        onDidReceiveNotificationResponse: _onTap,
-      );
+      await gateway.init(_onTap);
 
       // Process any pending payload from cold start
       if (_pendingPayload != null) {
@@ -43,14 +30,11 @@ class NotificationService {
     }
   }
 
-  static void _onTap(NotificationResponse response) {
+  static Future<void> _onTap(NotificationResponse response) async {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
 
     if (_container == null) {
-      // We can't log to loggerProvider if container is null, 
-      // but we should avoid debugPrint if possible. 
-      // However, in this static context without container, debugPrint is the only way.
       debugPrint('[NOTIFICATION] App not yet initialized. Queueing payload.');
       _pendingPayload = payload;
       return;
@@ -96,10 +80,15 @@ class NotificationService {
     required String dedupKey,
     DateTime? now,
   }) async {
+    if (_container == null) return;
+    
+    final gateway = _container!.read(notificationGatewayProvider);
+    final logger = _container!.read(loggerProvider);
+
     try {
       final now0 = now ?? DateTime.now();
       final notifId = dedupKey.hashCode.abs();
-      await _plugin.cancel(notifId);
+      await gateway.cancel(notifId);
 
       final title = snapshot.getStatus(now0) == MemberStatus.expired
           ? '${snapshot.name} — Membership Expired'
@@ -117,17 +106,16 @@ class NotificationService {
         presentSound: true,
       );
 
-      await _plugin.show(
+      await gateway.show(
         notifId,
         title,
         'Tap to view member details',
-        const NotificationDetails(android: androidDetails, iOS: iosDetails),
         payload: 'member:${snapshot.memberId}',
+        androidDetails: androidDetails,
+        iosDetails: iosDetails,
       );
     } catch (e) {
-      if (_container != null) {
-        _container!.read(loggerProvider).error('Failed to send local notification alert', category: 'NOTIFICATION', error: e);
-      }
+      logger.error('Failed to send local notification alert', category: 'NOTIFICATION', error: e);
     }
   }
 }

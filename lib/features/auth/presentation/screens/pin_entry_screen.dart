@@ -81,6 +81,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
           gradient: AppColors.backgroundGradient,
         ),
         child: Scaffold(
+          key: const Key('pin-entry-root'),
           backgroundColor: Colors.transparent,
           body: SingleChildScrollView(
             child: Column(

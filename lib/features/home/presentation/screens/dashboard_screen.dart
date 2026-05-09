@@ -37,6 +37,7 @@ class DashboardScreen extends ConsumerWidget {
     final revenueStats = ref.watch(dashboardRevenueProvider);
 
     return Scaffold(
+      key: const Key('dashboard-root'),
       backgroundColor: AppColors.bg,
       body: Container(
         decoration: const BoxDecoration(

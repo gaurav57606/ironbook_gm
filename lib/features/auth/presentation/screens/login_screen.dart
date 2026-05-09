@@ -69,6 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           gradient: AppColors.backgroundGradient,
         ),
         child: Scaffold(
+          key: const Key('login-root'),
           backgroundColor: Colors.transparent,
           body: Center(
             child: SingleChildScrollView(
@@ -138,6 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       children: [
         AppTextField(
+          key: const Key('input-login-email'),
           label: 'Email Address',
           hint: 'raj@rajsfitness.com',
           controller: _emailController,
@@ -145,6 +147,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         const SizedBox(height: 8),
         AppTextField(
+          key: const Key('input-login-password'),
           label: 'Password',
           hint: '••••••••',
           controller: _passwordController,
@@ -168,6 +171,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         const SizedBox(height: 24),
         AppButton(
+          key: const Key('btn-login'),
           text: _isLoading ? 'Logging In...' : 'Log In',
           onPressed: _isLoading ? null : _handleLogin,
         ),

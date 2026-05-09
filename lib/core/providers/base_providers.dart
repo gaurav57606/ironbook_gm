@@ -8,6 +8,11 @@ import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 import 'package:ironbook_gm/core/services/config_service.dart';
+import 'package:ironbook_gm/core/services/notification_gateway.dart';
+
+final notificationGatewayProvider = Provider<NotificationGateway>((ref) {
+  return FlutterLocalNotificationGateway();
+});
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be initialized in bootstrap and overridden in ProviderScope');

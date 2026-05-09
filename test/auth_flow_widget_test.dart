@@ -1,116 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ironbook_gm/features/auth/onboarding/onboarding_screen.dart';
+import 'package:ironbook_gm/app.dart';
 import 'package:ironbook_gm/features/auth/presentation/screens/signup_screen.dart';
 import 'package:ironbook_gm/features/auth/presentation/screens/login_screen.dart';
 import 'package:ironbook_gm/features/auth/presentation/screens/pin_setup_screen.dart';
-import 'package:ironbook_gm/shared/widgets/app_button.dart';
-import 'package:ironbook_gm/shared/widgets/app_text_field.dart';
-import 'test_helper.dart';
+import 'package:ironbook_gm/core/providers/auth_provider.dart';
+import 'mocks/mock_auth.dart';
+import 'infrastructure/test_harness.dart';
+import 'infrastructure/test_app.dart';
+import 'infrastructure/test_bindings.dart';
+import 'infrastructure/deterministic_pump.dart';
 
 void main() {
-  setUpAll(() async {
-    await TestHelper.setupHive('auth_flow');
-  });
+  TestBootstrap.init();
 
   group('Scenario A: Auth & PIN Flow (Widget Test)', () {
-    late MockFirebaseAuth mockAuth;
-    late MockFlutterSecureStorage mockStorage;
-    late MockEntitlementGuard mockEntitlement;
-    late MockFirebaseFirestore mockFirestore;
+    late TestHarness harness;
 
-    setUp(() {
-      mockAuth = MockFirebaseAuth();
-      mockStorage = MockFlutterSecureStorage();
-      mockEntitlement = MockEntitlementGuard();
-      mockFirestore = MockFirebaseFirestore();
-      
-      final mockCollection = MockCollectionReference();
-      final mockDoc = MockDocumentReference();
-      final mockQuerySnapshot = MockQuerySnapshot();
-
-      when(() => mockFirestore.collection(any())).thenReturn(mockCollection);
-      when(() => mockCollection.doc(any())).thenReturn(mockDoc);
-      when(() => mockDoc.collection(any())).thenReturn(mockCollection);
-      when(() => mockCollection.orderBy(any())).thenReturn(mockCollection);
-      when(() => mockCollection.get()).thenAnswer((_) async => mockQuerySnapshot);
-      when(() => mockQuerySnapshot.docs).thenReturn([]);
-      
-      // Default behaviors
-      when(() => mockAuth.authStateChanges()).thenAnswer((_) => Stream.value(null));
-      when(() => mockStorage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
-      when(() => mockStorage.write(key: any(named: 'key'), value: any(named: 'value')))
-          .thenAnswer((_) async {});
-      when(() => mockEntitlement.checkEntitlement())
-          .thenAnswer((_) async => EntitlementStatus.valid);
+    setUp(() async {
+      harness = TestHarness();
+      await harness.setup();
     });
 
     testWidgets('Full Onboarding -> Signup -> PIN Setup Flow', (WidgetTester tester) async {
-       // Register fallbacks
-      try {
-        registerFallbackValue(BootstrapPhase.tier1Ready);
-      } catch (_) {}
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+      addTearDown(() => tester.view.resetDevicePixelRatio());
 
-      await TestHelper.pumpIronBookWidget(
-        tester,
-        const IronBookApp(
-          storageHealthy: true,
-          useGoogleFonts: false,
+      await tester.pumpWidget(
+        createTestApp(
+          overrides: harness.overrides,
+          child: const IronBookApp(
+            storageHealthy: true,
+            useGoogleFonts: false,
+          ),
         ),
-        overrides: [
-          appSecureStorageProvider.overrideWithValue(mockStorage),
-          firebaseAuthProvider.overrideWithValue(mockAuth),
-          firestoreProvider.overrideWithValue(mockFirestore),
-          entitlementProvider.overrideWithValue(mockEntitlement),
-          hmacServiceProvider.overrideWith((ref) => FakeHmacService()),
-          bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
-          authProvider.overrideWith((ref) => FakeAuth(
-            isFirstLaunch: true, 
-            isAuthenticated: false,
-            isPinSetup: false,
-          )),
-          tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
-        ],
       );
 
-      // 1. Initially should be on Login Screen (new deterministic order: Auth > Onboarding)
-      await tester.pumpAndSettle();
+      // 1. Initially should be on Login Screen
+      await boundedPump(tester);
       expect(find.byType(LoginScreen), findsOneWidget);
       expect(find.text('Welcome Back'), findsOneWidget);
 
       // 2. Navigate to Signup
-      final signupLink = find.textContaining('Create an account').first;
+      final signupLink = find.textContaining('Create an account', findRichText: true);
       expect(signupLink, findsOneWidget);
       await tester.ensureVisible(signupLink);
       await tester.tap(signupLink);
-      await tester.pumpAndSettle();
+      await boundedPump(tester);
       expect(find.byType(SignupScreen), findsOneWidget);
 
-      // 3. Fill signup form to authenticate
-      await tester.enterText(find.byType(TextFormField).at(0), 'IronBook Gym');
-      await tester.enterText(find.byType(TextFormField).at(1), 'John Doe');
-      await tester.enterText(find.byType(TextFormField).at(2), 'test@example.com');
-      await tester.enterText(find.byType(TextFormField).at(3), '9876543210');
-      await tester.enterText(find.byType(TextFormField).at(4), 'Password123');
-      await tester.enterText(find.byType(TextFormField).at(5), 'Password123');
-      await tester.pumpAndSettle();
+      // 3. Fill signup form
+      await tester.enterText(find.byKey(const Key('input-signup-gym')), 'IronBook Gym');
+      await tester.enterText(find.byKey(const Key('input-signup-owner')), 'John Doe');
+      await tester.enterText(find.byKey(const Key('input-signup-email')), 'test@example.com');
+      await tester.enterText(find.byKey(const Key('input-signup-phone')), '9876543210');
+      await tester.enterText(find.byKey(const Key('input-signup-password')), 'Password123');
+      await tester.enterText(find.byKey(const Key('input-signup-confirm')), 'Password123');
+      await boundedPump(tester);
 
       // Tap Create Account button
-      await tester.tap(find.widgetWithText(AppButton, 'Create Account'));
-      await tester.pumpAndSettle();
+      final signupBtn = find.byKey(const Key('btn-signup'));
+      await tester.ensureVisible(signupBtn);
+      await tester.tap(signupBtn);
+      await boundedPump(tester);
 
       // 4. Now authenticated + first launch -> Should be on Onboarding
       expect(find.textContaining('Track every member'), findsOneWidget);
       await tester.tap(find.textContaining('Next').first);
-      await tester.pumpAndSettle();
+      await boundedPump(tester);
       
       expect(find.textContaining('Instant invoices'), findsOneWidget);
       await tester.tap(find.textContaining('Next').first);
-      await tester.pumpAndSettle();
+      await boundedPump(tester);
       
       expect(find.textContaining('Your gym, your rules'), findsOneWidget);
       await tester.tap(find.textContaining('Get started').first);
-      await tester.pumpAndSettle();
+      await boundedPump(tester);
 
       // 5. Finally on PIN Setup Screen
       expect(find.byType(PinSetupScreen), findsOneWidget);
@@ -118,5 +85,3 @@ void main() {
     });
   });
 }
-
-

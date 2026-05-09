@@ -113,6 +113,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           gradient: AppColors.backgroundGradient,
         ),
         child: Scaffold(
+          key: const Key('signup-root'),
           backgroundColor: Colors.transparent,
           body: CustomScrollView(
             slivers: [
@@ -180,34 +181,40 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return Column(
       children: [
         AppTextField(
+          key: const Key('input-signup-gym'),
           label: 'Gym Name',
           hint: 'Raj\'s Fitness',
           controller: _gymNameController,
         ),
         AppTextField(
+          key: const Key('input-signup-owner'),
           label: 'Your Name',
           hint: 'Rajesh Kumar',
           controller: _ownerNameController,
         ),
         AppTextField(
+          key: const Key('input-signup-email'),
           label: 'Email Address',
           hint: 'raj@rajsfitness.com',
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
         ),
         AppTextField(
+          key: const Key('input-signup-phone'),
           label: 'Phone',
           hint: '+91 98765 43210',
           controller: _phoneController,
           keyboardType: TextInputType.phone,
         ),
         AppTextField(
+          key: const Key('input-signup-password'),
           label: 'Password',
           hint: '••••••••',
           controller: _passwordController,
           isPassword: true,
         ),
         AppTextField(
+          key: const Key('input-signup-confirm'),
           label: 'Confirm Password',
           hint: '••••••••',
           controller: _confirmPasswordController,
@@ -215,6 +222,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         ),
         const SizedBox(height: 16),
         AppButton(
+          key: const Key('btn-signup'),
           text: _isLoading ? 'Creating Account...' : 'Create Account',
           onPressed: _isLoading ? null : _handleSignup,
         ),

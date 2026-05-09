@@ -127,6 +127,7 @@ class SyncWorker {
 
   /// Starts a periodic sync timer with exponential backoff on failure.
   void startPeriodicSync(Duration baseInterval) {
+    if (const bool.fromEnvironment('FLUTTER_TEST')) return;
     _scheduleNextSync(baseInterval);
   }
 

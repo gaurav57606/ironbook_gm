@@ -377,7 +377,13 @@ class FakeAuth extends AuthNotifier {
   Future<bool> verifyPin(String pin) async => true;
 
   @override
-  Future<bool> authenticate({String? pin}) async => pin != null;
+  Future<bool> authenticate({String? pin}) async {
+    if (pin != null) {
+      state = state.copyWith(unlocked: true);
+      return true;
+    }
+    return false;
+  }
 
   @override
   Future<void> completeOnboarding() async {
@@ -387,13 +393,13 @@ class FakeAuth extends AuthNotifier {
   @override
   Future<bool> signUp(String email, String password,
       {String? gymName, String? ownerName, String? phone}) async {
-    state = state.copyWith(isAuthenticated: true);
+    state = state.copyWith(isAuthenticated: true, unlocked: true);
     return true;
   }
 
   @override
   Future<bool> login(String email, String password) async {
-    state = state.copyWith(isAuthenticated: true);
+    state = state.copyWith(isAuthenticated: true, unlocked: true);
     return true;
   }
 
