@@ -71,6 +71,7 @@ export 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 export 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 export 'package:ironbook_gm/core/data/local/models/payment_model.dart';
 export 'package:ironbook_gm/core/data/local/models/plan_model.dart';
+export 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
 export 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 export 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 export 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
