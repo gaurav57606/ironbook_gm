@@ -10,7 +10,8 @@ void main() {
           authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
         ],
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       final btn1 = find.byKey(const Key('btn_1'));
       expect(btn1, findsOneWidget);
@@ -31,7 +32,8 @@ void main() {
           authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
         ],
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       await tester.tap(find.byKey(const Key('btn_1')));
       await tester.tap(find.byKey(const Key('btn_2')));
@@ -49,7 +51,8 @@ void main() {
           authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
         ],
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
       
       expect(find.textContaining('Incorrect PIN'), findsOneWidget);
     });
@@ -80,7 +83,8 @@ void main() {
       await tester.tap(find.byKey(const Key('btn_3')));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.tap(find.byKey(const Key('btn_4')));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       expect(find.text('DASHBOARD'), findsOneWidget);
     });

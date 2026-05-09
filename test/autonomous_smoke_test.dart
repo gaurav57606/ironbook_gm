@@ -69,13 +69,16 @@ void main() {
       // 2. Onboarding
       expect(find.text('Track every member'), findsOneWidget);
       await tester.tap(find.text('Next'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       await tester.tap(find.text('Next'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       await tester.tap(find.text('Get started'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
       // 3. Signup
@@ -84,7 +87,8 @@ void main() {
 
       // Navigate to Login from Signup
       await tester.tap(find.text('Log in'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       // 4. Login Screen
       expect(find.text('Welcome Back!'), findsOneWidget);
@@ -130,7 +134,8 @@ void main() {
       );
 
       await tester.pump(const Duration(seconds: 3)); // Bypass splash
-      await tester.pumpAndSettle(); // Should go to PIN ENTRY because it's not "unlocked" yet
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(); // Should go to PIN ENTRY because it's not "unlocked" yet
 
       expect(find.text('Enter your PIN'), findsOneWidget);
 
@@ -139,10 +144,12 @@ void main() {
         await tester.tap(find.text('1'));
         await tester.pump();
       }
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       // 5. Dashboard
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
       expect(find.text('IRONBOOK GM'), findsOneWidget);
     });
   });

@@ -104,17 +104,45 @@ void main() {
         routerConfig: router,
         overrides: [
           membersProvider.overrideWith((ref) => mockMemberNotifier),
-          paymentsProvider.overrideWith((ref) => mockPaymentNotifier),
+          paymentsProvider.overrideWith((ref, id) => mockPaymentNotifier),
           planProvider.overrideWith((ref) => mockPlanNotifier),
+          activePlansProvider.overrideWith((ref) => Stream.value([
+            db.Plan(
+              id: 'plan-monthly',
+              name: 'Monthly',
+              durationMonths: 1,
+              price: 1000,
+              active: true,
+              hmacSignature: '',
+            )
+          ])),
         ],
       );
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
+      // Enter Name
       await tester.enterText(find.byType(TextField).at(0), 'Alice Smith');
-      await tester.enterText(find.byType(TextField).at(1), '1234567890');
+      await tester.pump();
 
-      final button = find.byKey(const Key('register_button'));
-      await tester.tap(button);
+      // Enter Phone (Must be 10 digits)
+      await tester.enterText(find.byType(TextField).at(1), '1234567890');
+      await tester.pump();
+
+      // Enter Age
+      await tester.enterText(find.byType(TextField).at(2), '25');
+      await tester.pump();
+
+      final buttonFinder = find.byKey(const Key('register_button'));
+      expect(buttonFinder, findsOneWidget);
+      
+      // Ensure button is enabled
+      final AppButton buttonWidget = tester.widget(buttonFinder);
+      expect(buttonWidget.onPressed, isNotNull, reason: 'Register button should be enabled after filling form');
+
+      await tester.tap(buttonFinder);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
       verify(() => mockMemberNotifier.addMember(
@@ -123,7 +151,7 @@ void main() {
         planId: any(named: 'planId'),
         joinDate: any(named: 'joinDate'),
         gender: any(named: 'gender'),
-        age: any(named: 'age'),
+        age: 25,
       )).called(1);
 
       expect(find.text('Invoice Page'), findsOneWidget);

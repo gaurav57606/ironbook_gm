@@ -54,7 +54,8 @@ void main() {
         ],
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       expect(find.byType(DashboardScreen), findsOneWidget);
       expect(find.byType(Scaffold), findsAtLeast(1));

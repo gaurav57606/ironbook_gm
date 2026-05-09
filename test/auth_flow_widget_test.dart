@@ -73,31 +73,20 @@ void main() {
         ],
       );
 
-      // Wait for router redirect to Onboarding
+      // 1. Initially should be on Login Screen (new deterministic order: Auth > Onboarding)
       await tester.pumpAndSettle();
-      
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.text('Welcome Back'), findsOneWidget);
 
-      // Check for Onboarding
-      expect(find.textContaining('Track every member'), findsOneWidget);
-      await tester.tap(find.text('Next'));
+      // 2. Navigate to Signup
+      final signupLink = find.textContaining('Create an account').first;
+      expect(signupLink, findsOneWidget);
+      await tester.ensureVisible(signupLink);
+      await tester.tap(signupLink);
       await tester.pumpAndSettle();
-      
-      expect(find.textContaining('Instant invoices'), findsOneWidget);
-      await tester.tap(find.text('Next'));
-      await tester.pumpAndSettle();
-      
-      expect(find.textContaining('Your gym, your rules'), findsOneWidget);
-      await tester.tap(find.text('Get started'));
-      await tester.pump(); // Trigger navigation
-      await tester.pump(const Duration(milliseconds: 100)); // Advance timer
-      await tester.pumpAndSettle();
-
-      // Signup Screen
-      expect(find.textContaining('Your gym, your rules'), findsNothing);
       expect(find.byType(SignupScreen), findsOneWidget);
-      expect(find.text('Create Account'), findsNWidgets(2)); // Header and Button
 
-      // Fill signup form
+      // 3. Fill signup form to authenticate
       await tester.enterText(find.byType(TextFormField).at(0), 'IronBook Gym');
       await tester.enterText(find.byType(TextFormField).at(1), 'John Doe');
       await tester.enterText(find.byType(TextFormField).at(2), 'test@example.com');
@@ -106,11 +95,24 @@ void main() {
       await tester.enterText(find.byType(TextFormField).at(5), 'Password123');
       await tester.pumpAndSettle();
 
-      // Tap Create Account button (the one in AppButton)
+      // Tap Create Account button
       await tester.tap(find.widgetWithText(AppButton, 'Create Account'));
       await tester.pumpAndSettle();
 
-      // Should be on PIN Setup Screen
+      // 4. Now authenticated + first launch -> Should be on Onboarding
+      expect(find.textContaining('Track every member'), findsOneWidget);
+      await tester.tap(find.textContaining('Next').first);
+      await tester.pumpAndSettle();
+      
+      expect(find.textContaining('Instant invoices'), findsOneWidget);
+      await tester.tap(find.textContaining('Next').first);
+      await tester.pumpAndSettle();
+      
+      expect(find.textContaining('Your gym, your rules'), findsOneWidget);
+      await tester.tap(find.textContaining('Get started').first);
+      await tester.pumpAndSettle();
+
+      // 5. Finally on PIN Setup Screen
       expect(find.byType(PinSetupScreen), findsOneWidget);
       expect(find.text('Create your PIN'), findsOneWidget);
     });

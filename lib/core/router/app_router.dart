@@ -58,7 +58,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
     refreshListenable: refreshListenable,
     errorBuilder: (context, state) => Scaffold(
       body: Center(
-        child: Text('Page not found: ${state.matchedLocation}'),
+        child: Text('Page not found: ${state.uri.toString()}'),
       ),
     ),
     redirect: (context, state) {
@@ -67,79 +67,68 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       final bootstrap = ref.read(bootstrapStateProvider);
       final entitlementStatus = ref.read(entitlementStatusProvider);
 
+      final path = state.matchedLocation;
 
-      // 0. Hard Block until Phase 1 (Core) is done
+      // 1. Bootstrap gating
       if (bootstrap == BootstrapPhase.tier1Pending) return null;
       
-      // 1. Splash Screen Holding Pattern (Stay until Tier 2 is determined)
-      final isSplash = state.matchedLocation == '/';
-      if (tier2Status == Tier2Status.pending && isSplash) return null;
+      // 2. Fatal startup gating (Splash holding)
+      if (tier2Status == Tier2Status.pending && path == '/') return null;
 
-      // 2. Auth Loading Guard
+      // 3. Auth loading (Stay on splash while loading)
       if (authState.isLoading) return null;
 
       final isAuth = authState.isAuthenticated;
-      final onboardingDone = !authState.isFirstLaunch;
+      final isFirstLaunch = authState.isFirstLaunch;
       final isPinSetup = authState.isPinSetup;
       final unlocked = authState.unlocked;
 
-      debugPrint('[NAV] Redirect Audit: path=${state.matchedLocation}, auth=$isAuth, pinSetup=$isPinSetup, unlocked=$unlocked, tier2=$tier2Status');
+      final isLoginPath = path == '/login' || path == '/signup' || path == '/forgot-password';
+      final isOnboardingPath = path == '/onboarding';
+      final isUnlockPath = path == '/unlock';
+      final isPinSetupPath = path == '/setup-pin';
+      final isLeasePath = path == '/lease-expired';
+      final isSettingsPath = path.startsWith('/settings');
 
-      final isLoggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/signup' ||
-          state.matchedLocation == '/forgot-password';
-      final isOnboarding = state.matchedLocation == '/onboarding';
-      final isPinSetupPath = state.matchedLocation == '/setup-pin';
-      final isPinEntryPath = state.matchedLocation == '/unlock';
-
-      // 3. Onboarding Redirect
-      if (!onboardingDone) {
-        if (isOnboarding) return null;
-        return '/onboarding';
-      }
-
-      // 4. Tier 2 Guard for Protected Routes
-      // We allow Login/Onboarding screens after Tier 1 Ready.
-      // But we BLOCK dashboard/gym access until Tier 2 (Firebase Auth) is determined (Ready/Degraded).
-      final isProtectedRoute = !isLoggingIn && !isOnboarding && !isSplash;
-
-      if (isProtectedRoute && tier2Status == Tier2Status.pending) {
-        return '/'; // Hold on Splash
-      }
-
-      // 5. Auth Redirect
+      // 4. Authentication validation
+      // Unauthenticated users always resolve first to prevent unauth onboarding/feature access
       if (!isAuth) {
-        if (isLoggingIn || isOnboarding) return null;
+        if (isLoginPath || isOnboardingPath) return null;
         return '/login';
       }
 
-      // 6. Post-Auth Routing (PIN & Landing)
-      if (isSplash || isLoggingIn || isOnboarding) {
-        if (isPinSetup && !unlocked) return '/unlock';
-        if (!isPinSetup) return '/setup-pin';
-        return '/dashboard';
+      // 5. PIN enforcement (Locked users must unlock BEFORE anything else)
+      // High priority: prevents bypassing security via onboarding or paywall redirects
+      if (isPinSetup && !unlocked) {
+        if (isUnlockPath) return null;
+        return '/unlock';
       }
-
-      // 7. PIN Enforcement
-      if (isAuth) {
-        if (isPinSetup && !unlocked && !isPinEntryPath) {
-          return '/unlock';
-        }
-
-        if (!isPinSetup && !isPinSetupPath && !state.matchedLocation.startsWith('/settings')) {
+      
+      // Mandatory PIN Setup for new/unconfigured accounts
+      if (!isPinSetup && !isPinSetupPath && !isSettingsPath) {
           return '/setup-pin';
-        }
       }
 
-      // 8. Entitlement Guard (Paywall)
-      final isSettings = state.matchedLocation.startsWith('/settings');
-      if (isAuth && !isSettings && state.matchedLocation != '/paywall') {
-        final status = entitlementStatus.valueOrNull ?? EntitlementStatus.valid;
-        if (status == EntitlementStatus.expired) {
+      // 6. Onboarding flow
+      if (isFirstLaunch) {
+        if (isOnboardingPath) return null;
+        return '/onboarding';
+      }
+
+      // 7. Entitlement validation
+      // Do NOT evaluate while loading to prevent false redirects immediately after login
+      if (!entitlementStatus.isLoading && entitlementStatus.hasValue) {
+        if (entitlementStatus.value == EntitlementStatus.expired && !isLeasePath && !isSettingsPath) {
           return '/lease-expired';
         }
       }
 
+      // 8. Landing routing (If on non-feature screens after all gates passed)
+      if (path == '/' || isLoginPath || isOnboardingPath) {
+        return '/dashboard';
+      }
+
+      // 9. Feature routing (Allow the requested route)
       return null;
     },
     routes: [
@@ -343,10 +332,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
             ],
           ),
         ],
-      ),
-      GoRoute(
-        path: '/paywall',
-        builder: (context, state) => const SubscriptionScreen(),
       ),
     ],
   );

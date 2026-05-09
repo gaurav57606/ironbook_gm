@@ -31,7 +31,8 @@ void main() {
         ],
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       expect(find.text('Alice Active'), findsOneWidget);
       expect(find.text('ACTIVE'), findsOneWidget);

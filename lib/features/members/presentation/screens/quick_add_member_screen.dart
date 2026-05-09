@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../shared/utils/date_utils.dart';
-import '../../../../core/constants/app_spacing.dart';
-import '../../../../core/constants/app_radius.dart';
-import '../../../../core/constants/app_shadows.dart';
-import '../../../../core/constants/app_text_styles.dart';
-import '../../../../shared/widgets/app_section_header.dart';
-import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import 'package:ironbook_gm/core/constants/app_colors.dart';
+import 'package:ironbook_gm/shared/utils/date_utils.dart';
+import 'package:ironbook_gm/core/constants/app_spacing.dart';
+import 'package:ironbook_gm/core/constants/app_radius.dart';
+import 'package:ironbook_gm/core/constants/app_shadows.dart';
+import 'package:ironbook_gm/core/constants/app_text_styles.dart';
+import 'package:ironbook_gm/shared/widgets/app_section_header.dart';
+import 'package:ironbook_gm/shared/widgets/app_button.dart';
+import 'package:ironbook_gm/shared/widgets/app_text_field.dart';
+import 'package:ironbook_gm/shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
-import '../../../billing/providers/billing_provider.dart';
-import '../../../../core/data/local/drift/outbox_database.dart' as db;
+import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 
 class QuickAddMemberScreen extends ConsumerStatefulWidget {
   const QuickAddMemberScreen({super.key});
@@ -84,7 +84,11 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
       );
 
       // Record financial transaction
-      await ref.read(billingNotifierProvider).recordMemberPayment(
+      final billing = ref.read(billingNotifierProvider);
+      if (billing == null) {
+        throw Exception('FATAL: billingNotifierProvider resolved to null in QuickAddMemberScreen');
+      }
+      await billing.recordMemberPayment(
         memberId: memberId,
         plan: selectedPlan,
         method: _paymentMethods[_selectedPayment],
