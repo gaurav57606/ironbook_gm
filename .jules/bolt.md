@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2025-01-25 - [Bulk Insert Optimization for Sales]
+**Learning:** During application initialization, iterating over a list of events to reconcile missing sales records in the database introduces an N+1 query pattern (fetching and then upserting each sale individually).
+**Action:** Replace the N+1 query pattern by fetching all existing IDs at once (`getAllSaleIds`), filtering the missing events in-memory, and then using a batch insert operation (`upsertSales`) to persist all missing records in a single database transaction. This significantly reduces I/O latency and transaction overhead during startup.

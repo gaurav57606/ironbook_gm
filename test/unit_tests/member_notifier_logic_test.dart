@@ -1,5 +1,6 @@
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
+import 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:drift/native.dart';
 import 'dart:async';

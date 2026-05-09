@@ -11,9 +11,11 @@ import '../../constants/event_payload_keys.dart';
 
 abstract class ISaleRepository {
   Future<void> upsertSale(domain.Sale sale);
+  Future<void> upsertSales(List<domain.Sale> sales);
   Future<domain.Sale?> getSale(String id);
   Future<List<domain.Sale>> getSalesByMember(String memberId);
   Future<List<domain.Sale>> getAllSales();
+  Future<List<String>> getAllSaleIds();
   Future<void> applyEvent(DomainEvent event);
 }
 
@@ -22,26 +24,38 @@ class DriftSaleRepository implements ISaleRepository {
 
   DriftSaleRepository(this._db);
 
+  db.SalesCompanion _toCompanion(domain.Sale sale) {
+    return db.SalesCompanion.insert(
+      id: sale.id,
+      memberId: Value(sale.memberId),
+      date: sale.date,
+      totalAmount: sale.totalAmount,
+      paymentMethod: sale.paymentMethod,
+      invoiceNumber: sale.invoiceNumber,
+      itemsJson: jsonEncode(sale.items.map((i) => {
+        'productId': i.productId,
+        'productName': i.productName,
+        'price': i.price,
+        'quantity': i.quantity,
+      }).toList()),
+      hmacSignature: Value(sale.hmacSignature ?? ''),
+    );
+  }
+
   @override
   Future<void> upsertSale(domain.Sale sale) async {
     debugPrint('[DB] SaleRepository: Upserting sale ${sale.id} (Invoice: ${sale.invoiceNumber})');
-    await _db.into(_db.sales).insertOnConflictUpdate(
-      db.SalesCompanion.insert(
-        id: sale.id,
-        memberId: Value(sale.memberId),
-        date: sale.date,
-        totalAmount: sale.totalAmount,
-        paymentMethod: sale.paymentMethod,
-        invoiceNumber: sale.invoiceNumber,
-        itemsJson: jsonEncode(sale.items.map((i) => {
-          'productId': i.productId,
-          'productName': i.productName,
-          'price': i.price,
-          'quantity': i.quantity,
-        }).toList()),
-        hmacSignature: Value(sale.hmacSignature ?? ''),
-      ),
-    );
+    await _db.into(_db.sales).insertOnConflictUpdate(_toCompanion(sale));
+  }
+
+  @override
+  Future<void> upsertSales(List<domain.Sale> sales) async {
+    debugPrint('[DB] SaleRepository: Batch upserting ${sales.length} sales');
+    await _db.batch((batch) {
+      for (final sale in sales) {
+        batch.insert(_db.sales, _toCompanion(sale), mode: InsertMode.insertOrReplace);
+      }
+    });
   }
 
   @override
@@ -60,6 +74,13 @@ class DriftSaleRepository implements ISaleRepository {
   Future<List<domain.Sale>> getAllSales() async {
     final docs = await _db.select(_db.sales).get();
     return docs.map((d) => domain.Sale.fromDrift(d)).toList();
+  }
+
+  @override
+  Future<List<String>> getAllSaleIds() async {
+    final query = _db.selectOnly(_db.sales)..addColumns([_db.sales.id]);
+    final result = await query.get();
+    return result.map((row) => row.read(_db.sales.id)!).toList();
   }
 
   @override

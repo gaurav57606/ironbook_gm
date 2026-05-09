@@ -80,21 +80,26 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     final recentEvents = await _eventRepo.getAll();
     final saleEvents = recentEvents.where((e) => e.eventType == EventType.saleRecorded && e.payload.containsKey('saleId')).toList();
     
-    bool updatedAny = false;
-    for (final event in saleEvents) {
-      final saleId = event.payload['saleId'] as String?;
-      if (saleId == null) continue;
+    if (saleEvents.isEmpty) return;
 
-      final existing = await _saleRepo.getSale(saleId);
-      if (existing == null) {
-        await _saleRepo.applyEvent(event);
-        updatedAny = true;
-      }
-    }
+    final existingIds = (await _saleRepo.getAllSaleIds()).toSet();
+    final missingEvents = saleEvents.where((e) {
+      final saleId = e.payload['saleId'] as String?;
+      return saleId != null && !existingIds.contains(saleId);
+    }).toList();
 
-    if (updatedAny) {
-      state = (await _saleRepo.getAllSales()).reversed.toList();
-    }
+    if (missingEvents.isEmpty) return;
+
+    debugPrint('SaleNotifier: Reconciling ${missingEvents.length} missing sales parallelized');
+
+    final missingSales = missingEvents.map((e) {
+      final saleId = e.payload['saleId'] as String;
+      return Sale.fromPayload(saleId, e.payload, e.deviceTimestamp);
+    }).toList();
+
+    await _saleRepo.upsertSales(missingSales);
+
+    state = (await _saleRepo.getAllSales()).reversed.toList();
   }
 
   @visibleForTesting
