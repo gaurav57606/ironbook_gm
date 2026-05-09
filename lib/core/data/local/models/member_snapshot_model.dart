@@ -90,9 +90,17 @@ class MemberSnapshot extends HiveObject {
   // ── COMPUTED (Now deterministic) ──
   int getDaysRemaining(DateTime relativeTo) {
     if (expiryDate == null) return 0;
-    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
-    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
-    return expiry.difference(today).inDays;
+
+    // ⚡ Bolt: Fast path for counting days using UTC to avoid slow local DateTime allocations and DST shifts.
+    final todayUtcMs =
+        DateTime.utc(relativeTo.year, relativeTo.month, relativeTo.day)
+            .millisecondsSinceEpoch;
+    final expiryUtcMs =
+        DateTime.utc(expiryDate!.year, expiryDate!.month, expiryDate!.day)
+            .millisecondsSinceEpoch;
+
+    // 86400000 ms per day
+    return (expiryUtcMs - todayUtcMs) ~/ 86400000;
   }
 
   MemberStatus getStatus(DateTime relativeTo) {
@@ -151,12 +159,16 @@ class MemberSnapshot extends HiveObject {
       joinDate: DateTime.parse(payload['joinDate']),
       planId: payload['planId'],
       planName: payload['planName'],
-      expiryDate: payload['expiryDate'] != null ? DateTime.parse(payload['expiryDate']) : null,
+      expiryDate: payload['expiryDate'] != null
+          ? DateTime.parse(payload['expiryDate'])
+          : null,
       totalPaid: payload['totalPaid'] ?? 0,
       gender: payload['gender'],
       age: payload['age'],
       checkInPin: payload['checkInPin'],
-      lastCheckIn: payload['lastCheckIn'] != null ? DateTime.parse(payload['lastCheckIn']) : null,
+      lastCheckIn: payload['lastCheckIn'] != null
+          ? DateTime.parse(payload['lastCheckIn'])
+          : null,
       lastCheckInDevice: payload['lastCheckInDevice'],
       hmacSignature: payload['hmacSignature'],
     );
@@ -249,19 +261,10 @@ class MemberSnapshot extends HiveObject {
   }
 
   dynamic toDrift() {
-    // Note: We return the Companion/Data class type at runtime. 
+    // Note: We return the Companion/Data class type at runtime.
     // In actual implementation, we use the generated classes from outbox_database.g.dart
     return null; // Placeholder, will be used in repository
   }
 }
 
 enum MemberStatus { pending, active, expiring, expired }
-
-
-
-
-
-
-
-
-
