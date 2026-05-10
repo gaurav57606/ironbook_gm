@@ -4,11 +4,29 @@ import '../local/models/product_model.dart' as domain;
 import '../../providers/base_providers.dart';
 
 abstract class IProductRepository {
+  Future<void> upsertProducts(List<domain.Product> products);
   Future<List<domain.Product>> getAllProducts();
   Future<void> upsertProduct(domain.Product product);
 }
 
 class DriftProductRepository implements IProductRepository {
+  @override
+  Future<void> upsertProducts(List<domain.Product> products) async {
+    await _db.batch((batch) {
+      for (final product in products) {
+        batch.insertAllOnConflictUpdate(_db.products, [
+          db.ProductsCompanion.insert(
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            category: product.category,
+            iconCodePoint: product.iconCodePoint,
+          )
+        ]);
+      }
+    });
+  }
+
   final db.OutboxDatabase _db;
 
   DriftProductRepository(this._db);
@@ -22,14 +40,14 @@ class DriftProductRepository implements IProductRepository {
   @override
   Future<void> upsertProduct(domain.Product product) async {
     await _db.into(_db.products).insertOnConflictUpdate(
-      db.ProductsCompanion.insert(
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        category: product.category,
-        iconCodePoint: product.iconCodePoint,
-      ),
-    );
+          db.ProductsCompanion.insert(
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            category: product.category,
+            iconCodePoint: product.iconCodePoint,
+          ),
+        );
   }
 }
 
