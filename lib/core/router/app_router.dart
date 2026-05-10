@@ -97,6 +97,9 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
         return '/login';
       }
 
+      // 5a. Always allow auth screens through, regardless of onboarding state
+      if (isLoginPath) return null;
+
       // 5. Onboarding flow (For new authenticated users)
       if (isFirstLaunch) {
         if (isOnboardingPath) return null;
@@ -170,6 +173,13 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       GoRoute(
         path: '/recovery',
         builder: (context, state) => const RecoveryScreen(),
+      ),
+      GoRoute(
+        path: '/invoice',
+        builder: (context, state) {
+          final memberId = state.uri.queryParameters['memberId'];
+          return InvoiceScreen(memberId: memberId);
+        },
       ),
       GoRoute(
         path: '/character-creation',

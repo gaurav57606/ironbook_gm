@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
-import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/settings_section.dart';

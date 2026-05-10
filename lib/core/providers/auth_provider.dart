@@ -175,6 +175,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
       );
       state = state.copyWith(authAttempts: 0);
+      // Invalidate entitlement cache so fresh check runs after each login
+      _ref.invalidate(entitlementStatusProvider);
       return true;
     } catch (e) {
       state = state.copyWith(authAttempts: state.authAttempts + 1);
@@ -244,6 +246,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> signUp(String email, String password,
       {String? gymName, String? ownerName, String? phone}) async {
     state = state.copyWith(isLoading: true);
+    await _storage.delete(key: 'pin_hash');
+    await _storage.delete(key: 'pin_salt');
     try {
       if (_firebaseAuth == null) {
          throw Exception('Firebase not initialized');
@@ -280,6 +284,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
         state = state.copyWith(
           isAuthenticated: true,
+          isFirstLaunch: false,
+          isPinSetup: false,
+          unlocked: false,
           authAttempts: 0,
         );
       }
@@ -298,6 +305,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> setPin(String pin) async {
     await _pinService.setPin(pin);
     state = state.copyWith(isPinSetup: true, unlocked: true);
+    // Invalidate entitlement cache so fresh check runs after PIN setup
+    _ref.invalidate(entitlementStatusProvider);
   }
 
   Future<void> setBiometricOptIn(bool enabled) async {
@@ -334,7 +343,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final eventRepo = ref.watch(eventRepositoryProvider);
   final ownerRepo = ref.watch(ownerRepositoryProvider);
   final settingsRepo = ref.watch(settingsRepositoryProvider);
-  final syncWorker = ref.watch(syncWorkerProvider);
   final firebaseAuth = ref.watch(firebaseAuthProvider);
   final hmac = ref.watch(hmacServiceProvider);
   

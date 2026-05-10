@@ -6,7 +6,6 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/status_bar_wrapper.dart';
-import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/data/local/models/owner_profile_model.dart';
 import '../../../../core/data/local/models/domain_event_model.dart';

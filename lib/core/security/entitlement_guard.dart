@@ -71,6 +71,14 @@ class EntitlementGuard {
         return freshExpiry.isAfter(now)
             ? EntitlementStatus.valid
             : EntitlementStatus.expired;
+      } else {
+        // New account — no entitlement doc yet.
+        // Grant a 30-day free trial and write it to local storage.
+        final trialExpiry = now.add(const Duration(days: 30));
+        await _storage.write(key: 'ent_expiry', value: trialExpiry.toIso8601String());
+        await _storage.write(key: 'lease_heartbeat', value: now.toIso8601String());
+        debugPrint('EntitlementGuard: New account detected. 30-day trial granted.');
+        return EntitlementStatus.valid;
       }
     } catch (e) {
       debugPrint('EntitlementGuard Cloud Check Error: $e');

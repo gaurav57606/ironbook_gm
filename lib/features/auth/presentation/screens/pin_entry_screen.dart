@@ -19,6 +19,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
   String _pin = '';
   bool _error = false;
   bool _isLoading = false;
+  bool _biometricFailed = false;
 
  
   @override
@@ -70,6 +71,8 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
     final success = await ref.read(authProvider.notifier).authenticate();
     if (success && mounted) {
       context.go('/dashboard');
+    } else if (mounted) {
+      setState(() => _biometricFailed = true);
     }
   }
 
@@ -171,6 +174,17 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
                 height: 20,
                 child: CircularProgressIndicator(
                     strokeWidth: 3, color: AppColors.primary),
+              ),
+            ),
+          if (_biometricFailed)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                'Biometric failed. Enter your PIN to continue.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
         ],
