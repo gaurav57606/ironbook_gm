@@ -18,11 +18,11 @@ void main() async {
     FlutterError.presentError(details);
     // In production, this will eventually be handled by Crashlytics via LoggerService
     // For now, we ensure it's at least printed and ready for the next phase
-    debugPrint('Early FlutterError captured: ${details.exception}');
+    if (kDebugMode) debugPrint('Early FlutterError captured: ${details.exception}');
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('Early Platform Error captured: $error');
+    if (kDebugMode) debugPrint('Early Platform Error captured: $error');
     return true; // Prevent app from killing itself immediately
   };
 
@@ -56,7 +56,7 @@ void main() async {
       ),
     );
   } catch (e, stack) {
-    debugPrint('FATAL STARTUP ERROR: $e\n$stack');
+    if (kDebugMode) debugPrint('FATAL STARTUP ERROR: $e\n$stack');
     // Fallback UI if everything fails
     runApp(
       MaterialApp(

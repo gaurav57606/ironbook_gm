@@ -1,4 +1,12 @@
+import 'package:intl/intl.dart';
+
 class AppDateUtils {
+  /// "15 Jan 2024" format
+  static String format(DateTime d) => DateFormat('d MMM yyyy').format(d);
+
+  /// "Jan 2024" format
+  static String formatShort(DateTime d) => DateFormat('MMM yyyy').format(d);
+
   /// Adds exactly [months] to the [date], handling month overflow correctly.
   /// (e.g., Jan 31 + 1 month = Feb 28/29).
   static DateTime addMonths(DateTime date, int months) {

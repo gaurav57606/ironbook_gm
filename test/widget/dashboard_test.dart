@@ -1,10 +1,7 @@
 import '../test_helper.dart';
 import 'package:ironbook_gm/features/home/presentation/screens/dashboard_screen.dart';
-import 'package:ironbook_gm/features/nutrition/domain/repositories/nutrition_repository.dart';
-import 'package:ironbook_gm/features/nutrition/presentation/providers/nutrition_provider.dart';
 
 class MockSyncWorker extends Mock implements SyncWorker {}
-class MockNutritionRepository extends Mock implements INutritionRepository {}
 
 void main() {
   setUpAll(() {
@@ -34,10 +31,8 @@ void main() {
       // Use Fake notifiers from test_helper.dart
       final mockNotifier = FakeMemberNotifier([m1]);
       final mockPaymentNotifier = FakePaymentNotifier([]);
-      final mockNutrition = MockNutritionRepository();
       final mockSync = MockSyncWorker();
 
-      when(() => mockNutrition.getAll()).thenAnswer((_) async => []);
       when(() => mockSync.startPeriodicSync(any())).thenReturn(null);
 
       await TestHelper.pumpIronBookWidget(
@@ -49,7 +44,6 @@ void main() {
           paymentsProvider.overrideWith((ref) => mockPaymentNotifier),
           unsyncedCountProvider.overrideWith((ref) => Stream.value(0)),
           tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
-          nutritionRepositoryProvider.overrideWithValue(mockNutrition),
           syncWorkerProvider.overrideWithValue(mockSync),
         ],
       );

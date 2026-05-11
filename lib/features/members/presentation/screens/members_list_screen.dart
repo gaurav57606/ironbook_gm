@@ -10,6 +10,7 @@ import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import '../../../../shared/utils/clock.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/sync_status_indicator.dart';
 import '../widgets/member_list_item.dart';
 
 class MembersListScreen extends ConsumerWidget {
@@ -17,120 +18,106 @@ class MembersListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final filteredMembers = ref.watch(filteredMembersProvider);
-    // ⚡ Bolt: Use .select() to avoid rebuilds when member data changes but count stays same
-    final allMembersCount = ref.watch(membersProvider.select((m) => m.length));
-
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: Column(
-          children: [
-            _buildAppBar(context),
-            _buildQuickStats(context, ref),
-            _buildSearchAndFilters(context, ref),
-            Expanded(
-              child: filteredMembers.isEmpty 
-                ? const AppEmptyState(
-                    title: 'No members found',
-                    icon: Icons.people_outline_rounded,
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
-                    itemCount: filteredMembers.length + 1,
-                    itemBuilder: (context, index) {
-                      if (index == filteredMembers.length) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                          child: Center(
-                            child: Text(
-                              'Showing ${filteredMembers.length} of $allMembersCount members',
-                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+      body: SafeArea(
+        top: true,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
+          child: Column(
+            children: [
+              _buildAppBar(context),
+              _buildQuickStats(context),
+              _buildSearchAndFilters(context),
+              Expanded(
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final filteredMembers = ref.watch(filteredMembersProvider);
+                    final allMembersCount = ref.watch(membersProvider.select((m) => m.length));
+                    
+                    if (filteredMembers.isEmpty) {
+                      return const AppEmptyState(
+                        title: 'No members found',
+                        icon: Icons.people_outline_rounded,
+                      );
+                    }
+                    
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
+                      itemCount: filteredMembers.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == filteredMembers.length) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                            child: Center(
+                              child: Text(
+                                'Showing ${filteredMembers.length} of $allMembersCount members',
+                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                              ),
                             ),
-                          ),
+                          );
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: MemberListItem(memberId: filteredMembers[index].memberId),
                         );
-                      }
-                      return MemberListItem(member: filteredMembers[index]);
-                    },
-                  ),
-            ),
-          ],
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: AppSpacing.screenPadding, right: AppSpacing.screenPadding, top: AppSpacing.xxxl, bottom: AppSpacing.s),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, AppSpacing.l, AppSpacing.screenPadding, AppSpacing.m),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Members',
-            style: AppTextStyles.cardTitle.copyWith(fontSize: 22, fontWeight: FontWeight.w800),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Members', style: AppTextStyles.h2.copyWith(fontWeight: FontWeight.w900)),
+              Text('Gym Membership Management', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+            ],
           ),
-          GestureDetector(
-             onTap: () => context.push('/gym/add-member'),
-             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: AppRadius.radiusM,
-                boxShadow: AppShadows.primary,
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.add_rounded, size: 16, color: Colors.white),
-                  AppSpacing.gapS,
-                  Text('New Member', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                ],
-              ),
-            ),
-          ),
+          const SyncStatusIndicator(),
         ],
       ),
     );
   }
 
-  Widget _buildQuickStats(BuildContext context, WidgetRef ref) {
-    final all = ref.watch(membersProvider);
-    final now = ref.watch(clockProvider).now;
-    
-    // ⚡ Bolt: Consolidated multiple list traversals to compute stats in one pass
-    int active = 0;
-    int expiring = 0;
-    for (final m in all) {
-      final status = m.getStatus(now);
-      if (status == MemberStatus.active) {
-        active++;
-      } else if (status == MemberStatus.expiring) {
-        expiring++;
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
-      child: Row(
-        children: [
-          _buildStatItem('ACTIVE', active.toString(), AppColors.active),
-          AppSpacing.gapS,
-          _buildStatItem('EXPIRING', expiring.toString(), AppColors.expiring),
-          AppSpacing.gapS,
-          _buildStatItem('TOTAL', all.length.toString(), AppColors.primary),
-        ],
-      ),
+  Widget _buildQuickStats(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, _) {
+        final stats = ref.watch(memberStatsProvider);
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
+          child: Row(
+            children: [
+              _buildStatItem('ACTIVE', stats.activeCount.toString(), AppColors.active),
+              AppSpacing.gapS,
+              _buildStatItem('EXPIRING', stats.expiringCount.toString(), AppColors.expiring),
+              AppSpacing.gapS,
+              _buildStatItem('TOTAL', stats.totalCount.toString(), AppColors.primary),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildStatItem(String label, String value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.m),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.m, horizontal: AppSpacing.s),
         decoration: BoxDecoration(
           color: AppColors.elevation2,
           borderRadius: AppRadius.radiusXL,
@@ -139,57 +126,61 @@ class MembersListScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted)),
-            AppSpacing.gapXS,
-            Text(value, style: AppTextStyles.cardTitle.copyWith(color: color, fontSize: 18)),
+            Text(label, style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted, fontSize: 8)),
+            const SizedBox(height: 4),
+            Text(value, style: AppTextStyles.h3.copyWith(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSearchAndFilters(BuildContext context, WidgetRef ref) {
+  Widget _buildSearchAndFilters(BuildContext context) {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
           child: Container(
-            height: 44,
+            height: 48,
             decoration: BoxDecoration(
               color: AppColors.elevation2,
               borderRadius: AppRadius.radiusL,
               border: Border.all(color: AppColors.border),
             ),
-            child: TextField(
-              onChanged: (value) => ref.read(memberSearchQueryProvider.notifier).state = value,
-              style: AppTextStyles.body,
-              decoration: InputDecoration(
-                hintText: 'Search by name or phone...',
-                hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-                prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textMuted),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.m),
-              ),
+            child: Consumer(
+              builder: (context, ref, _) {
+                return TextField(
+                  onChanged: (value) => ref.read(memberSearchQueryProvider.notifier).state = value,
+                  style: AppTextStyles.body,
+                  decoration: InputDecoration(
+                    hintText: 'Search by name or phone...',
+                    hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textMuted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                );
+              },
             ),
           ),
         ),
-        _buildPillTabs(ref),
+        _buildPillTabs(context),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
           child: Row(
             children: [
-              Text('SORT BY', style: AppTextStyles.sectionTitle),
+              Text('SORT BY', style: AppTextStyles.sectionTitle.copyWith(letterSpacing: 1.0)),
               AppSpacing.gapS,
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s, vertical: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.elevation2,
-                  borderRadius: AppRadius.radiusS,
+                  borderRadius: AppRadius.radiusM,
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
                   children: [
-                    Text('Expiry (Soonest)', style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.text, fontWeight: FontWeight.w600)),
+                    Text('Expiry (Soonest)', style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.text, fontWeight: FontWeight.w700)),
                     AppSpacing.gapXS,
                     const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textMuted),
                   ],
@@ -202,83 +193,77 @@ class MembersListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPillTabs(WidgetRef ref) {
-    final all = ref.watch(membersProvider);
-    final selectedTab = ref.watch(memberTabProvider);
-    final now = ref.watch(clockProvider).now;
-    
-    // ⚡ Bolt: Consolidated multiple list traversals to compute stats in one pass
-    int activeCount = 0;
-    int expiringCount = 0;
-    int expiredCount = 0;
-
-    for (final m in all) {
-      final status = m.getStatus(now);
-      if (status == MemberStatus.active) {
-        activeCount++;
-      } else if (status == MemberStatus.expiring) {
-        expiringCount++;
-      } else if (status == MemberStatus.expired) {
-        expiredCount++;
-      }
-    }
-
-    final tabs = [
-      {'label': 'All', 'count': all.length},
-      {'label': 'Active', 'count': activeCount},
-      {'label': 'Expiring', 'count': expiringCount},
-      {'label': 'Expired', 'count': expiredCount},
-    ];
-    
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-      height: 40,
-      decoration: BoxDecoration(
-        color: AppColors.elevation1,
-        borderRadius: AppRadius.radiusM,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: List.generate(tabs.length, (index) {
-          final isSelected = selectedTab == index;
-          final tab = tabs[index];
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => ref.read(memberTabProvider.notifier).state = index,
-              child: Container(
-                margin: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  gradient: isSelected ? AppColors.primaryGradient : null,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      tab['label'] as String,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? Colors.white : AppColors.textSecondary,
-                      ),
+  Widget _buildPillTabs(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, _) {
+        final stats = ref.watch(memberStatsProvider);
+        final selectedTab = ref.watch(memberTabProvider);
+        
+        final tabs = [
+          {'label': 'All', 'count': stats.totalCount},
+          {'label': 'Active', 'count': stats.activeCount},
+          {'label': 'Expiring', 'count': stats.expiringCount},
+          {'label': 'Expired', 'count': stats.expiredCount},
+        ];
+        
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+          height: 44,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppColors.elevation1,
+            borderRadius: AppRadius.radiusL,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: List.generate(tabs.length, (index) {
+              final isSelected = selectedTab == index;
+              final tab = tabs[index];
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => ref.read(memberTabProvider.notifier).state = index,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: isSelected ? AppColors.primaryGradient : null,
+                      borderRadius: AppRadius.radiusM,
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ] : [],
                     ),
-                    AppSpacing.gapXS,
-                    Text(
-                      '(${tab['count']})',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w400,
-                        color: isSelected ? Colors.white.withValues(alpha: 0.8) : AppColors.textMuted,
-                      ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          tab['label'] as String,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${tab['count']}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w400,
+                            color: isSelected ? Colors.white.withValues(alpha: 0.7) : AppColors.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          );
-        }),
-      ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 }

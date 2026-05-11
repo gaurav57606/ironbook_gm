@@ -1,5 +1,7 @@
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
+import 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
+import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:drift/native.dart';
 import 'dart:async';
@@ -40,6 +42,7 @@ void main() {
   late FakePreferences prefRepo;
   late FakeClock clock;
   late FakeHmacService hmac;
+  late MembershipService membership;
   late TrackingSyncCoordinator coordinator;
   late MemberNotifier notifier;
 
@@ -51,6 +54,7 @@ void main() {
     planRepo = MockPlanRepo();
     prefRepo = FakePreferences();
     clock = FakeClock();
+    membership = MembershipService();
     coordinator = TrackingSyncCoordinator();
 
     notifier = MemberNotifier(
@@ -61,6 +65,7 @@ void main() {
       prefRepo,
       clock,
       hmac,
+      membership,
       coordinator,
     );
   });

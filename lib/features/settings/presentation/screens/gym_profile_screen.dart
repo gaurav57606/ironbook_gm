@@ -4,7 +4,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/owner_provider.dart';
 import 'package:go_router/go_router.dart';
 
@@ -53,30 +52,28 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: _buildAppBar(context),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
-          ),
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-                24, MediaQuery.of(context).padding.top + 70, 24, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                const SizedBox(height: 40),
-                _buildFormFields(),
-                const SizedBox(height: 48),
-                _buildSaveButton(),
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: _buildAppBar(context),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+              24, MediaQuery.of(context).padding.top + 70, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              const SizedBox(height: 40),
+              _buildFormFields(),
+              const SizedBox(height: 48),
+              _buildSaveButton(),
+            ],
           ),
         ),
       ),

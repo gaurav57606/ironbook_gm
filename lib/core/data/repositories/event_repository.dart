@@ -53,7 +53,7 @@ class DriftEventRepository implements IEventRepository {
         hmacSignature: Value(event.hmacSignature),
         deviceId: Value(event.deviceId),
       ),
-      mode: InsertMode.insertOrReplace,
+      mode: InsertMode.insertOrIgnore,
     );
 
     _eventBus.publish(event);
@@ -66,15 +66,25 @@ class DriftEventRepository implements IEventRepository {
   @override
   Future<List<DomainEvent>> getAll() async {
     final docs = await _db.select(_db.outboxEvents).get();
-    final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
-    
     final List<DomainEvent> validEvents = [];
-    for (final e in events) {
-      if (await _hmacService.verifyInstance(e)) {
+    final List<String> toMarkVerified = [];
+
+    for (final d in docs) {
+      final e = DomainEvent.fromOutbox(d);
+      if (e.isVerified) {
         validEvents.add(e);
       } else {
-        debugPrint('DriftEventRepository: TAMPER DETECTED for event ${e.id}. Skipping.');
+        if (await _hmacService.verifyInstance(e)) {
+          validEvents.add(e);
+          toMarkVerified.add(e.id);
+        } else {
+          debugPrint('DriftEventRepository: TAMPER DETECTED for event ${e.id}. Skipping.');
+        }
       }
+    }
+
+    if (toMarkVerified.isNotEmpty) {
+      _markVerified(toMarkVerified); // Background fire-and-forget
     }
     return validEvents;
   }
@@ -90,7 +100,10 @@ class DriftEventRepository implements IEventRepository {
     final doc = await (_db.select(_db.outboxEvents)..where((t) => t.id.equals(id))).getSingleOrNull();
     if (doc != null) {
       final event = DomainEvent.fromOutbox(doc);
+      if (event.isVerified) return event;
+      
       if (await _hmacService.verifyInstance(event)) {
+        _markVerified([event.id]);
         return event;
       }
     }
@@ -117,15 +130,31 @@ class DriftEventRepository implements IEventRepository {
   @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async {
     final docs = await (_db.select(_db.outboxEvents)..where((t) => t.deviceTimestamp.isBiggerThanValue(since.millisecondsSinceEpoch))).get();
-    final events = docs.map((d) => DomainEvent.fromOutbox(d)).toList();
-    
     final List<DomainEvent> validEvents = [];
-    for (final e in events) {
-      if (await _hmacService.verifyInstance(e)) {
+    final List<String> toMarkVerified = [];
+
+    for (final d in docs) {
+      final e = DomainEvent.fromOutbox(d);
+      if (e.isVerified) {
         validEvents.add(e);
+      } else if (await _hmacService.verifyInstance(e)) {
+        validEvents.add(e);
+        toMarkVerified.add(e.id);
       }
     }
+
+    if (toMarkVerified.isNotEmpty) {
+      _markVerified(toMarkVerified);
+    }
     return validEvents;
+  }
+
+  void _markVerified(List<String> eventIds) {
+    _db.batch((batch) {
+      for (final id in eventIds) {
+        batch.update(_db.outboxEvents, const OutboxEventsCompanion(isVerified: Value(true)), where: (t) => t.id.equals(id));
+      }
+    }).catchError((e) => debugPrint('Error marking events verified: $e'));
   }
 
   @override

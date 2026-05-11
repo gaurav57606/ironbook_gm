@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
 
@@ -78,15 +77,15 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Container(
+    return Scaffold(
+      key: const Key('pin-entry-root'),
+      body: Container(
         decoration: const BoxDecoration(
           gradient: AppColors.backgroundGradient,
         ),
-        child: Scaffold(
-          key: const Key('pin-entry-root'),
-          backgroundColor: Colors.transparent,
-          body: SingleChildScrollView(
+        child: SafeArea(
+          top: true,
+          child: SingleChildScrollView(
             child: Column(
               children: [
                 const SizedBox(height: 60),

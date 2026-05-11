@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/colors.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_radius.dart';
+import '../../core/constants/app_text_styles.dart';
 
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -15,22 +18,26 @@ class AppBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(top: 6, bottom: 14),
-      decoration: const BoxDecoration(
-        color: AppColors.bg2,
-        border: Border(top: BorderSide(color: AppColors.border)),
+      padding: const EdgeInsets.only(top: 8, bottom: 20),
+      decoration: BoxDecoration(
+        color: AppColors.bg.withValues(alpha: 0.95),
+        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(0, Icons.grid_view_rounded, 'Home'),
-          _buildNavItem(1, Icons.people_outline, 'Gym'),
-          _buildNavItem(2, Icons.restaurant_menu_rounded, 'Diet'),
+          _buildNavItem(1, Icons.people_outline, 'Members'),
           _buildFab(context),
-          _buildNavItem(3, Icons.description_outlined, 'POS'),
-          _buildNavItem(4, Icons.analytics_outlined, 'Data'),
-          _buildNavItem(5, Icons.notifications_none_rounded, 'Inbox'),
-          _buildNavItem(6, Icons.settings_outlined, 'Settings'),
+          _buildNavItem(2, Icons.description_outlined, 'Invoices'),
+          _buildNavItem(3, Icons.settings_outlined, 'Settings'),
         ],
       ),
     );
@@ -44,18 +51,27 @@ class AppBottomNavBar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: isSelected ? AppColors.orange : AppColors.text3,
+          AnimatedContainer(
+            duration: 200.ms,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+              borderRadius: AppRadius.radiusM,
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: isSelected ? AppColors.primary : AppColors.textMuted,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 7,
-              fontWeight: FontWeight.w500,
-              color: isSelected ? AppColors.orange : AppColors.text3,
+            style: AppTextStyles.label.copyWith(
+              fontSize: 9,
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+              color: isSelected ? AppColors.primary : AppColors.textMuted,
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -64,41 +80,27 @@ class AppBottomNavBar extends StatelessWidget {
   }
 
   Widget _buildFab(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: () => context.push('/gym/add-member'),
-          child: Transform.translate(
-            offset: const Offset(0, -14),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppColors.orange,
-                borderRadius: BorderRadius.circular(13),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.orange.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+    return Transform.translate(
+      offset: const Offset(0, -12),
+      child: GestureDetector(
+        onTap: () => context.push('/members/add'),
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: AppRadius.radiusXL,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 20),
-            ),
+            ],
           ),
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
         ),
-        const SizedBox(height: 3),
-        const Text(
-          'Add',
-          style: TextStyle(
-            fontSize: 8,
-            fontWeight: FontWeight.w500,
-            color: AppColors.text3,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

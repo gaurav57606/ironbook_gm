@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_spacing.dart';
 
 class SettingsGroup extends StatelessWidget {
   final String title;
@@ -18,24 +20,28 @@ class SettingsGroup extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, 24, AppSpacing.screenPadding, 12),
           child: Text(
             title.toUpperCase(),
             style: AppTextStyles.sectionTitle.copyWith(
               fontSize: 10,
-              letterSpacing: 1.5,
-              color: AppColors.textMuted,
+              letterSpacing: 2.0,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primary,
             ),
           ),
         ),
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
           decoration: BoxDecoration(
-            color: AppColors.elevation1,
-            borderRadius: BorderRadius.circular(24),
+            color: AppColors.elevation1.withValues(alpha: 0.5),
+            borderRadius: AppRadius.radiusXL,
             border: Border.all(color: AppColors.border),
           ),
-          child: Column(children: children),
+          child: ClipRRect(
+            borderRadius: AppRadius.radiusXL,
+            child: Column(children: children),
+          ),
         ),
       ],
     );
@@ -62,9 +68,8 @@ class SettingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: 16),
         decoration: BoxDecoration(
           border: showDivider
               ? Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5)))
@@ -73,30 +78,39 @@ class SettingsRow extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: AppColors.elevation2,
-                borderRadius: BorderRadius.circular(10),
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: AppRadius.radiusM,
               ),
-              child: Icon(icon, size: 18, color: AppColors.primary),
+              child: Icon(icon, size: 20, color: AppColors.primary),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                label,
-                style: AppTextStyles.body.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  if (value != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      value!,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (value != null)
-              Text(
-                value!,
-                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-              ),
-            const SizedBox(width: 8),
             const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
           ],
         ),

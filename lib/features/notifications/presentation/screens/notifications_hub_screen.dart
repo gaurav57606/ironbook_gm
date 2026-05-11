@@ -1,62 +1,71 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_spacing.dart';
+import 'package:go_router/go_router.dart';
 
 class NotificationsHubScreen extends StatelessWidget {
   const NotificationsHubScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Scaffold(
-        backgroundColor: AppColors.bg,
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.bottomLeft,
-              end: Alignment.topRight,
-              colors: [
-                Colors.purple.withValues(alpha: 0.05),
-                AppColors.bg,
-                AppColors.bg,
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomLeft,
+            end: Alignment.topRight,
+            colors: [
+              Colors.purple.withValues(alpha: 0.05),
+              AppColors.bg,
+              AppColors.bg,
+            ],
           ),
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                _buildCategoryFilter(),
-                const SizedBox(height: 16),
-                _buildNotificationsList(),
-              ],
-            ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              _buildCategoryFilter(),
+              const SizedBox(height: 16),
+              _buildNotificationsList(),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.s,
+        right: AppSpacing.screenPadding,
+        top: AppSpacing.xl,
+        bottom: AppSpacing.m,
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Notifications',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+          IconButton(
+            onPressed: () => context.pop(),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.text, size: 20),
+          ),
+          const Expanded(
+            child: Text(
+              'Notifications',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           TextButton(
             onPressed: () {},
             child: const Text(
               'Mark all as read',
-              style: TextStyle(color: AppColors.orange, fontSize: 12),
+              style: TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         ],

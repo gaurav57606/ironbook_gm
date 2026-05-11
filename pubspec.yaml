@@ -100,7 +100,6 @@ flutter:
     - assets/images/onb_3.png
     - assets/images/success.png
     - assets/images/biometric.png
-    - assets/icons/
 flutter_native_splash:
   color: "#111114"
   image: assets/icons/onb_slide2.svg

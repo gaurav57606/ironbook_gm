@@ -5,7 +5,7 @@ import 'package:ironbook_gm/app.dart';
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart'
-    hide AppSettingsAdapter, MemberSnapshotAdapter;
+    hide AppSettingsAdapter, MemberSnapshotAdapter, OwnerProfileAdapter;
 import 'package:drift/native.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart'
     hide OwnerProfile, Payment, Plan, Sale, Product, InvoiceSequence;
@@ -97,6 +97,12 @@ class TestHelper {
     final tempDir =
         Directory.systemTemp.createTempSync('ironbook_test_${subDir}_');
     Hive.init(tempDir.path);
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(DomainEventAdapter());
+    }
+    if (!Hive.isAdapterRegistered(11)) {
+      Hive.registerAdapter(MemberSnapshotAdapter());
+    }
     if (!Hive.isAdapterRegistered(6)) {
       Hive.registerAdapter(AppSettingsAdapter());
     }
@@ -114,6 +120,12 @@ class TestHelper {
     }
     if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(PlanComponentAdapter());
+    }
+    if (!Hive.isAdapterRegistered(4)) {
+      Hive.registerAdapter(OwnerProfileAdapter());
+    }
+    if (!Hive.isAdapterRegistered(5)) {
+      Hive.registerAdapter(JoinDateChangeAdapter());
     }
 
     await Hive.openBox<AppSettings>('settings');
@@ -491,8 +503,25 @@ class FakePaymentNotifier extends StateNotifier<List<Payment>>
     required Plan plan,
     required String method,
     String? reference,
+    DateTime? date,
   }) async {
-    throw UnimplementedError();
+    final payment = Payment(
+      id: 'p-${state.length + 1}',
+      memberId: memberId,
+      date: date ?? DateTime.now(),
+      amount: plan.totalPrice,
+      method: method,
+      planId: plan.id,
+      planName: plan.name,
+      durationMonths: plan.durationMonths,
+      invoiceNumber: 'INV-TEST-${state.length + 1}',
+      components: plan.components.map((c) => PlanComponentSnapshot(name: c.name, price: c.price)).toList(),
+      subtotal: plan.totalPrice / 1.18,
+      gstAmount: plan.totalPrice - (plan.totalPrice / 1.18),
+      gstRate: 0.18,
+    );
+    state = [payment, ...state];
+    return payment;
   }
 
   Future<void> deletePayment(String paymentId) async {}
@@ -523,7 +552,7 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>
     String? gender,
     int? age,
   }) async =>
-      '';
+      'new-member-id';
   @override
   Future<void> updateMember({
     required String memberId,

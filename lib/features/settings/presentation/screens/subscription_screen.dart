@@ -6,36 +6,33 @@ import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/security/entitlement_guard.dart';
-import '../../../../shared/widgets/status_bar_wrapper.dart';
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return StatusBarWrapper(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: _buildAppBar(context),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
-          ),
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildPlanCard(),
-                const SizedBox(height: 32),
-                _buildRenewButton(context, ref),
-                const SizedBox(height: 48),
-                _buildStatusSection(ref),
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: _buildAppBar(context),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildPlanCard(),
+              const SizedBox(height: 32),
+              _buildRenewButton(context, ref),
+              const SizedBox(height: 48),
+              _buildStatusSection(ref),
+            ],
           ),
         ),
       ),

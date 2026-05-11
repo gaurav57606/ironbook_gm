@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_radius.dart';
 
 class StatsCard extends StatelessWidget {
   final String value;
@@ -19,17 +21,17 @@ class StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.m),
       decoration: BoxDecoration(
-        color: isPrimary ? null : AppColors.elevation1,
+        color: isPrimary ? null : AppColors.elevation2,
         gradient: isPrimary ? AppColors.primaryGradient : null,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppRadius.radiusXL,
         border: isPrimary ? null : Border.all(color: AppColors.border),
         boxShadow: isPrimary ? [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           )
         ] : [],
       ),
@@ -39,20 +41,21 @@ class StatsCard extends StatelessWidget {
         children: [
           Text(
             value,
-            style: AppTextStyles.heroNumber.copyWith(
-              fontSize: 28,
-              color: isPrimary ? Colors.white : (valueColor ?? AppColors.textPrimary),
+            style: AppTextStyles.h2.copyWith(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: isPrimary ? Colors.white : (valueColor ?? AppColors.text),
               height: 1,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             label.toUpperCase(),
             style: AppTextStyles.sectionTitle.copyWith(
-              fontSize: 8,
-              fontWeight: FontWeight.w700,
-              color: isPrimary ? Colors.white.withValues(alpha: 0.7) : AppColors.textMuted,
-              letterSpacing: 1.2,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              color: isPrimary ? Colors.white.withValues(alpha: 0.8) : AppColors.textMuted,
+              letterSpacing: 1.0,
             ),
           ),
         ],

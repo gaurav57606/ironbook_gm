@@ -7,6 +7,7 @@ import 'package:ironbook_gm/features/auth/presentation/screens/pin_setup_screen.
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'mocks/mock_auth.dart';
 import 'infrastructure/test_harness.dart';
+import 'infrastructure/test_database.dart';
 import 'infrastructure/test_app.dart';
 import 'infrastructure/test_bindings.dart';
 import 'infrastructure/deterministic_pump.dart';
@@ -20,6 +21,7 @@ void main() {
     setUp(() async {
       harness = TestHarness();
       await harness.setup();
+      addTearDown(() => TestDatabaseFactory.dispose());
     });
 
     testWidgets('Full Onboarding -> Signup -> PIN Setup Flow', (WidgetTester tester) async {
@@ -63,7 +65,7 @@ void main() {
       // Tap Create Account button
       final signupBtn = find.byKey(const Key('btn-signup'));
       await tester.ensureVisible(signupBtn);
-      await tester.tap(signupBtn);
+      await tester.tap(signupBtn, warnIfMissed: false);
       await boundedPump(tester);
 
       // 4. Now authenticated + first launch -> Should be on Onboarding

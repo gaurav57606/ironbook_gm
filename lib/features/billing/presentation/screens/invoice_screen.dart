@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:ironbook_gm/core/constants/app_colors.dart';
+import 'package:ironbook_gm/core/constants/app_text_styles.dart';
 import 'package:ironbook_gm/core/constants/app_spacing.dart';
 import 'package:ironbook_gm/core/constants/app_radius.dart';
 import 'package:ironbook_gm/core/constants/app_shadows.dart';
 import 'package:ironbook_gm/shared/widgets/app_section_header.dart';
 import 'package:ironbook_gm/shared/widgets/app_button.dart';
 import 'package:ironbook_gm/shared/widgets/app_bottom_nav.dart';
-import 'package:ironbook_gm/shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +14,7 @@ import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
-import 'package:ironbook_gm/shared/utils/date_formatter.dart';
+import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'package:collection/collection.dart';
 import 'package:ironbook_gm/features/billing/services/invoice_pdf_service.dart';
 import 'package:share_plus/share_plus.dart';
@@ -95,79 +95,83 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
       }
     }
 
-    return StatusBarWrapper(
-      child: Column(
-        children: [
-          _buildAppBar(context, payment),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 20),
-              children: [
-                if (payment == null)
-                  const Center(child: Padding(
-                    padding: EdgeInsets.all(40.0),
-                    child: Text('No recent invoices found.', style: TextStyle(color: AppColors.text2)),
-                  ))
-                else ...[
-                  _buildInvoiceCard(payment),
-                  const AppSectionHeader(title: 'Payment Method'),
-                  _buildPaymentChips(payment.method),
-                  AppSpacing.gapM,
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-                    child: AppButton(
-                      text: _isProcessing ? 'Processing...' : 'Share via WhatsApp',
-                      icon: _isProcessing 
-                        ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.share, size: 13, color: Colors.white),
-                      onPressed: _isProcessing ? null : () {
-                        final members = ref.read(membersProvider);
-                        final memberName = members.firstWhereOrNull((m) => m.memberId == payment!.memberId)?.name ?? 'Member';
-                        _shareInvoice(payment!, memberName);
-                      },
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            _buildAppBar(context, payment),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 20),
+                children: [
+                  if (payment == null)
+                    const Center(child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: Text('No recent invoices found.', style: TextStyle(color: AppColors.text2)),
+                    ))
+                  else ...[
+                    _buildInvoiceCard(payment),
+                    const AppSectionHeader(title: 'Payment Method'),
+                    _buildPaymentChips(payment.method),
+                    AppSpacing.gapM,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                      child: AppButton(
+                        text: _isProcessing ? 'Processing...' : 'Share via WhatsApp',
+                        icon: _isProcessing 
+                          ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.share, size: 13, color: Colors.white),
+                        onPressed: _isProcessing ? null : () {
+                          final members = ref.read(membersProvider);
+                          final memberName = members.firstWhereOrNull((m) => m.memberId == payment!.memberId)?.name ?? 'Member';
+                          _shareInvoice(payment!, memberName);
+                        },
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          AppBottomNavBar(
-            currentIndex: 2,
-            onTap: (index) {
-              if (index == 2) return;
-              if (index == 0) context.go('/dashboard');
-              if (index == 1) context.go('/members');
-              if (index == 3) context.push('/settings');
-            },
-          ),
-        ],
+            AppBottomNavBar(
+              currentIndex: 2,
+              onTap: (index) {
+                if (index == 2) return;
+                if (index == 0) context.go('/dashboard');
+                if (index == 1) context.go('/members');
+                if (index == 3) context.push('/settings');
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAppBar(BuildContext context, Payment? payment) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => context.pop(),
             child: Container(
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: AppColors.elevation2,
                 borderRadius: AppRadius.radiusS,
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(Icons.chevron_left, size: 18, color: AppColors.text),
+              child: const Icon(Icons.chevron_left, size: 20, color: AppColors.text),
             ),
           ),
           AppSpacing.gapS,
-          const Expanded(
+          Expanded(
             child: Text(
-              'Invoice',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
+              'Invoice Summary',
+              style: AppTextStyles.h3.copyWith(fontSize: 18, fontWeight: FontWeight.w900),
             ),
           ),
           _buildAppBarIcon(Icons.download_rounded, onTap: payment != null ? () {
@@ -190,38 +194,37 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 28,
-        height: 28,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: AppColors.elevation2,
           borderRadius: AppRadius.radiusS,
           border: Border.all(color: AppColors.border),
         ),
-        child: Icon(icon, size: 14, color: onTap != null ? AppColors.text : AppColors.text2),
+        child: Icon(icon, size: 16, color: onTap != null ? AppColors.text : AppColors.textMuted),
       ),
     );
   }
 
   Widget _buildInvoiceCard(Payment payment) {
-    // Fetch member name (we'd ideally have a memberProvider but for now we can infer from snapshot if available)
-    // Or just trust the event history. For simplicity, we'll try to get it from members list.
     final members = ref.watch(membersProvider);
     final memberName = members.firstWhereOrNull((m) => m.memberId == payment.memberId)?.name ?? 'Member';
-
     final owner = ref.watch(ownerProvider);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
-      padding: const EdgeInsets.all(AppSpacing.m),
+      padding: const EdgeInsets.all(AppSpacing.l),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1a1206), Color(0xFF2a1d0a)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: AppRadius.radiusL,
-        border: Border.all(color: AppColors.amber.withValues(alpha: 0.2)),
-        boxShadow: AppShadows.card,
+        gradient: AppColors.glassGradient,
+        borderRadius: AppRadius.radiusXXL,
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -232,39 +235,55 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(owner?.gymName ?? 'IRONBOOK GM', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.orange)),
-                  const SizedBox(height: 2),
+                  Text(owner?.gymName ?? 'IRONBOOK GM', 
+                      style: AppTextStyles.h3.copyWith(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                  const SizedBox(height: 4),
                   Text(
                     '${owner?.address ?? "Update address in settings"}${owner?.gstin != null ? " · GSTIN ${owner!.gstin}" : ""}', 
-                    style: const TextStyle(fontSize: 9, color: AppColors.text2),
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.textMuted),
                   ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('INVOICE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.orange)),
-                  const SizedBox(height: 1),
-                  Text(payment.invoiceNumber, style: const TextStyle(fontSize: 9, color: AppColors.text2)),
+                  Text('OFFICIAL RECEIPT', 
+                      style: AppTextStyles.sectionTitle.copyWith(fontSize: 8, fontWeight: FontWeight.w900, color: AppColors.primary, letterSpacing: 1.0)),
+                  const SizedBox(height: 4),
+                  Text(payment.invoiceNumber, 
+                      style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.textMuted, fontWeight: FontWeight.w700)),
                 ],
               ),
             ],
           ),
-          const Divider(height: 20, color: AppColors.border),
-          _buildInvoiceRow('Member', memberName),
-          _buildInvoiceRow('Date', DateFormatter.formatShort(payment.date)),
-          _buildInvoiceRow('Plan', payment.planName),
-          const Divider(height: 20, color: AppColors.border),
-          ...payment.components.map((c) => _buildInvoiceRow(c.name, '₹${c.price.toInt()}')),
-          const Divider(height: 20, color: AppColors.border),
-          _buildInvoiceRow('Subtotal', '₹${payment.subtotal.toStringAsFixed(2)}'),
-          _buildInvoiceRow('GST @ ${(payment.gstRate * 100).toInt()}%', '₹${payment.gstAmount.toStringAsFixed(2)}'),
-          _buildTotalRow('Total Paid', '₹${payment.amount.toInt()}'),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Divider(height: 1, color: AppColors.border),
+          ),
+          _buildInvoiceRow('MEMBER NAME', memberName),
+          _buildInvoiceRow('BILLING DATE', AppDateUtils.formatShort(payment.date)),
+          _buildInvoiceRow('PLAN TYPE', payment.planName),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Divider(height: 1, color: AppColors.border),
+          ),
+          ...payment.components.map((c) => _buildInvoiceRow(c.name.toUpperCase(), '₹${c.price.toInt()}')),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Divider(height: 1, color: AppColors.border),
+          ),
+          _buildInvoiceRow('SUBTOTAL', '₹${payment.subtotal.toStringAsFixed(2)}'),
+          _buildInvoiceRow('TAX (GST ${(payment.gstRate * 100).toInt()}%)', '₹${payment.gstAmount.toStringAsFixed(2)}'),
+          const SizedBox(height: 12),
+          _buildTotalRow('TOTAL AMOUNT PAID', '₹${payment.amount.toInt()}'),
           if (owner?.bankName != null) ...[
-            const Divider(height: 20, color: AppColors.border),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Divider(height: 1, color: AppColors.border),
+            ),
             Text(
               '${owner!.bankName} · A/C ${owner.accountNumber} · IFSC ${owner.ifsc}',
-              style: const TextStyle(fontSize: 9, color: AppColors.text2),
+              style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.textMuted),
             ),
           ],
         ],
@@ -274,52 +293,56 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
 
   Widget _buildInvoiceRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 9, color: AppColors.text2)),
-          Text(value, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.text)),
+          Text(label, style: AppTextStyles.sectionTitle.copyWith(fontSize: 9, color: AppColors.textMuted, letterSpacing: 0.5)),
+          Text(value, style: AppTextStyles.body.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.text)),
         ],
       ),
     );
   }
 
   Widget _buildTotalRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 3),
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.m),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: AppRadius.radiusM,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.text)),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.orange)),
+          Text(label, style: AppTextStyles.h3.copyWith(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.text)),
+          Text(value, style: AppTextStyles.h2.copyWith(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primary)),
         ],
       ),
     );
   }
 
-
   Widget _buildPaymentChips(String selectedMethod) {
-    final payments = ['Cash', 'UPI', 'Card', 'Bank'];
+    final payments = ['Cash', 'UPI', 'Card', 'Bank Transfer'];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
       child: Wrap(
-        spacing: 5,
+        spacing: 8,
+        runSpacing: 8,
         children: payments.map((method) {
-          final isSelected = method == selectedMethod;
+          final isSelected = method.contains(selectedMethod);
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.s),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.orange.withValues(alpha: 0.1) : AppColors.elevation2,
-              borderRadius: AppRadius.radiusS,
-              border: Border.all(color: isSelected ? AppColors.orange : AppColors.border),
+              color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : AppColors.elevation2,
+              borderRadius: AppRadius.radiusM,
+              border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
             ),
             child: Text(
               method,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.orange : AppColors.text2,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: isSelected ? AppColors.primary : AppColors.textMuted,
               ),
             ),
           );

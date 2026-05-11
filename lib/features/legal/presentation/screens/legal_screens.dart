@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
 class LegalScreen extends StatelessWidget {
@@ -16,56 +15,56 @@ class LegalScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
-            onPressed: () => context.pop(),
-          ),
-          title: Text(title, style: AppTextStyles.h3),
-          centerTitle: true,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded,
+              color: AppColors.textPrimary, size: 24),
+          onPressed: () => context.pop(),
         ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
-          ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 120, 24, 40),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.elevation1,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Text(
-                    content,
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.textSecondary,
-                      height: 1.8,
-                      fontSize: 13,
-                    ),
+        title: Text(title, style: AppTextStyles.h3),
+        centerTitle: true,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+              24, MediaQuery.of(context).padding.top + 70, 24, 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.elevation1,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  content,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.8,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 32),
-                Center(
-                  child: Text(
-                    'Last Updated: May 2026',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-                  ),
+              ),
+              const SizedBox(height: 32),
+              Center(
+                child: Text(
+                  'Last Updated: May 2026',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

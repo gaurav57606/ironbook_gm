@@ -41,6 +41,13 @@ class OutboxRepository {
     );
   }
 
+  Future<void> markBatchSynced(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await (_db.update(_db.outboxEvents)..where((t) => t.id.isIn(ids))).write(
+      const OutboxEventsCompanion(isSynced: Value(1)),
+    );
+  }
+
   Future<int> countUnsynced() async {
     final countExp = _db.outboxEvents.id.count();
     final query = _db.selectOnly(_db.outboxEvents)
@@ -130,9 +137,6 @@ class OutboxRepository {
       batch.deleteAll(_db.preferences);
       batch.deleteAll(_db.ownerProfiles);
       batch.deleteAll(_db.appSettingsTable);
-      batch.deleteAll(_db.nutritionPlans);
-      batch.deleteAll(_db.mealItems);
-      batch.deleteAll(_db.waterLogs);
     });
   }
 }

@@ -29,6 +29,9 @@ class DomainEvent extends HiveObject {
   @HiveField(7)
   late String deviceId;
 
+  @HiveField(8)
+  late bool isVerified;
+
   DomainEvent({
     String? id,
     required this.entityId,
@@ -38,6 +41,7 @@ class DomainEvent extends HiveObject {
     this.synced = false,
     this.hmacSignature = '',
     required this.deviceId,
+    this.isVerified = false,
   }) {
     this.id = id ?? const Uuid().v4();
   }
@@ -89,6 +93,7 @@ class DomainEvent extends HiveObject {
       synced: data['synced'] ?? true,
       hmacSignature: data['hmacSignature'],
       deviceId: data['deviceId'],
+      isVerified: data['isVerified'] ?? false,
     );
   }
 
@@ -102,6 +107,7 @@ class DomainEvent extends HiveObject {
       synced: doc.isSynced == 1,
       hmacSignature: doc.hmacSignature,
       deviceId: doc.deviceId,
+      isVerified: doc.isVerified,
     );
   }
 
@@ -124,6 +130,7 @@ class DomainEvent extends HiveObject {
       synced: synced ?? this.synced,
       hmacSignature: hmacSignature ?? this.hmacSignature,
       deviceId: deviceId ?? this.deviceId,
+      isVerified: isVerified ?? this.isVerified,
     );
   }
 }

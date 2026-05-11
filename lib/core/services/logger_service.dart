@@ -22,7 +22,7 @@ class LoggerService {
 
   void _flushBuffer() {
     if (_logBuffer.isEmpty) return;
-    debugPrint('LoggerService: Flushing ${_logBuffer.length} buffered logs to Firebase...');
+    if (kDebugMode) debugPrint('LoggerService: Flushing ${_logBuffer.length} buffered logs to Firebase...');
     for (final entry in _logBuffer) {
       _processLog(entry.message, entry.level, entry.category, entry.error, entry.stackTrace);
     }
@@ -36,11 +36,14 @@ class LoggerService {
     Object? error,
     StackTrace? stackTrace,
   }) {
+    // Mask PII before processing
+    final sanitizedMessage = _maskPII(message);
+    
     final timestamp = DateTime.now().toIso8601String();
     final levelPrefix = level.name.toUpperCase();
     final categoryPrefix = category.toUpperCase();
     
-    final formattedMessage = '[$timestamp] [$categoryPrefix] [$levelPrefix] $message';
+    final formattedMessage = '[$timestamp] [$categoryPrefix] [$levelPrefix] $sanitizedMessage';
     
     if (kDebugMode) {
       debugPrint(formattedMessage);
@@ -52,7 +55,7 @@ class LoggerService {
       // Buffer the log if it's important (info and above)
       if (level.index >= LogLevel.info.index) {
         _logBuffer.add((
-          message: message,
+          message: sanitizedMessage,
           level: level,
           category: category,
           error: error,
@@ -64,7 +67,22 @@ class LoggerService {
       return;
     }
 
-    _processLog(message, level, category, error, stackTrace);
+    _processLog(sanitizedMessage, level, category, error, stackTrace);
+  }
+
+  String _maskPII(String text) {
+    // Basic regex for phone numbers (e.g., +91 9876543210 or 98765-43210)
+    final phoneRegex = RegExp(r'(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}');
+    // Basic regex for emails
+    final emailRegex = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
+    // Regex for common token/secret keywords followed by values
+    final secretRegex = RegExp(r'(token|secret|apiKey|hmac|password|auth)[:\s=]+([^\s,]+)', caseSensitive: false);
+
+    String masked = text.replaceAllMapped(phoneRegex, (match) => '[PHONE_REDACTED]');
+    masked = masked.replaceAllMapped(emailRegex, (match) => '[EMAIL_REDACTED]');
+    masked = masked.replaceAllMapped(secretRegex, (match) => '${match.group(1)}: [SECRET_REDACTED]');
+    
+    return masked;
   }
 
   void _processLog(String message, LogLevel level, String category, Object? error, StackTrace? stackTrace) {
@@ -91,7 +109,7 @@ class LoggerService {
         _reportToCrashlytics(message, error, stackTrace, isFatal: level == LogLevel.critical);
       }
     } catch (e) {
-      debugPrint('LoggerService: Failed to report to Firebase: $e');
+      if (kDebugMode) debugPrint('LoggerService: Failed to report to Firebase: $e');
     }
   }
 
@@ -131,7 +149,7 @@ class LoggerService {
         );
       }
     } catch (e) {
-      debugPrint('LoggerService: Crashlytics reporting failed: $e');
+      if (kDebugMode) debugPrint('LoggerService: Crashlytics reporting failed: $e');
     }
   }
 
@@ -141,7 +159,7 @@ class LoggerService {
       await FirebaseCrashlytics.instance.setUserIdentifier(userId);
       await _analytics?.setUserId(id: userId);
     } catch (e) {
-      debugPrint('LoggerService: Failed to set user ID in Firebase: $e');
+      if (kDebugMode) debugPrint('LoggerService: Failed to set user ID in Firebase: $e');
     }
   }
 }

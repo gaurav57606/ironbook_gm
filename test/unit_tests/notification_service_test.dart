@@ -1,53 +1,54 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:ironbook_gm/core/services/notification_service.dart';
+import 'package:ironbook_gm/core/services/notification_gateway.dart';
+import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/services/logger_service.dart';
 
-class MockFlutterLocalNotificationsPlugin extends Mock
-    implements FlutterLocalNotificationsPlugin {}
+class MockNotificationGateway extends Mock implements NotificationGateway {}
+class MockLogger extends Mock implements LoggerService {}
 
 void main() {
-  late MockFlutterLocalNotificationsPlugin mockPlugin;
+  late MockNotificationGateway mockGateway;
+  late MockLogger mockLogger;
+  late ProviderContainer container;
 
   setUpAll(() {
-    registerFallbackValue(const InitializationSettings(
-      android: AndroidInitializationSettings(''),
-      iOS: DarwinInitializationSettings(),
-    ));
-    registerFallbackValue(const NotificationDetails());
+    registerFallbackValue(DateTime.now());
   });
 
-  setUp(() {
-    mockPlugin = MockFlutterLocalNotificationsPlugin();
-    NotificationService.setPlugin(mockPlugin);
+  setUp(() async {
+    mockGateway = MockNotificationGateway();
+    mockLogger = MockLogger();
+    
+    container = ProviderContainer(
+      overrides: [
+        notificationGatewayProvider.overrideWithValue(mockGateway),
+        loggerProvider.overrideWithValue(mockLogger),
+      ],
+    );
 
-    when(() => mockPlugin.initialize(any(),
-            onDidReceiveNotificationResponse: any(named: 'onDidReceiveNotificationResponse'),
-            onDidReceiveBackgroundNotificationResponse: any(named: 'onDidReceiveBackgroundNotificationResponse')))
-        .thenAnswer((_) async => true);
-
-    when(() => mockPlugin.cancel(any())).thenAnswer((_) async => {});
-
-    when(() => mockPlugin.show(
-          any(),
+    when(() => mockGateway.init(any())).thenAnswer((_) async {});
+    when(() => mockGateway.cancel(any())).thenAnswer((_) async {});
+    when(() => mockGateway.show(
           any(),
           any(),
           any(),
           payload: any(named: 'payload'),
-        )).thenAnswer((_) async => {});
+          androidDetails: any(named: 'androidDetails'),
+          iosDetails: any(named: 'iosDetails'),
+        )).thenAnswer((_) async {});
+        
+    await NotificationService.init(container);
   });
 
   group('NotificationService', () {
-    test('init calls initialize on plugin', () async {
-      await NotificationService.init(ProviderContainer());
-
-      verify(() => mockPlugin.initialize(
-            any(),
-            onDidReceiveNotificationResponse: any(named: 'onDidReceiveNotificationResponse'),
-            onDidReceiveBackgroundNotificationResponse: any(named: 'onDidReceiveBackgroundNotificationResponse'),
-          )).called(1);
+    test('init calls initialize on gateway', () async {
+      // Re-init to verify
+      await NotificationService.init(container);
+      verify(() => mockGateway.init(any())).called(1);
     });
 
     test('sendMemberAlert sends correct notification for expired member', () async {
@@ -66,12 +67,12 @@ void main() {
       );
 
       final expectedId = 'm1_key'.hashCode.abs();
-      verify(() => mockPlugin.cancel(expectedId)).called(1);
-      verify(() => mockPlugin.show(
+      verify(() => mockGateway.cancel(expectedId)).called(1);
+      verify(() => mockGateway.show(
             expectedId,
             'John Doe — Membership Expired',
             'Tap to view member details',
-            any(),
+            payload: any(named: 'payload'),
           )).called(1);
     });
 
@@ -91,11 +92,11 @@ void main() {
       );
 
       final expectedId = 'm1_key'.hashCode.abs();
-      verify(() => mockPlugin.show(
+      verify(() => mockGateway.show(
             expectedId,
             'Jane Doe — Expiring in 5 days',
             'Tap to view member details',
-            any(),
+            payload: any(named: 'payload'),
           )).called(1);
     });
   });

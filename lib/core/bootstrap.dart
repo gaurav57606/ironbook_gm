@@ -16,6 +16,7 @@ import 'package:ironbook_gm/core/data/sync_worker.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'services/notification_service.dart';
 import 'services/fcm_service.dart';
 import 'services/config_service.dart';
@@ -32,42 +33,58 @@ class AppBootstrap {
     logger.info('Starting Tier 1 (Native/Local) Initialization...', category: 'BOOT');
 
     try {
-      // 1. Core Config
-      logger.info('Initializing ConfigService...', category: 'BOOT');
-      await container.read(configServiceProvider).init();
-      
-      // 2. System UI Setup
-      _setupSystemUI();
-      
-      // 3. Security Essentials (Secure Storage)
-      logger.info('Initializing HMAC Service...', category: 'BOOT');
-      await container.read(hmacServiceProvider).getInstallationId();
-      
-      // 4. Primary Database (Drift)
-      logger.info('Opening Drift Outbox Database...', category: 'DB');
-      // Accessing the database triggers initialization
-      container.read(outboxDatabaseProvider);
-      
-      if (kDebugMode) {
-        logger.info('Seeding debug data if empty...', category: 'DB');
-        await SeedData.seedIfEmpty(container);
-      }
-      
-      // 5. Tier 1 Success
-      container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Ready;
-      logger.info('Tier 1 Initialization Complete.', category: 'BOOT');
-      
-      // Schedule TIER 2 (Post-Frame: Cloud/Background)
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        _runTier2(container);
-      });
-      
-      return (initialized: true);
+      // 1. Safety Timeout: If Tier 1 takes > 10s, it's a likely ANR candidate
+      return await _runTier1(container).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          logger.critical('TIER 1 INITIALIZATION TIMEOUT: Possible dead-lock or file system delay.', category: 'BOOT');
+          return (initialized: false);
+        },
+      );
     } catch (e, stack) {
-      logger.critical('CRITICAL TIER 1 FAILURE: $e', category: 'BOOT', error: e, stackTrace: stack);
-      container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Pending; // Revert/Keep pending
+      logger.critical('FATAL TIER 1 FAILURE: $e', category: 'BOOT', error: e, stackTrace: stack);
+      container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Pending;
       return (initialized: false);
     }
+  }
+
+  static Future<BootstrapResult> _runTier1(ProviderContainer container) async {
+    final logger = container.read(loggerProvider);
+    
+    // 1. Core Config
+    logger.info('Initializing ConfigService...', category: 'BOOT');
+    await container.read(configServiceProvider).init();
+    
+    // 2. System UI Setup
+    _setupSystemUI();
+    
+    // 3. Security Essentials (Secure Storage)
+    logger.info('Initializing HMAC Service...', category: 'BOOT');
+    await container.read(hmacServiceProvider).getInstallationId();
+    
+    // 4. Primary Database (Drift)
+    logger.info('Opening Drift Outbox Database...', category: 'DB');
+    // Accessing the database triggers initialization
+    container.read(outboxDatabaseProvider);
+    
+    // Safety: Clear any stale sync locks on startup (Audit Check 4.3)
+    await container.read(syncCoordinatorProvider).clearAllLocks();
+    
+    if (kDebugMode) {
+      logger.info('Seeding debug data if empty...', category: 'DB');
+      await SeedData.seedIfEmpty(container);
+    }
+    
+    // 5. Tier 1 Success
+    container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Ready;
+    logger.info('Tier 1 Initialization Complete.', category: 'BOOT');
+    
+    // Schedule TIER 2 (Post-Frame: Cloud/Background)
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _runTier2(container);
+    });
+    
+    return (initialized: true);
   }
 
   static void _setupSystemUI() {
@@ -144,7 +161,6 @@ class AppBootstrap {
         try {
           await Workmanager().initialize(
             MidnightEngine.callbackDispatcher,
-            isInDebugMode: kDebugMode,
           ).timeout(const Duration(seconds: 5));
           
           // Idempotent registration: Clear existing before setting production frequency

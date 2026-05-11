@@ -5,7 +5,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -107,18 +106,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Container(
+    return Scaffold(
+      key: const Key('signup-root'),
+      body: Container(
         decoration: const BoxDecoration(
           gradient: AppColors.backgroundGradient,
         ),
-        child: Scaffold(
-          key: const Key('signup-root'),
-          backgroundColor: Colors.transparent,
-          body: CustomScrollView(
+        child: SafeArea(
+          top: true,
+          child: CustomScrollView(
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                 sliver: SliverToBoxAdapter(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

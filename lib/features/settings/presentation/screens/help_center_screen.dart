@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
 class HelpCenterScreen extends StatelessWidget {
@@ -9,38 +8,36 @@ class HelpCenterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
-            onPressed: () => context.pop(),
-          ),
-          title: Text(
-            'Help Center',
-            style: AppTextStyles.h3,
-          ),
-          centerTitle: true,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+          onPressed: () => context.pop(),
         ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
-          ),
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
-            children: [
-              _buildHelpTile(Icons.menu_book_rounded, 'User Guide', 'Comprehensive instructions for gym owners'),
-              _buildHelpTile(Icons.video_library_rounded, 'Video Tutorials', 'Step-by-step visual training guides'),
-              _buildHelpTile(Icons.quiz_rounded, 'Frequently Asked Questions', 'Quick answers to common queries'),
-              _buildHelpTile(Icons.support_agent_rounded, 'Priority Support', 'Reach out for dedicated assistance'),
-            ],
-          ),
+        title: Text(
+          'Help Center',
+          style: AppTextStyles.h3,
+        ),
+        centerTitle: true,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+          children: [
+            _buildHelpTile(Icons.menu_book_rounded, 'User Guide', 'Comprehensive instructions for gym owners'),
+            _buildHelpTile(Icons.video_library_rounded, 'Video Tutorials', 'Step-by-step visual training guides'),
+            _buildHelpTile(Icons.quiz_rounded, 'Frequently Asked Questions', 'Quick answers to common queries'),
+            _buildHelpTile(Icons.support_agent_rounded, 'Priority Support', 'Reach out for dedicated assistance'),
+          ],
         ),
       ),
     );

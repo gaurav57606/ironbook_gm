@@ -6,11 +6,11 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_radius.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../providers/billing_provider.dart';
 import '../../../../core/data/local/models/product_model.dart';
 import '../../../../core/data/local/models/sale_model.dart';
 import '../../../../core/providers/sale_provider.dart';
+import '../../../../shared/widgets/sync_status_indicator.dart';
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -45,7 +45,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         final total = _calculateTotal(products);
         return Scaffold(
           backgroundColor: AppColors.bg,
-          body: StatusBarWrapper(
+          body: SafeArea(
+            top: true,
             child: Column(
               children: [
                 _buildAppBar(),
@@ -68,18 +69,51 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.s,
+        right: AppSpacing.screenPadding,
+        top: AppSpacing.xl,
+        bottom: AppSpacing.s,
+      ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => context.pop(),
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.text, size: 20),
           ),
-          AppSpacing.gapS,
-          const Text(
-            'Supplements & Merch',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
+          const Expanded(
+            child: Text(
+              'Supplements & Merch',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
+            ),
           ),
+          IconButton(
+            onPressed: () => context.push('/notifications'),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.elevation2,
+              padding: const EdgeInsets.all(8),
+            ),
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_none_rounded, color: AppColors.text3, size: 20),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: AppColors.orange,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.bg, width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const SyncStatusIndicator(),
         ],
       ),
     );

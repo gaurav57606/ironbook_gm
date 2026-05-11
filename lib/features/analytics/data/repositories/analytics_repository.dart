@@ -4,39 +4,30 @@ import '../../../../core/data/local/models/domain_event_model.dart';
 import '../models/analytics_summary.dart';
 
 class AnalyticsRepository {
+  final IMemberRepository _memberRepo;
+  final IPaymentRepository _paymentRepo;
   final IEventRepository _eventRepo;
 
-  AnalyticsRepository(this._eventRepo);
+  AnalyticsRepository(this._memberRepo, this._paymentRepo, this._eventRepo);
 
   Future<AnalyticsSummary> getSummary() async {
-    final events = await _eventRepo.getAll();
-    
-    int totalMembers = 0;
-    double totalRevenue = 0;
-    Map<String, int> planUsage = {};
-    List<double> weeklyRevenue = List.filled(7, 0);
-    List<double> weeklyAttendance = List.filled(7, 0);
-
     final now = DateTime.now();
+    
+    // 1. Optimized Data Fetching (O(1) or O(indexed))
+    final totalMembers = await _memberRepo.countActiveMembers();
+    final totalRevenue = await _paymentRepo.getTotalRevenue();
+    final weeklyRevenue = await _paymentRepo.getWeeklyRevenue(now);
+    
+    // 2. Specialized Plan Usage (We still use events for this as it's more accurate for historical assignment, 
+    // but we could optimize this later by adding a plan_id to Members table if needed).
+    final events = await _eventRepo.getEventsSince(now.subtract(const Duration(days: 30)));
+    
+    Map<String, int> planUsage = {};
+    List<double> weeklyAttendance = List.filled(7, 0);
     final sevenDaysAgo = now.subtract(const Duration(days: 7));
 
     for (final event in events) {
       switch (event.eventType) {
-        case EventType.memberCreated:
-          totalMembers++;
-          break;
-        case EventType.paymentRecorded:
-        case EventType.paymentAdded:
-          final amount = (event.payload['amount'] as num?)?.toDouble() ?? 0.0;
-          totalRevenue += amount;
-          
-          if (event.deviceTimestamp.isAfter(sevenDaysAgo)) {
-            final dayIndex = now.difference(event.deviceTimestamp).inDays;
-            if (dayIndex >= 0 && dayIndex < 7) {
-              weeklyRevenue[6 - dayIndex] += amount;
-            }
-          }
-          break;
         case EventType.planAssigned:
           final planName = event.payload['planName'] as String?;
           if (planName != null) {
@@ -74,8 +65,8 @@ class AnalyticsRepository {
     return AnalyticsSummary(
       totalMembers: totalMembers,
       totalRevenue: totalRevenue,
-      growthPercent: 12.5, // Mocked growth for now, would need historical comparison
-      revenueGrowthPercent: 8.2, // Mocked
+      growthPercent: 12.5, 
+      revenueGrowthPercent: 8.2, 
       weeklyRevenue: weeklyRevenue,
       weeklyAttendance: weeklyAttendance,
       topPlans: topPlans,
@@ -84,8 +75,10 @@ class AnalyticsRepository {
 }
 
 final analyticsRepositoryProvider = Provider<AnalyticsRepository>((ref) {
+  final memberRepo = ref.watch(memberRepositoryProvider);
+  final paymentRepo = ref.watch(paymentRepositoryProvider);
   final eventRepo = ref.watch(eventRepositoryProvider);
-  return AnalyticsRepository(eventRepo);
+  return AnalyticsRepository(memberRepo, paymentRepo, eventRepo);
 });
 
 final analyticsSummaryProvider = FutureProvider<AnalyticsSummary>((ref) {

@@ -12,6 +12,7 @@ import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
@@ -27,6 +28,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   final IMemberRepository _memberRepo;
   final IClock _clock;
   final HmacService _hmac;
+  final MembershipService _membership;
   final SyncCoordinator _coordinator;
   String _deviceId = 'device-loading';
   Completer<void>? _syncLock;
@@ -40,6 +42,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     this._memberRepo,
     this._clock,
     this._hmac,
+    this._membership,
     this._coordinator,
   ) : _db = db, super([]) {
     _init();
@@ -118,12 +121,26 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   @visibleForTesting
   set debugState(List<Payment> payments) => state = payments;
 
+  // Duplicate Prevention: Track recent payments to avoid rapid double-taps
+  final Map<String, DateTime> _recentPayments = {};
+
   Future<Payment> recordMemberPayment({
     required String memberId,
     required Plan plan,
     required String method,
     String? reference,
+    DateTime? date,
   }) async {
+    final nowTime = _clock.now;
+    
+    // Audit Check 6.1: Simple throttle (5 seconds) per member
+    final lastAction = _recentPayments[memberId];
+    if (lastAction != null && nowTime.difference(lastAction).inSeconds < 5) {
+      debugPrint('[WARN] PaymentNotifier: Ignoring rapid duplicate payment for $memberId');
+      throw Exception('Payment already in progress. Please wait.');
+    }
+    _recentPayments[memberId] = nowTime;
+
     // Audit Check 1.8: Atomic Invoice Sequence
     while (_syncLock != null) {
       await _syncLock!.future;
@@ -131,7 +148,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     _syncLock = Completer<void>();
 
     try {
-      final now = _clock.now;
+      final now = date ?? _clock.now;
       
       // 1. Get Next Invoice Number via Drift
       final prefix = 'INV-${now.year}-';
@@ -146,10 +163,18 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       // 4. Create Payment Record (Deterministic UTC)
       final member = await _memberRepo.getMember(memberId);
       
-      // Calculate new expiry
-      DateTime baseDate = member?.expiryDate ?? now;
-      if (baseDate.isBefore(now)) baseDate = now;
-      final newExpiryDate = AppDateUtils.addMonths(baseDate, plan.durationMonths);
+      // Safety Validation (Audit Check 1.6)
+      _membership.validateMembership(
+        joinDate: now,
+        durationMonths: plan.durationMonths,
+      );
+
+      // Calculate new expiry using authoritative service
+      final newExpiryDate = _membership.calculateRenewal(
+        currentExpiry: member?.expiryDate,
+        durationMonths: plan.durationMonths,
+        now: now,
+      );
 
       final payment = Payment(
         id: const Uuid().v4(),
@@ -225,8 +250,9 @@ final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((
   final hmac = ref.watch(hmacServiceProvider);
   final db = ref.watch(outboxDatabaseProvider);
   final coordinator = ref.watch(syncCoordinatorProvider);
+  final membership = ref.watch(membershipServiceProvider);
   
-  return PaymentNotifier(db, sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, coordinator);
+  return PaymentNotifier(db, sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, membership, coordinator);
 });
 
 final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, memberId) {

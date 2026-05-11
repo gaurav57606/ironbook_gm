@@ -56,11 +56,38 @@ class AppColors {
     end: Alignment.bottomCenter,
   );
 
+  // Premium Gradients
+  static const LinearGradient goldGradient = LinearGradient(
+    colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient glassGradient = LinearGradient(
+    colors: [
+      Color(0x22FFFFFF),
+      Color(0x05FFFFFF),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient amberGradient = LinearGradient(
+    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   // Elevation Colors (Lighter for higher elevation)
   static const Color elevation1 = Color(0xFF141417);
   static const Color elevation2 = Color(0xFF1C1C21);
   static const Color elevation3 = Color(0xFF242429);
   static const Color elevation4 = Color(0xFF2C2C34);
+  
+  // Opacity variants
+  static Color primaryWithOpacity(double opacity) => primary.withValues(alpha: opacity);
+  static Color activeWithOpacity(double opacity) => active.withValues(alpha: opacity);
+  static Color expiredWithOpacity(double opacity) => expired.withValues(alpha: opacity);
 }
 
 

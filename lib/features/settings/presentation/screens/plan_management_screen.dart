@@ -6,7 +6,6 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/data/local/models/plan_model.dart';
 import '../../../../core/data/local/models/plan_component_model.dart';
 import '../../../../core/providers/plan_provider.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 
 class PlanManagementScreen extends ConsumerWidget {
   const PlanManagementScreen({super.key});
@@ -15,58 +14,56 @@ class PlanManagementScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plans = ref.watch(planProvider);
 
-    return StatusBarWrapper(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded,
+              color: AppColors.textPrimary, size: 24),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Membership Plans',
+          style: AppTextStyles.h3,
+        ),
+        centerTitle: true,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: ListView.builder(
+          padding: EdgeInsets.fromLTRB(
+              20, MediaQuery.of(context).padding.top + 70, 20, 100),
+          itemCount: plans.length,
+          itemBuilder: (context, index) {
+            final plan = plans[index];
+            return _buildPlanCard(context, ref, plan);
+          },
+        ),
+      ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.4),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            )
+          ],
+        ),
+        child: FloatingActionButton(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded,
-                color: AppColors.textPrimary, size: 24),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            'Membership Plans',
-            style: AppTextStyles.h3,
-          ),
-          centerTitle: true,
-        ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
-          ),
-          child: ListView.builder(
-            padding: EdgeInsets.fromLTRB(
-                20, MediaQuery.of(context).padding.top + 70, 20, 100),
-            itemCount: plans.length,
-            itemBuilder: (context, index) {
-              final plan = plans[index];
-              return _buildPlanCard(context, ref, plan);
-            },
-          ),
-        ),
-        floatingActionButton: Container(
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              )
-            ],
-          ),
-          child: FloatingActionButton(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
-            onPressed: () => _showPlanDialog(context, ref),
-          ),
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
+          onPressed: () => _showPlanDialog(context, ref),
         ),
       ),
     );

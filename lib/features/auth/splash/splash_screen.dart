@@ -20,7 +20,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
-    )..repeat();
+    );
+    if (!const bool.fromEnvironment('FLUTTER_TEST')) {
+      _controller.repeat();
+    }
   }
 
   @override

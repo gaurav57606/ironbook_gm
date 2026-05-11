@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import 'package:flutter/foundation.dart'; // Added for kIsWeb
 import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/auth_provider.dart';
 
 class PinSetupScreen extends ConsumerStatefulWidget {
@@ -77,104 +76,109 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
   @override
   Widget build(BuildContext context) {
     if (_showBiometric) {
-      return _buildBiometricView();
+      return Scaffold(
+        body: SafeArea(
+          top: true,
+          child: _buildBiometricView(),
+        ),
+      );
     }
 
-    return _buildPinView();
+    return Scaffold(
+      body: SafeArea(
+        top: true,
+        child: _buildPinView(),
+      ),
+    );
   }
 
   Widget _buildBiometricView() {
-    return StatusBarWrapper(
-      showHeader: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppColors.orange.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.fingerprint,
-                  color: AppColors.orange, size: 32),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.orange.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 14),
-            const Text(
-              'Enable fingerprint unlock?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text,
-              ),
+            child: const Icon(Icons.fingerprint,
+                color: AppColors.orange, size: 32),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Enable fingerprint unlock?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Skip the PIN and open the app with your fingerprint.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.text2,
-                height: 1.6,
-              ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Skip the PIN and open the app with your fingerprint.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.text2,
+              height: 1.6,
             ),
-            const SizedBox(height: 24),
-            AppButton(
-              text: 'Enable Fingerprint',
-              onPressed: () async {
-                await ref.read(authProvider.notifier).setBiometricOptIn(true);
-                if (!mounted) return;
-                context.go('/dashboard');
-              },
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: () => context.go('/dashboard'),
-              borderRadius: BorderRadius.circular(8),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                child: Text(
-                  'Skip for now',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.text3,
-                    decoration: TextDecoration.underline,
-                  ),
+          ),
+          const SizedBox(height: 24),
+          AppButton(
+            text: 'Enable Fingerprint',
+            onPressed: () async {
+              await ref.read(authProvider.notifier).setBiometricOptIn(true);
+              if (!mounted) return;
+              context.go('/dashboard');
+            },
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () => context.go('/dashboard'),
+            borderRadius: BorderRadius.circular(8),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              child: Text(
+                'Skip for now',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.text3,
+                  decoration: TextDecoration.underline,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPinView() {
-    return StatusBarWrapper(
-      child: Column(
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 10),
-          _buildPinIndicators(),
-          if (_error) ...[
-            const SizedBox(height: 16),
-            const Text(
-              'PINs don\'t match, try again',
-              style: TextStyle(fontSize: 10, color: AppColors.red),
-            ),
-          ],
-          if (_isLoading) ...[
-            const SizedBox(height: 16),
-            const CircularProgressIndicator(color: AppColors.orange),
-          ],
-          const Spacer(),
-          _buildKeyboard(),
-          const SizedBox(height: 24),
+    return Column(
+      children: [
+        _buildHeader(),
+        const SizedBox(height: 10),
+        _buildPinIndicators(),
+        if (_error) ...[
+          const SizedBox(height: 16),
+          const Text(
+            'PINs don\'t match, try again',
+            style: TextStyle(fontSize: 10, color: AppColors.red),
+          ),
         ],
-      ),
+        if (_isLoading) ...[
+          const SizedBox(height: 16),
+          const CircularProgressIndicator(color: AppColors.orange),
+        ],
+        const Spacer(),
+        _buildKeyboard(),
+        const SizedBox(height: 24),
+      ],
     );
   }
 

@@ -4,7 +4,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
 import 'package:go_router/go_router.dart';
@@ -78,84 +77,82 @@ class _TaxBillingScreenState extends ConsumerState<TaxBillingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
-            onPressed: () => context.pop(),
-          ),
-          title: Text(
-            'Tax & Billing',
-            style: AppTextStyles.h3,
-          ),
-          centerTitle: true,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+          onPressed: () => context.pop(),
         ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
-          ),
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader('TAX CONFIGURATION'),
-                const SizedBox(height: 16),
-                AppTextField(
-                  label: 'Default GST Rate (%)',
-                  hint: '18.0',
-                  controller: _gstRateController,
-                  keyboardType: TextInputType.number,
-                  prefixIcon: const Icon(Icons.percent_rounded),
-                ),
-                AppTextField(
-                  label: 'GSTIN',
-                  hint: 'Enter GST Number',
-                  controller: _gstinController,
-                  prefixIcon: const Icon(Icons.receipt_long_rounded),
-                ),
-                const SizedBox(height: 16),
-                _buildHeader('BANKING DETAILS'),
-                const SizedBox(height: 16),
-                AppTextField(
-                  label: 'Bank Name',
-                  hint: 'Enter Bank Name',
-                  controller: _bankNameController,
-                  prefixIcon: const Icon(Icons.account_balance_rounded),
-                ),
-                AppTextField(
-                  label: 'Account Number',
-                  hint: 'Enter Account Number',
-                  controller: _accNoController,
-                  keyboardType: TextInputType.number,
-                  prefixIcon: const Icon(Icons.numbers_rounded),
-                ),
-                AppTextField(
-                  label: 'IFSC Code',
-                  hint: 'Enter IFSC',
-                  controller: _ifscController,
-                  prefixIcon: const Icon(Icons.code_rounded),
-                ),
-                AppTextField(
-                  label: 'UPI ID',
-                  hint: 'yourname@bank',
-                  controller: _upiController,
-                  prefixIcon: const Icon(Icons.alternate_email_rounded),
-                ),
-                const SizedBox(height: 48),
-                AppButton(
-                  text: 'Save Billing Info',
-                  onPressed: _save,
-                ),
-              ],
-            ),
+        title: Text(
+          'Tax & Billing',
+          style: AppTextStyles.h3,
+        ),
+        centerTitle: true,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader('TAX CONFIGURATION'),
+              const SizedBox(height: 16),
+              AppTextField(
+                label: 'Default GST Rate (%)',
+                hint: '18.0',
+                controller: _gstRateController,
+                keyboardType: TextInputType.number,
+                prefixIcon: const Icon(Icons.percent_rounded),
+              ),
+              AppTextField(
+                label: 'GSTIN',
+                hint: 'Enter GST Number',
+                controller: _gstinController,
+                prefixIcon: const Icon(Icons.receipt_long_rounded),
+              ),
+              const SizedBox(height: 16),
+              _buildHeader('BANKING DETAILS'),
+              const SizedBox(height: 16),
+              AppTextField(
+                label: 'Bank Name',
+                hint: 'Enter Bank Name',
+                controller: _bankNameController,
+                prefixIcon: const Icon(Icons.account_balance_rounded),
+              ),
+              AppTextField(
+                label: 'Account Number',
+                hint: 'Enter Account Number',
+                controller: _accNoController,
+                keyboardType: TextInputType.number,
+                prefixIcon: const Icon(Icons.numbers_rounded),
+              ),
+              AppTextField(
+                label: 'IFSC Code',
+                hint: 'Enter IFSC',
+                controller: _ifscController,
+                prefixIcon: const Icon(Icons.code_rounded),
+              ),
+              AppTextField(
+                label: 'UPI ID',
+                hint: 'yourname@bank',
+                controller: _upiController,
+                prefixIcon: const Icon(Icons.alternate_email_rounded),
+              ),
+              const SizedBox(height: 48),
+              AppButton(
+                text: 'Save Billing Info',
+                onPressed: _save,
+              ),
+            ],
           ),
         ),
       ),

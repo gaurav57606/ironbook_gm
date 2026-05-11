@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/sync_status_provider.dart';
 
 class LeaseExpiredScreen extends ConsumerWidget {
@@ -13,10 +12,11 @@ class LeaseExpiredScreen extends ConsumerWidget {
     final syncStatus = ref.watch(syncStatusProvider);
     final unsyncedCount = syncStatus.unsyncedCount;
 
-    return StatusBarWrapper(
-      child: Scaffold(
-        backgroundColor: AppColors.bg,
-        body: Container(
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        top: true,
+        child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           decoration: BoxDecoration(
             gradient: LinearGradient(

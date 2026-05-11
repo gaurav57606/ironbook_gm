@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/splash/splash_screen.dart';
 import '../../features/auth/onboarding/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/character_creation/presentation/screens/character_creation_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/pin_setup_screen.dart';
@@ -18,7 +17,6 @@ import '../../features/members/presentation/screens/quick_add_member_screen.dart
 import '../../features/members/presentation/screens/member_detail_screen.dart';
 import '../../features/billing/presentation/screens/invoice_screen.dart';
 import '../../features/billing/presentation/screens/pos_screen.dart';
-import '../../features/nutrition/presentation/screens/nutrition_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/profile_edit_screen.dart';
@@ -90,7 +88,13 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       final isLeasePath = path == '/lease-expired';
       final isSettingsPath = path.startsWith('/settings');
 
-      // 4. Authentication validation
+      // 4. Onboarding flow (Prioritize over Auth for new installs)
+      if (isFirstLaunch) {
+        if (isOnboardingPath) return null;
+        return '/onboarding';
+      }
+
+      // 5. Authentication validation
       // Unauthenticated users always resolve first to prevent unauth feature access
       if (!isAuth) {
         if (isLoginPath) return null;
@@ -99,12 +103,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
 
       // 5a. Always allow auth screens through, regardless of onboarding state
       if (isLoginPath) return null;
-
-      // 5. Onboarding flow (For new authenticated users)
-      if (isFirstLaunch) {
-        if (isOnboardingPath) return null;
-        return '/onboarding';
-      }
 
       // PIN ROUTING
       // If authenticated but PIN not configured,
@@ -182,8 +180,8 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
         },
       ),
       GoRoute(
-        path: '/character-creation',
-        builder: (context, state) => const CharacterCreationScreen(),
+        path: '/notifications',
+        builder: (context, state) => const NotificationsHubScreen(),
       ),
       GoRoute(
         path: '/lease-expired',
@@ -239,14 +237,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/nutrition',
-                builder: (context, state) => const NutritionScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
                 path: '/pos',
                 builder: (context, state) => const PosScreen(),
               ),
@@ -257,14 +247,6 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
               GoRoute(
                 path: '/analytics',
                 builder: (context, state) => const AnalyticsScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/notifications',
-                builder: (context, state) => const NotificationsHubScreen(),
               ),
             ],
           ),

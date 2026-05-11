@@ -20,7 +20,7 @@ class SyncCoordinator {
 
   /// Triggers a synchronization attempt in the foreground.
   void triggerSync() {
-    debugPrint('SyncCoordinator: Sync triggered.');
+    if (kDebugMode) debugPrint('SyncCoordinator: Sync triggered.');
     _syncRequestController.add(null);
   }
 
@@ -32,7 +32,7 @@ class SyncCoordinator {
         final lock = await (_db.select(_db.preferences)..where((t) => t.key.equals(_lockKey))).getSingleOrNull();
 
         if (lock != null && lock.value != holderId) {
-          debugPrint('SyncCoordinator: Lock already held by ${lock.value}. Rejecting $holderId.');
+          if (kDebugMode) debugPrint('SyncCoordinator: Lock already held by ${lock.value}. Rejecting $holderId.');
           return false;
         }
 
@@ -42,11 +42,11 @@ class SyncCoordinator {
             value: holderId,
           ),
         );
-        debugPrint('SyncCoordinator: Lock acquired by $holderId.');
+        if (kDebugMode) debugPrint('SyncCoordinator: Lock acquired by $holderId.');
         return true;
       });
     } catch (e) {
-      debugPrint('SyncCoordinator: Error acquiring lock: $e');
+      if (kDebugMode) debugPrint('SyncCoordinator: Error acquiring lock: $e');
       return false;
     }
   }
@@ -59,13 +59,13 @@ class SyncCoordinator {
 
         if (lock != null && lock.value == holderId) {
           await (_db.delete(_db.preferences)..where((t) => t.key.equals(_lockKey))).go();
-          debugPrint('SyncCoordinator: Lock released by $holderId.');
+          if (kDebugMode) debugPrint('SyncCoordinator: Lock released by $holderId.');
         } else {
-          debugPrint('SyncCoordinator: Attempted release by $holderId, but lock belongs to ${lock?.value}.');
+          if (kDebugMode) debugPrint('SyncCoordinator: Attempted release by $holderId, but lock belongs to ${lock?.value}.');
         }
       });
     } catch (e) {
-      debugPrint('SyncCoordinator: Error releasing lock: $e');
+      if (kDebugMode) debugPrint('SyncCoordinator: Error releasing lock: $e');
     }
   }
 
@@ -73,9 +73,9 @@ class SyncCoordinator {
   Future<void> clearAllLocks() async {
     try {
       await (_db.delete(_db.preferences)..where((t) => t.key.equals(_lockKey))).go();
-      debugPrint('SyncCoordinator: All sync locks cleared.');
+      if (kDebugMode) debugPrint('SyncCoordinator: All sync locks cleared.');
     } catch (e) {
-      debugPrint('SyncCoordinator: Error clearing locks: $e');
+      if (kDebugMode) debugPrint('SyncCoordinator: Error clearing locks: $e');
     }
   }
 

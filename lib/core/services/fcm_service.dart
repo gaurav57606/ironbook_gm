@@ -35,11 +35,13 @@ class FcmService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      debugPrint('[FCM] User granted notification permissions');
-      
-      // 2. Get Token for backend targeting
-      final token = await messaging.getToken();
-      debugPrint('[FCM] Token: $token');
+      if (!kReleaseMode) {
+        debugPrint('[FCM] User granted notification permissions');
+        
+        // 2. Get Token for backend targeting
+        final token = await messaging.getToken();
+        debugPrint('[FCM] Token retrieved successfully.');
+      }
     }
 
     // 3. Foreground

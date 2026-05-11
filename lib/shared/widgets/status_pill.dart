@@ -54,6 +54,7 @@ class StatusPill extends StatelessWidget {
       case MemberStatus.expiring: return AppColors.amber;
       case MemberStatus.expired: return AppColors.red;
       case MemberStatus.pending: return AppColors.text3;
+      case MemberStatus.archived: return AppColors.text3;
     }
   }
 
@@ -63,6 +64,7 @@ class StatusPill extends StatelessWidget {
       case MemberStatus.expiring: return 'Expiring';
       case MemberStatus.expired: return 'Expired';
       case MemberStatus.pending: return 'Pending';
+      case MemberStatus.archived: return 'Archived';
     }
   }
 }

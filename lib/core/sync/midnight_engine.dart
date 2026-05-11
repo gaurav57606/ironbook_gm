@@ -41,7 +41,7 @@ class MidnightEngine {
           firebaseReady = true;
         } catch (e) {
           // If logger isn't ready yet, we use debugPrint for boot failures
-          debugPrint("[WORKER] Firebase init failed/timed out in background: $e");
+          if (kDebugMode) debugPrint("[WORKER] Firebase init failed/timed out in background: $e");
         }
 
         // 4. Setup Container with necessary overrides
@@ -61,31 +61,35 @@ class MidnightEngine {
         const holderId = 'background_midnight_engine';
         
         if (!await syncCoord.acquireLock(holderId)) {
-          logger.info("Lock held by another process. Skipping current run.", category: 'SYNC');
+          logger.info("[WORKER] Lock held by another process. Skipping current run.", category: 'SYNC');
           container.dispose();
           return true; 
         }
 
         try {
+          logger.info("[WORKER] Lock acquired. Starting tasks.", category: 'SYNC');
           // 5. Run Maintenance Tasks (Alerts, Cleanups)
           await _runMemberAlerts(container);
 
           // 6. Run Cloud Sync
           if (firebaseReady) {
             final syncWorker = container.read(syncWorkerProvider);
+            logger.info("[WORKER] Starting Cloud Sync...", category: 'SYNC');
             await syncWorker.performSync();
+            logger.info("[WORKER] Cloud Sync completed.", category: 'SYNC');
           } else {
-            logger.warn("Skipping Cloud Sync: Firebase not ready.", category: 'SYNC');
+            logger.warn("[WORKER] Skipping Cloud Sync: Firebase not ready.", category: 'SYNC');
           }
 
-          logger.info("All background maintenance completed successfully.", category: 'BOOT');
+          logger.info("[WORKER] All background maintenance completed successfully.", category: 'BOOT');
         } finally {
           await syncCoord.releaseLock(holderId);
+          logger.info("[WORKER] Lock released. Isolate shutting down.", category: 'SYNC');
           container.dispose();
         }
       } catch (e, stack) {
         // Use debugPrint if container/logger failed to initialize
-        debugPrint("MidnightEngine Fatal Error: $e\n$stack");
+        if (kDebugMode) debugPrint("[WORKER] Fatal Error: $e\n$stack");
         try {
            FirebaseCrashlytics.instance.recordError(e, stack, reason: 'MidnightEngine Fatal Background Failure');
         } catch (_) {}

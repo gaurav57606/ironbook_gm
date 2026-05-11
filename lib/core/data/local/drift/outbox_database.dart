@@ -12,6 +12,7 @@ class OutboxEvents extends Table {
   IntColumn get isSynced => integer().withDefault(const Constant(0))();
   TextColumn get hmacSignature => text().withDefault(const Constant(''))();
   TextColumn get deviceId => text().withDefault(const Constant(''))();
+  BoolColumn get isVerified => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -154,42 +155,7 @@ class AppSettingsTable extends Table {
   TextColumn get hmacSignature => text().nullable()();
 }
 
-class NutritionPlans extends Table {
-  TextColumn get id => text()();
-  TextColumn get memberId => text()();
-  TextColumn get planName => text()();
-  IntColumn get dailyCalories => integer()();
-  RealColumn get adherence => real().withDefault(const Constant(0.0))();
-  IntColumn get waterGoalMl => integer().withDefault(const Constant(2000))();
-  TextColumn get hmacSignature => text().nullable()();
 
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class MealItems extends Table {
-  TextColumn get id => text()();
-  TextColumn get memberId => text()();
-  TextColumn get foodName => text()();
-  RealColumn get grams => real()();
-  IntColumn get calories => integer()();
-  DateTimeColumn get timestamp => dateTime()();
-  TextColumn get hmacSignature => text().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class WaterLogs extends Table {
-  TextColumn get id => text()();
-  TextColumn get memberId => text()();
-  IntColumn get amountMl => integer()();
-  DateTimeColumn get timestamp => dateTime()();
-  TextColumn get hmacSignature => text().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
 
 @DriftDatabase(tables: [
   OutboxEvents,
@@ -203,15 +169,12 @@ class WaterLogs extends Table {
   Preferences,
   OwnerProfiles,
   AppSettingsTable,
-  NutritionPlans,
-  MealItems,
-  WaterLogs
 ])
 class OutboxDatabase extends _$OutboxDatabase {
   OutboxDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -252,13 +215,14 @@ class OutboxDatabase extends _$OutboxDatabase {
         await m.createTable(appSettingsTable);
       }
       if (from < 9) {
-        await m.createTable(nutritionPlans);
-        await m.createTable(mealItems);
-        await m.createTable(waterLogs);
+        // Nutrition tables removed
       }
       if (from < 10) {
         await m.addColumn(ownerProfiles, ownerProfiles.hmacSignature);
         await m.addColumn(appSettingsTable, appSettingsTable.hmacSignature);
+      }
+      if (from < 12) {
+        await m.addColumn(outboxEvents, outboxEvents.isVerified);
       }
     },
   );

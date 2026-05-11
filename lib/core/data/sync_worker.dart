@@ -87,17 +87,56 @@ class SyncWorker {
          return;
       }
 
-      _ref.read(loggerProvider).info('Starting sync for ${unsynced.length} events', category: 'SYNC');
+      _ref.read(loggerProvider).info('Starting batch sync for ${unsynced.length} events', category: 'SYNC');
 
-      for (final event in unsynced) {
-        _ref.read(loggerProvider).debug('Syncing event ${event.id} (${event.eventType})', category: 'SYNC');
+      // Audit Check: Use Firestore WriteBatch for atomic, high-throughput sync
+      // Process in chunks of 50 (Firestore limit)
+      for (var i = 0; i < unsynced.length; i += 50) {
+        final chunk = unsynced.skip(i).take(50).toList();
+        _ref.read(loggerProvider).debug('Processing sync chunk: ${chunk.length} items', category: 'SYNC');
+        
         try {
-          await _recordPusher('users/$uid/events', event.id, event.toFirestore());
-          await _outboxRepo.markSynced(event.id); // Mark synced in Drift
-        } catch (itemError) {
-          _ref.read(loggerProvider).error('Failed to sync individual event ${event.id}', category: 'SYNC', error: itemError);
-          // Continue with next event if one fails, unless it's a network error
-          if (itemError.toString().contains('network')) rethrow;
+          if (!const bool.fromEnvironment('FLUTTER_TEST')) {
+            final batch = FirebaseFirestore.instance.batch();
+            for (final event in chunk) {
+              final docRef = FirebaseFirestore.instance.collection('users/$uid/events').doc(event.id);
+              batch.set(docRef, event.toFirestore());
+            }
+            await batch.commit().timeout(const Duration(seconds: 30));
+          } else {
+            // In tests, we still use the recordPusher for compatibility with mocks
+            for (final event in chunk) {
+              await _recordPusher('users/$uid/events', event.id, event.toFirestore())
+                  .timeout(const Duration(seconds: 15));
+            }
+          }
+          
+          await _outboxRepo.markBatchSynced(chunk.map((e) => e.id).toList());
+          _ref.read(loggerProvider).debug('Successfully synced chunk of ${chunk.length} items', category: 'SYNC');
+        } catch (chunkError) {
+          _ref.read(loggerProvider).error(
+            'Failed to sync chunk starting at index $i', 
+            category: 'SYNC', 
+            error: chunkError
+          );
+          
+          // Operational Resilience: Fallback to individual sync for this chunk to identify problematic items
+          // This prevents one bad document from blocking the entire batch.
+          _ref.read(loggerProvider).info('Falling back to individual sync for problematic chunk...', category: 'SYNC');
+          for (final event in chunk) {
+            try {
+              await _recordPusher('users/$uid/events', event.id, event.toFirestore())
+                  .timeout(const Duration(seconds: 15));
+              await _outboxRepo.markSynced(event.id);
+            } catch (itemError) {
+              _ref.read(loggerProvider).error('Individual sync failure for event ${event.id}', category: 'SYNC', error: itemError);
+              // If it's a network error, rethrow to trigger backoff
+              final errorStr = itemError.toString().toLowerCase();
+              if (errorStr.contains('network') || errorStr.contains('unavailable') || errorStr.contains('deadline')) {
+                rethrow;
+              }
+            }
+          }
         }
       }
       

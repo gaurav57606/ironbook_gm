@@ -5,7 +5,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/data/local/models/owner_profile_model.dart';
 import '../../../../core/data/local/models/domain_event_model.dart';
@@ -128,87 +127,85 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
-            onPressed: () => context.pop(),
-          ),
-          title: Text(
-            'Transfer Ownership',
-            style: AppTextStyles.h3,
-          ),
-          centerTitle: true,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+          onPressed: () => context.pop(),
         ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
-          ),
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildWarningCard(),
-                  const SizedBox(height: 32),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 16),
-                    child: Text(
-                      'NEW OWNER DETAILS',
-                      style: AppTextStyles.sectionTitle.copyWith(
-                        fontSize: 10,
-                        letterSpacing: 1.5,
-                        color: AppColors.textMuted,
-                      ),
+        title: Text(
+          'Transfer Ownership',
+          style: AppTextStyles.h3,
+        ),
+        centerTitle: true,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildWarningCard(),
+                const SizedBox(height: 32),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 16),
+                  child: Text(
+                    'NEW OWNER DETAILS',
+                    style: AppTextStyles.sectionTitle.copyWith(
+                      fontSize: 10,
+                      letterSpacing: 1.5,
+                      color: AppColors.textMuted,
                     ),
                   ),
-                  AppTextField(
-                    label: 'Full Name',
-                    hint: 'Enter New Owner Name',
-                    controller: _nameController,
-                    prefixIcon: const Icon(Icons.person_outline_rounded),
-                    validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                ),
+                AppTextField(
+                  label: 'Full Name',
+                  hint: 'Enter New Owner Name',
+                  controller: _nameController,
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
+                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                ),
+                AppTextField(
+                  label: 'Phone Number',
+                  hint: 'Enter Phone Number',
+                  controller: _phoneController,
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                  keyboardType: TextInputType.phone,
+                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                ),
+                AppTextField(
+                  label: 'New Owner Email',
+                  hint: 'For record keeping',
+                  controller: _newEmailController,
+                  prefixIcon: const Icon(Icons.mail_outline_rounded),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) => v?.contains('@') != true ? 'Valid email required' : null,
+                ),
+                const SizedBox(height: 48),
+                AppButton(
+                  text: 'Complete Handover',
+                  isLoading: _isProcessing,
+                  onPressed: _handleTransfer,
+                ),
+                const SizedBox(height: 24),
+                Center(
+                  child: Text(
+                    'Handover is permanent and logged in history.',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
                   ),
-                  AppTextField(
-                    label: 'Phone Number',
-                    hint: 'Enter Phone Number',
-                    controller: _phoneController,
-                    prefixIcon: const Icon(Icons.phone_outlined),
-                    keyboardType: TextInputType.phone,
-                    validator: (v) => v?.isEmpty == true ? 'Required' : null,
-                  ),
-                  AppTextField(
-                    label: 'New Owner Email',
-                    hint: 'For record keeping',
-                    controller: _newEmailController,
-                    prefixIcon: const Icon(Icons.mail_outline_rounded),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) => v?.contains('@') != true ? 'Valid email required' : null,
-                  ),
-                  const SizedBox(height: 48),
-                  AppButton(
-                    text: 'Complete Handover',
-                    isLoading: _isProcessing,
-                    onPressed: _handleTransfer,
-                  ),
-                  const SizedBox(height: 24),
-                  Center(
-                    child: Text(
-                      'Handover is permanent and logged in history.',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

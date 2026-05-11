@@ -13,7 +13,7 @@ class SyncStatusBadge extends ConsumerWidget {
     final count = ref.watch(unsyncedCountProvider).valueOrNull ?? 0;
     final status = ref.watch(tier2StatusProvider);
     final syncState = ref.watch(syncWorkerStatusProvider);
-
+    
     if (count == 0 &&
         status != Tier2Status.degraded &&
         syncState.status == SyncWorkerStatus.idle) {

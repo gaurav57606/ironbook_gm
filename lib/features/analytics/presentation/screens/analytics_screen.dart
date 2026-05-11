@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/constants/app_colors.dart';
-import 'package:ironbook_gm/shared/widgets/status_bar_wrapper.dart';
 import '../../data/repositories/analytics_repository.dart';
 import '../../data/models/analytics_summary.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/sync_status_indicator.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/constants/app_text_styles.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
@@ -13,71 +16,95 @@ class AnalyticsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(analyticsSummaryProvider);
 
-    return StatusBarWrapper(
-      child: Scaffold(
-        backgroundColor: AppColors.bg,
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.bottomRight,
-              end: Alignment.topLeft,
-              colors: [
-                AppColors.orange.withValues(alpha: 0.05),
-                AppColors.bg,
-                AppColors.bg,
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomRight,
+            end: Alignment.topLeft,
+            colors: [
+              AppColors.orange.withValues(alpha: 0.05),
+              AppColors.bg,
+              AppColors.bg,
+            ],
           ),
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: summaryAsync.when(
-                    data: (summary) => _buildContent(summary),
-                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.orange)),
-                    error: (e, st) => Center(child: Text('Error loading analytics: $e', style: const TextStyle(color: Colors.red))),
-                  ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: summaryAsync.when(
+                  data: (summary) => _buildContent(summary),
+                  loading: () => const Center(child: CircularProgressIndicator(color: AppColors.orange)),
+                  error: (e, st) => Center(child: Text('Error loading analytics: $e', style: const TextStyle(color: Colors.red))),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    final monthYear = DateFormat('MMMM yyyy').format(DateTime.now());
+  Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.screenPadding,
+        right: AppSpacing.screenPadding,
+        top: AppSpacing.xl,
+        bottom: AppSpacing.m,
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Gym Analytics',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.bg2,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(monthYear, style: const TextStyle(color: AppColors.text3, fontSize: 10, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 4),
-                const Icon(Icons.calendar_today_rounded, color: AppColors.orange, size: 10),
+                const Text(
+                  'Gym Analytics',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  DateFormat('MMMM yyyy').format(DateTime.now()).toUpperCase(),
+                  style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted, fontSize: 10),
+                ),
               ],
             ),
           ),
+          IconButton(
+            onPressed: () => context.push('/notifications'),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.elevation2,
+              padding: const EdgeInsets.all(8),
+            ),
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_none_rounded, color: AppColors.text3, size: 20),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: AppColors.orange,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.bg, width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const SyncStatusIndicator(),
         ],
       ),
     );

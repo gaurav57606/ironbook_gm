@@ -12,7 +12,7 @@ import 'package:ironbook_gm/shared/widgets/app_button.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as model;
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import 'package:ironbook_gm/core/data/local/models/payment_model.dart';
-import 'package:ironbook_gm/features/billing/providers/billing_provider.dart' hide paymentsProvider;
+import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../test_helper.dart';
 
@@ -26,7 +26,7 @@ class MockPaymentNotifier extends StateNotifier<List<Payment>> with Mock impleme
 class MockPlanNotifier extends StateNotifier<List<model.Plan>> with Mock implements PlanNotifier {
   MockPlanNotifier([super.state = const []]);
 }
-class MockBillingNotifier extends Mock implements BillingNotifier {}
+// class MockBillingNotifier extends Mock implements BillingNotifier {}
 
 class PlanFake extends Fake implements model.Plan {}
 class dbPlanFake extends Fake implements db.Plan {}
@@ -35,7 +35,7 @@ void main() {
   late MockMemberNotifier mockMemberNotifier;
   late MockPaymentNotifier mockPaymentNotifier;
   late MockPlanNotifier mockPlanNotifier;
-  late MockBillingNotifier mockBillingNotifier;
+  // late MockBillingNotifier mockBillingNotifier;
 
   setUpAll(() {
     registerFallbackValue(PlanFake());
@@ -47,7 +47,7 @@ void main() {
     mockMemberNotifier = MockMemberNotifier();
     mockPaymentNotifier = MockPaymentNotifier();
     mockPlanNotifier = MockPlanNotifier();
-    mockBillingNotifier = MockBillingNotifier();
+    // mockBillingNotifier = MockBillingNotifier();
     
     // Default Plan
     final testPlan = model.Plan(
@@ -60,12 +60,26 @@ void main() {
     );
     mockPlanNotifier.state = [testPlan];
 
-    // Mock billing behavior
-    when(() => mockBillingNotifier.recordMemberPayment(
+    when(() => mockPaymentNotifier.recordMemberPayment(
       memberId: any(named: 'memberId'),
       plan: any(named: 'plan'),
       method: any(named: 'method'),
-    )).thenAnswer((_) async {});
+      date: any(named: 'date'),
+    )).thenAnswer((_) async => Payment(
+      id: 'p1', 
+      memberId: 'm1', 
+      date: DateTime.now(), 
+      amount: 1000, 
+      method: 'Cash', 
+      planId: 'p1', 
+      planName: 'Monthly', 
+      durationMonths: 1, 
+      invoiceNumber: 'INV1',
+      subtotal: 847.46,
+      gstAmount: 152.54,
+      gstRate: 0.18,
+      components: [],
+    ));
   });
 
   group('QuickAddMemberScreen Form Validation', () {
@@ -88,7 +102,6 @@ void main() {
           membersProvider.overrideWith((ref) => mockMemberNotifier),
           paymentsProvider.overrideWith((ref) => mockPaymentNotifier),
           planProvider.overrideWith((ref) => mockPlanNotifier),
-          billingNotifierProvider.overrideWithValue(mockBillingNotifier),
           activePlansProvider.overrideWith((ref) => Stream.value([
             db.Plan(
               id: 'plan-monthly',
@@ -132,7 +145,6 @@ void main() {
           membersProvider.overrideWith((ref) => mockMemberNotifier),
           paymentsProvider.overrideWith((ref) => mockPaymentNotifier),
           planProvider.overrideWith((ref) => mockPlanNotifier),
-          billingNotifierProvider.overrideWithValue(mockBillingNotifier),
           activePlansProvider.overrideWith((ref) => Stream.value([
             db.Plan(
               id: 'plan-monthly',
@@ -187,7 +199,6 @@ void main() {
           membersProvider.overrideWith((ref) => mockMemberNotifier),
           paymentsProvider.overrideWith((ref) => mockPaymentNotifier),
           planProvider.overrideWith((ref) => mockPlanNotifier),
-          billingNotifierProvider.overrideWithValue(mockBillingNotifier),
           activePlansProvider.overrideWith((ref) => Stream.value([
             db.Plan(
               id: 'plan-monthly',
@@ -226,10 +237,11 @@ void main() {
         age: 25,
       )).called(1);
 
-      verify(() => mockBillingNotifier.recordMemberPayment(
+      verify(() => mockPaymentNotifier.recordMemberPayment(
         memberId: 'new-member-id',
         plan: any(named: 'plan'),
         method: any(named: 'method'),
+        date: any(named: 'date'),
       )).called(1);
     });
   });

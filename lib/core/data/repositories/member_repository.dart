@@ -18,6 +18,7 @@ abstract class IMemberRepository {
   Future<List<MemberSnapshot>> getAllMembers();
   Stream<List<MemberSnapshot>> watchAllMembers();
   Future<void> applyEvent(DomainEvent event);
+  Future<int> countActiveMembers();
 }
 
 class DriftMemberRepository implements IMemberRepository {
@@ -145,6 +146,16 @@ class DriftMemberRepository implements IMemberRepository {
     return (_db.select(_db.members)..where((t) => t.archived.equals(false)))
         .watch()
         .map((rows) => rows.map((r) => MemberSnapshot.fromDrift(r)).toList());
+  }
+
+  @override
+  Future<int> countActiveMembers() async {
+    final countExp = _db.members.id.count();
+    final query = _db.selectOnly(_db.members)
+      ..addColumns([countExp])
+      ..where(_db.members.archived.equals(false));
+    final row = await query.getSingle();
+    return row.read(countExp) ?? 0;
   }
 }
 

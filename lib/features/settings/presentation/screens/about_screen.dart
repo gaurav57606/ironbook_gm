@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -9,46 +8,44 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded,
-                color: AppColors.textPrimary, size: 24),
-            onPressed: () => context.pop(),
-          ),
-          title: Text(
-            'About IronBook GM',
-            style: AppTextStyles.h3,
-          ),
-          centerTitle: true,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded,
+              color: AppColors.textPrimary, size: 24),
+          onPressed: () => context.pop(),
         ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(flex: 2),
-                _buildLogo(),
-                const SizedBox(height: 32),
-                _buildAppInfo(),
-                const SizedBox(height: 48),
-                _buildDescription(),
-                const Spacer(flex: 3),
-                _buildFooter(),
-                const SizedBox(height: 24),
-              ],
-            ),
+        title: Text(
+          'About IronBook GM',
+          style: AppTextStyles.h3,
+        ),
+        centerTitle: true,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: AppColors.backgroundGradient,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Spacer(flex: 2),
+              _buildLogo(),
+              const SizedBox(height: 32),
+              _buildAppInfo(),
+              const SizedBox(height: 48),
+              _buildDescription(),
+              const Spacer(flex: 3),
+              _buildFooter(),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../../shared/widgets/status_bar_wrapper.dart';
 import 'package:ironbook_gm/features/backup/services/backup_coordinator.dart';
 import 'package:ironbook_gm/features/backup/services/backup_encryption_service.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
@@ -195,57 +194,64 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StatusBarWrapper(
-      child: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-            child: Scaffold(
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        child: Stack(
+          children: [
+            Scaffold(
               backgroundColor: Colors.transparent,
               appBar: AppBar(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.textPrimary),
                   onPressed: () => Navigator.pop(context),
                 ),
-                title: Text('Backup & Restore', style: AppTextStyles.h2.copyWith(fontSize: 20)),
+                title: Text('Backup & Restore',
+                    style: AppTextStyles.h2.copyWith(fontSize: 20)),
               ),
               body: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.fromLTRB(
+                    24, MediaQuery.of(context).padding.top + 70, 24, 24),
                 children: [
-                   _buildAlertBanner(),
-                   const SizedBox(height: 32),
-                   _buildStatusSection(),
-                   const SizedBox(height: 32),
-                   _buildActionCard(
-                     icon: Icons.cloud_upload_rounded,
-                     title: 'Create Encrypted Backup',
-                     subtitle: 'Securely package your data into a .igmb file that you can store anywhere.',
-                     onTap: _handleCreateBackup,
-                   ),
-                   const SizedBox(height: 20),
-                   _buildActionCard(
-                     icon: Icons.settings_backup_restore_rounded,
-                     title: 'Restore from File',
-                     subtitle: 'Import data from a previously created .igmb backup file.',
-                     onTap: _handleRestoreBackup,
-                     isWarning: true,
-                   ),
-                   const SizedBox(height: 40),
-                   _buildSecurityNote(),
+                  _buildAlertBanner(),
+                  const SizedBox(height: 32),
+                  _buildStatusSection(),
+                  const SizedBox(height: 32),
+                  _buildActionCard(
+                    icon: Icons.cloud_upload_rounded,
+                    title: 'Create Encrypted Backup',
+                    subtitle:
+                        'Securely package your data into a .igmb file that you can store anywhere.',
+                    onTap: _handleCreateBackup,
+                  ),
+                  const SizedBox(height: 20),
+                  _buildActionCard(
+                    icon: Icons.settings_backup_restore_rounded,
+                    title: 'Restore from File',
+                    subtitle:
+                        'Import data from a previously created .igmb backup file.',
+                    onTap: _handleRestoreBackup,
+                    isWarning: true,
+                  ),
+                  const SizedBox(height: 40),
+                  _buildSecurityNote(),
                 ],
               ),
             ),
-          ),
-          if (_isLoading)
-            Container(
-              color: Colors.black.withValues(alpha: 0.5),
-              child: const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
+            if (_isLoading)
+              Container(
+                color: Colors.black.withValues(alpha: 0.5),
+                child: const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

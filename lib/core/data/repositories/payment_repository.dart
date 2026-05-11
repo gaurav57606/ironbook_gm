@@ -15,6 +15,8 @@ abstract class IPaymentRepository {
   Future<List<domain.Payment>> getPaymentsByMember(String memberId);
   Future<List<domain.Payment>> getAllPayments();
   Future<void> applyEvent(DomainEvent event);
+  Future<double> getTotalRevenue();
+  Future<List<double>> getWeeklyRevenue(DateTime now);
 }
 
 class DriftPaymentRepository implements IPaymentRepository {
@@ -79,6 +81,34 @@ class DriftPaymentRepository implements IPaymentRepository {
         }
       }
     });
+  }
+
+  @override
+  Future<double> getTotalRevenue() async {
+    final amountExp = _db.payments.amount.sum();
+    final query = _db.selectOnly(_db.payments)..addColumns([amountExp]);
+    final row = await query.getSingle();
+    return row.read(amountExp) ?? 0.0;
+  }
+
+  @override
+  Future<List<double>> getWeeklyRevenue(DateTime now) async {
+    final List<double> weekly = List.filled(7, 0.0);
+    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+    
+    // We fetch only recent payments and group in Dart for simplicity,
+    // which is still much faster than replaying the whole event log.
+    final docs = await (_db.select(_db.payments)
+      ..where((t) => t.date.isBiggerThanValue(sevenDaysAgo)))
+      .get();
+    
+    for (final doc in docs) {
+      final dayIndex = now.difference(doc.date).inDays;
+      if (dayIndex >= 0 && dayIndex < 7) {
+        weekly[6 - dayIndex] += doc.amount;
+      }
+    }
+    return weekly;
   }
 }
 

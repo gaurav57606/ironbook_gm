@@ -15,6 +15,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
 
 class MockSequenceRepository extends Mock implements ISequenceRepository {}
@@ -24,6 +25,7 @@ class MockMemberRepository extends Mock implements IMemberRepository {}
 class MockHmacService extends Mock implements HmacService {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockOutboxDatabase extends Mock implements OutboxDatabase {}
+class MockMembershipService extends Mock implements MembershipService {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 class FakePayment extends Fake implements Payment {}
 
@@ -49,6 +51,7 @@ void main() {
     late MockMemberRepository memberRepo;
     late MockHmacService hmacService;
     late MockSyncCoordinator syncCoordinator;
+    late MockMembershipService membershipService;
     late IClock clock;
     int invoiceCounter = 0;
 
@@ -60,6 +63,7 @@ void main() {
       memberRepo = MockMemberRepository();
       hmacService = MockHmacService();
       syncCoordinator = MockSyncCoordinator();
+      membershipService = MockMembershipService();
       clock = FrozenClock(DateTime(2026, 4, 16));
 
       when(() => hmacService.getInstallationId()).thenAnswer((_) async => 'test-device');
@@ -67,6 +71,15 @@ void main() {
       when(() => paymentRepo.getAllPayments()).thenAnswer((_) async => []);
       when(() => eventRepo.getAll()).thenAnswer((_) async => []);
       when(() => syncCoordinator.triggerSync()).thenReturn(null);
+      when(() => membershipService.validateMembership(
+        joinDate: any(named: 'joinDate'),
+        durationMonths: any(named: 'durationMonths'),
+      )).thenReturn(null);
+      when(() => membershipService.calculateRenewal(
+        currentExpiry: any(named: 'currentExpiry'),
+        durationMonths: any(named: 'durationMonths'),
+        now: any(named: 'now'),
+      )).thenReturn(DateTime(2026, 5, 16));
     });
 
     test('Concurrent payments produce unique, sequential invoice numbers', () async {
@@ -93,6 +106,7 @@ void main() {
         memberRepo,
         clock,
         hmacService,
+        membershipService,
         syncCoordinator,
       );
 

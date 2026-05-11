@@ -9,12 +9,12 @@ import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/data/local/snapshot_builder.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
-import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:collection/collection.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'dart:async';
 
@@ -27,14 +27,78 @@ final membersProvider =
   final clock = ref.watch(clockProvider);
   final hmac = ref.watch(hmacServiceProvider);
   final db = ref.watch(outboxDatabaseProvider);
+  final membership = ref.watch(membershipServiceProvider);
   final coordinator = ref.watch(syncCoordinatorProvider);
   return MemberNotifier(
-      db, eventRepo, memberRepo, planRepo, prefRepo, clock, hmac, coordinator);
+      db, eventRepo, memberRepo, planRepo, prefRepo, clock, hmac, membership, coordinator);
 });
 
 final memberSearchQueryProvider = StateProvider<String>((ref) => '');
 final memberTabProvider = StateProvider<int>(
     (ref) => 0); // 0: All, 1: Active, 2: Expiring, 3: Expired
+
+class MemberStats {
+  final int totalCount;
+  final int activeCount;
+  final int expiringCount;
+  final int expiredCount;
+
+  MemberStats({
+    required this.totalCount,
+    required this.activeCount,
+    required this.expiringCount,
+    required this.expiredCount,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemberStats &&
+          runtimeType == other.runtimeType &&
+          totalCount == other.totalCount &&
+          activeCount == other.activeCount &&
+          expiringCount == other.expiringCount &&
+          expiredCount == other.expiredCount;
+
+  @override
+  int get hashCode =>
+      totalCount.hashCode ^
+      activeCount.hashCode ^
+      expiringCount.hashCode ^
+      expiredCount.hashCode;
+}
+
+final memberStatsProvider = Provider<MemberStats>((ref) {
+  final members = ref.watch(membersProvider);
+  final now = ref.watch(clockProvider).now;
+
+  int active = 0;
+  int expiring = 0;
+  int expired = 0;
+
+  for (final m in members) {
+    final status = m.getStatus(now);
+    if (status == MemberStatus.active) {
+      active++;
+    } else if (status == MemberStatus.expiring) {
+      expiring++;
+    } else if (status == MemberStatus.expired) {
+      expired++;
+    }
+  }
+
+  return MemberStats(
+    totalCount: members.length,
+    activeCount: active,
+    expiringCount: expiring,
+    expiredCount: expired,
+  );
+});
+
+final memberByIdProvider = Provider.family<MemberSnapshot?, String>((ref, id) {
+  final members = ref.watch(membersProvider);
+  return members.firstWhereOrNull((m) => m.memberId == id);
+});
 
 final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final members = ref.watch(membersProvider);
@@ -69,15 +133,6 @@ final memberProvider = Provider.family<MemberSnapshot?, String>((ref, id) {
   return members.firstWhereOrNull((m) => m.memberId == id);
 });
 
-final memberByIdProvider =
-    Provider.family<AsyncValue<MemberSnapshot>, String>((ref, id) {
-  final members = ref.watch(membersProvider);
-  final member = members
-      .cast<MemberSnapshot?>()
-      .firstWhere((m) => m?.memberId == id, orElse: () => null);
-  if (member == null) return const AsyncValue.loading();
-  return AsyncValue.data(member);
-});
 
 class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   final db.OutboxDatabase _db;
@@ -87,9 +142,13 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   final IPreferencesRepository _prefRepo;
   final IClock _clock;
   final HmacService _hmac;
+  final MembershipService _membership;
   final SyncCoordinator _coordinator;
   String _deviceId = 'device-unknown';
   StreamSubscription? _eventSubscription;
+
+  // Duplicate Prevention: Track recent creations to avoid rapid double-taps
+  final Map<String, DateTime> _recentCreations = {};
 
   MemberNotifier(
     db.OutboxDatabase db,
@@ -99,6 +158,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     this._prefRepo,
     this._clock,
     this._hmac,
+    this._membership,
     this._coordinator,
   ) : _db = db, super([]) {
     init();
@@ -239,13 +299,44 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     String? gender,
     int? age,
   }) async {
-    final memberId = const Uuid().v4();
     final now = _clock.now;
+    
+    // Audit Check 6.1: Simple throttle (5 seconds)
+    final lastAction = _recentCreations[phone];
+    if (lastAction != null && now.difference(lastAction).inSeconds < 5) {
+      debugPrint('[WARN] MemberNotifier: Ignoring rapid duplicate member creation for $phone');
+      // Return existing memberId if possible, but here we just return a dummy or wait
+      // For now, throwing an error is safer for "Production Hardening" to notify the user/system
+      throw Exception('Request already in progress. Please wait.');
+    }
+    _recentCreations[phone] = now;
+
+    // Audit Check 6.2: Logical Duplicate Check
+    final existing = state.any((m) => 
+      m.phone == phone && m.status != MemberStatus.archived
+    );
+    
+    if (existing) {
+      debugPrint('[WARN] MemberNotifier: Member with phone $phone already exists and is active.');
+      throw Exception('A member with this phone number already exists.');
+    }
+
+    final memberId = const Uuid().v4();
 
     final plan = await _planRepo.getPlan(planId);
     if (plan == null) throw Exception('Plan not found');
 
-    final expiryDate = AppDateUtils.addMonths(joinDate, plan.durationMonths);
+    // Calculate expiry using authoritative service
+      // Safety Validation (Audit Check 1.6)
+      _membership.validateMembership(
+        joinDate: joinDate,
+        durationMonths: plan.durationMonths,
+      );
+
+      final expiryDate = _membership.calculateExpiry(
+      startDate: joinDate,
+      durationMonths: plan.durationMonths,
+    );
 
     final memberEvent = DomainEvent(
       entityId: memberId,

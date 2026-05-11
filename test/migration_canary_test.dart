@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ironbook_gm/features/auth/presentation/screens/login_screen.dart';
 import 'package:ironbook_gm/core/router/app_router.dart';
 import 'package:ironbook_gm/core/providers/auth_provider.dart';
+import 'infrastructure/test_database.dart';
 import 'mocks/mock_auth.dart';
 import 'infrastructure/test_harness.dart';
 import 'infrastructure/test_app.dart';
@@ -17,6 +18,7 @@ void main() {
       harness = TestHarness();
       await harness.setup();
       harness.overrides.add(authProvider.overrideWith((ref) => FakeAuthNotifier(isFirstLaunch: false)));
+      addTearDown(() => TestDatabaseFactory.dispose());
     });
 
     testWidgets('Should render LoginScreen with deterministic infrastructure', (WidgetTester tester) async {
@@ -30,7 +32,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.byType(LoginScreen), findsOneWidget);
     });
   });

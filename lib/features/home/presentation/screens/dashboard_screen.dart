@@ -5,9 +5,9 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_radius.dart';
 import '../../../../shared/widgets/app_section_header.dart';
-import '../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../shared/utils/greeting_formatter.dart';
-import '../../../../shared/utils/date_formatter.dart';
+import '../../../../shared/utils/date_utils.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../core/data/local/models/member_snapshot_model.dart';
 import '../../../../core/providers/member_provider.dart';
 import '../../../../core/providers/owner_provider.dart';
@@ -17,8 +17,8 @@ import '../widgets/sync_status_badge.dart';
 import '../widgets/member_health_donut.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/stats_card.dart';
-import '../widgets/nutrition_summary_card.dart';
 import '../widgets/member_row.dart';
+import '../../../../shared/widgets/sync_status_indicator.dart';
 import 'package:go_router/go_router.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -26,15 +26,7 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ⚡ Bolt: Use .select() to only rebuild when the specific field changes
     final membersLength = ref.watch(membersProvider.select((m) => m.length));
-    final gymName = ref.watch(ownerProvider.select((o) => o?.gymName ?? 'IRONBOOK GM'));
-    
-    // ⚡ Bolt: Moved frequently updating sync state to isolated SyncStatusBadge widget
-    // Removing these watches from the top-level DashboardScreen prevents 
-    // the entire screen (including charts) from rebuilding every second during sync.
-    final memberStats = ref.watch(dashboardMemberStatsProvider);
-    final revenueStats = ref.watch(dashboardRevenueProvider);
 
     return Scaffold(
       key: const Key('dashboard-root'),
@@ -43,157 +35,192 @@ class DashboardScreen extends ConsumerWidget {
         decoration: const BoxDecoration(
           gradient: AppColors.backgroundGradient,
         ),
-        child: StatusBarWrapper(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(syncWorkerProvider).performSync();
-            },
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                    child: _buildHeader(gymName)),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await ref.read(syncWorkerProvider).performSync();
+          },
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final gymName = ref.watch(ownerProvider.select((o) => o?.gymName ?? 'IRONBOOK GM'));
+                    return _buildHeader(context, gymName);
+                  },
+                ),
+              ),
+              if (membersLength == 0)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: AppEmptyState(
+                    title: 'Welcome to IronBook',
+                    icon: Icons.fitness_center_rounded,
+                    subtitle: 'Add your first member to start tracking growth.',
+                  ),
+                )
+              else
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
                   sliver: SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildStatsGrid(
-                            membersLength,
-                            memberStats.activeCount,
-                            memberStats.expiringCount,
-                            memberStats.expiredCount),
-                        AppSpacing.gapXL,
-                        MemberHealthDonut(
-                          active: memberStats.activeCount,
-                          expiring: memberStats.expiringCount,
-                          expired: memberStats.expiredCount,
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final memberStats = ref.watch(dashboardMemberStatsProvider);
+                            return _buildStatsGrid(
+                              membersLength,
+                              memberStats.activeCount,
+                              memberStats.expiringCount,
+                              memberStats.expiredCount,
+                            );
+                          },
                         ),
                         AppSpacing.gapXL,
-                        const SyncStatusBadge(), // Rebuilds isolated here
-                        AppSpacing.gapL,
-                        if (memberStats.expiredCount > 0)
-                          AlertBanner(
-                            title:
-                                '${memberStats.expiredCount} memberships expired',
-                            subtitle:
-                                '${memberStats.expiredMembers}${memberStats.expiredCount > 3 ? " +${memberStats.expiredCount - 3}" : ""}',
-                            isError: true,
-                          ),
-                        if (memberStats.expiringCount > 0)
-                          Padding(
-                            padding: EdgeInsets.only(
-                                top: memberStats.expiredCount > 0 ? AppSpacing.s : 0),
-                            child: AlertBanner(
-                              title:
-                                  '${memberStats.expiringCount} expiring in 7 days',
-                              subtitle:
-                                  '${memberStats.expiringMembers}${memberStats.expiringCount > 3 ? " +${memberStats.expiringCount - 3}" : ""}',
-                              isError: false,
-                            ),
-                          ),
-                        AppSectionHeader(
-                          title: 'DUE TODAY',
-                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sectionGap),
-                          trailing: GestureDetector(
-                            onTap: () => context.go('/gym'),
-                            child: Row(
+                        const SyncStatusBadge(),
+                        AppSpacing.gapXL,
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final memberStats = ref.watch(dashboardMemberStatsProvider);
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'SHOW ALL',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.primary),
+                                MemberHealthDonut(
+                                  active: memberStats.activeCount,
+                                  expiring: memberStats.expiringCount,
+                                  expired: memberStats.expiredCount,
                                 ),
-                                AppSpacing.gapXS,
-                                const Icon(Icons.arrow_forward_ios_rounded,
-                                    size: 8, color: AppColors.primary),
+                                AppSpacing.gapXL,
+                                if (memberStats.expiredCount > 0)
+                                  AlertBanner(
+                                    title: '${memberStats.expiredCount} memberships expired',
+                                    subtitle: '${memberStats.expiredMembers}${memberStats.expiredCount > 3 ? " +${memberStats.expiredCount - 3}" : ""}',
+                                    isError: true,
+                                  ),
+                                if (memberStats.expiringCount > 0)
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                        top: memberStats.expiredCount > 0 ? AppSpacing.s : 0),
+                                    child: AlertBanner(
+                                      title: '${memberStats.expiringCount} expiring in 7 days',
+                                      subtitle: '${memberStats.expiringMembers}${memberStats.expiringCount > 3 ? " +${memberStats.expiringCount - 3}" : ""}',
+                                      isError: false,
+                                    ),
+                                  ),
+                                AppSectionHeader(
+                                  title: 'DUE TODAY',
+                                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sectionGap),
+                                  trailing: GestureDetector(
+                                    onTap: () => context.go('/gym'),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          'SHOW ALL',
+                                          style: AppTextStyles.bodySmall.copyWith(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.primary),
+                                        ),
+                                        AppSpacing.gapXS,
+                                        const Icon(Icons.arrow_forward_ios_rounded,
+                                            size: 8, color: AppColors.primary),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                _buildDueList(memberStats.dueMembers),
                               ],
-                            ),
-                          ),
+                            );
+                          },
                         ),
-                        _buildDueList(memberStats.dueMembers),
                         const AppSectionHeader(
                           title: 'REVENUE THIS MONTH',
                           padding: EdgeInsets.symmetric(vertical: AppSpacing.sectionGap),
                         ),
-                        _buildRevenueCard(revenueStats.currentRevenue.toInt(),
-                            revenueStats.trend, revenueStats.dailyRevenue),
-                        const NutritionSummaryCard(),
-                        const SizedBox(
-                            height: 100), // Space for bottom nav or FAB
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final revenueStats = ref.watch(dashboardRevenueProvider);
+                            return _buildRevenueCard(
+                              revenueStats.currentRevenue.toInt(),
+                              revenueStats.trend,
+                              revenueStats.dailyRevenue,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 100),
                       ],
                     ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(String gymName) {
+  Widget _buildHeader(BuildContext context, String gymName) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, AppSpacing.xl, AppSpacing.screenPadding, AppSpacing.sectionGap),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.screenPadding,
+        right: AppSpacing.screenPadding,
+        top: AppSpacing.xl,
+        bottom: AppSpacing.m,
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${GreetingFormatter.greeting()},'.toUpperCase(),
-                style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted),
-              ),
-              AppSpacing.gapXS,
-              Text(
-                gymName,
-                style: AppTextStyles.cardTitle
-                    .copyWith(fontSize: 22, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                DateFormatter.format(DateTime.now()).toUpperCase(),
-                style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMuted,
-                    letterSpacing: 1.0),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${GreetingFormatter.greeting()},'.toUpperCase(),
+                  style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted, letterSpacing: 1.2),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  gymName,
+                  style: AppTextStyles.cardTitle.copyWith(fontSize: 24, fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
           ),
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: AppRadius.radiusL,
-            ),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.elevation4,
-                borderRadius: BorderRadius.circular(12),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => context.push('/notifications'),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.elevation2,
+                  padding: const EdgeInsets.all(10),
+                ),
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.notifications_none_rounded, color: AppColors.text3, size: 22),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: AppColors.orange,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.bg, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              padding: const EdgeInsets.all(AppSpacing.s),
-              child: Image.asset(
-                'assets/images/logo.png',
-                fit: BoxFit.contain,
-                errorBuilder: (c, e, s) => const Icon(
-                    Icons.fitness_center_rounded,
-                    size: 24,
-                    color: AppColors.primary),
-              ),
-            ),
+              const SizedBox(width: 12),
+              const SyncStatusIndicator(),
+            ],
           ),
         ],
       ),
     );
   }
-
 
   Widget _buildStatsGrid(int total, int active, int expiring, int expired) {
     return Padding(
@@ -229,15 +256,22 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildDueList(List<MemberSnapshot> due) {
     if (due.isEmpty) {
       return Container(
-        height: 80,
+        height: 100,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.elevation1,
           borderRadius: AppRadius.radiusXL,
           border: Border.all(color: AppColors.border),
         ),
-        child: Text('NO TASKS DUE TODAY',
-            style: AppTextStyles.tiny.copyWith(letterSpacing: 1.0, color: AppColors.textMuted)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle_outline_rounded, color: AppColors.green, size: 24),
+            const SizedBox(height: 8),
+            Text('ALL CAUGHT UP',
+                style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted)),
+          ],
+        ),
       );
     }
 

@@ -10,6 +10,7 @@
         android:label="IronBook GM"
         android:name="${applicationName}"
         android:usesCleartextTraffic="false"
+        android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

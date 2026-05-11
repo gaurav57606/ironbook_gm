@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/data/local/models/owner_profile_model.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_spacing.dart';
 
 class GymProfileCard extends StatelessWidget {
   final String? gymName;
@@ -15,32 +16,32 @@ class GymProfileCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/settings/gym-profile'),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 8),
+        padding: const EdgeInsets.all(AppSpacing.l),
         decoration: BoxDecoration(
-          color: AppColors.elevation1,
-          borderRadius: BorderRadius.circular(24),
+          gradient: AppColors.glassGradient,
+          borderRadius: AppRadius.radiusXXL,
           border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: AppRadius.radiusXL,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 12,
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    blurRadius: 15,
                     offset: const Offset(0, 6),
                   ),
                 ],
@@ -49,7 +50,7 @@ class GymProfileCard extends StatelessWidget {
               child: Text(
                 initial,
                 style: const TextStyle(
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                 ),
@@ -62,12 +63,24 @@ class GymProfileCard extends StatelessWidget {
                 children: [
                   Text(
                     gymName ?? 'Raj\'s Fitness',
-                    style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+                    style: AppTextStyles.h3.copyWith(fontSize: 18, fontWeight: FontWeight.w900),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Solo Owner Edition • Pro Plan',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: AppRadius.radiusS,
+                    ),
+                    child: Text(
+                      'PRO EDITION • PREMIUM',
+                      style: AppTextStyles.sectionTitle.copyWith(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                 ],
               ),

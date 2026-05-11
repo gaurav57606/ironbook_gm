@@ -6,15 +6,15 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_radius.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/status_bar_wrapper.dart';
 import '../../../../core/providers/member_provider.dart';
 import '../../../billing/providers/billing_provider.dart';
 import '../../../../core/data/local/models/member_snapshot_model.dart';
-import '../../../../shared/utils/date_formatter.dart';
+import '../../../../shared/utils/date_utils.dart';
 import '../../../../shared/utils/currency_formatter.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/utils/clock.dart';
 import '../widgets/payment_history_item.dart';
+import '../widgets/renewal_dialog.dart';
 
 class MemberDetailScreen extends ConsumerWidget {
   final String memberId;
@@ -36,11 +36,12 @@ class MemberDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: StatusBarWrapper(
+      body: SafeArea(
+        top: true,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
           child: Column(
             children: [
               _buildAppBar(context),
@@ -93,7 +94,7 @@ class MemberDetailScreen extends ConsumerWidget {
 
   Widget _buildFinancialsCard(WidgetRef ref, String memberId) {
     // ⚡ Bolt: Use .select() to compute totals outside the main build method
-    final financials = ref.watch(paymentsProvider(memberId).select((p) {
+    final financials = ref.watch(memberPaymentsProvider(memberId).select((p) {
       final list = p.value ?? [];
       final total = list.fold(0.0, (sum, item) => sum + item.amount);
       return (count: list.length, total: total);
@@ -128,7 +129,7 @@ class MemberDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildPaymentHistory(WidgetRef ref, String memberId) {
-    final paymentsAsync = ref.watch(paymentsProvider(memberId));
+    final paymentsAsync = ref.watch(memberPaymentsProvider(memberId));
     
     return paymentsAsync.when(
       loading: () => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
@@ -154,7 +155,7 @@ class MemberDetailScreen extends ConsumerWidget {
               final payment = payments[index];
               return PaymentHistoryItem(
                 title: 'PAYMENT RECEIVED',
-                subtitle: '${DateFormatter.format(payment.date)} · Confirmed',
+                subtitle: '${AppDateUtils.format(payment.date)} · Confirmed',
                 amount: CurrencyFormatter.format(payment.amount),
                 icon: Icons.payments_rounded,
                 color: AppColors.primary,
@@ -283,7 +284,10 @@ class MemberDetailScreen extends ConsumerWidget {
                   text: 'Renew',
                   style: AppButtonStyle.secondary,
                   onPressed: () {
-                    // Navigate to renewal flow
+                    showDialog(
+                      context: context,
+                      builder: (context) => RenewalDialog(member: member),
+                    );
                   },
                 ),
               ),
@@ -366,14 +370,14 @@ class MemberDetailScreen extends ConsumerWidget {
             padding: EdgeInsets.symmetric(vertical: AppSpacing.m),
             child: Divider(color: AppColors.border, height: 1),
           ),
-          _buildInfoRow('Joined on', DateFormatter.format(member.joinDate), suffix: _buildLockedEdit()),
+          _buildInfoRow('Joined on', AppDateUtils.format(member.joinDate), suffix: _buildLockedEdit()),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.m),
             child: Divider(color: AppColors.border, height: 1),
           ),
           _buildInfoRow(
             'Expires on',
-            member.expiryDate != null ? DateFormatter.format(member.expiryDate!) : 'N/A',
+            member.expiryDate != null ? AppDateUtils.format(member.expiryDate!) : 'N/A',
             valueColor: color,
             valueWeight: FontWeight.w700,
           ),
@@ -423,6 +427,7 @@ class MemberDetailScreen extends ConsumerWidget {
       case MemberStatus.expiring: return AppColors.amber;
       case MemberStatus.expired: return AppColors.red;
       case MemberStatus.pending: return AppColors.textSecondary;
+      case MemberStatus.archived: return AppColors.textMuted;
     }
   }
 

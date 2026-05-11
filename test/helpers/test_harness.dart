@@ -24,7 +24,6 @@ import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
-import 'package:drift/native.dart';
 import 'mock_factory.dart';
 import 'fake_repositories.dart';
 
@@ -36,6 +35,7 @@ class TestHarness {
     bool isAuthenticated = true,
     bool isUnlocked = true,
     bool isFirstLaunch = false,
+    Key? key,
   }) async {
     TestWidgetsFlutterBinding.ensureInitialized();
     
@@ -44,9 +44,6 @@ class TestHarness {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
     addTearDown(() => tester.view.resetDevicePixelRatio());
-
-    final driftDb = OutboxDatabase(NativeDatabase.memory());
-    addTearDown(() async => await driftDb.close());
 
     final mockConfig = MockFactory.createConfigService();
     final mockLogger = MockFactory.createLoggerService();
@@ -66,6 +63,13 @@ class TestHarness {
     final mockPlanRepo = MockFactory.createPlanRepository();
     final mockBillingRepo = MockFactory.createBillingRepository();
     final mockPreferencesRepo = MockFactory.createPreferencesRepository();
+    final mockOutboxRepo = MockFactory.createOutboxRepository();
+    
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+
     final mockSequenceRepo = MockFactory.createSequenceRepository();
     final mockPaymentRepo = MockFactory.createPaymentRepository();
     final fakeEventRepo = FakeDriftEventRepository();
@@ -82,8 +86,8 @@ class TestHarness {
           pinServiceProvider.overrideWithValue(mockPin),
           authProvider.overrideWith((ref) => mockAuthNotifier),
           appSecureStorageProvider.overrideWithValue(mockStorage),
-          outboxDatabaseProvider.overrideWithValue(driftDb),
-          outboxRepositoryProvider.overrideWith((ref) => OutboxRepository(driftDb)),
+          unsyncedCountProvider.overrideWith((ref) => Stream.value(0)),
+          outboxRepositoryProvider.overrideWithValue(mockOutboxRepo),
           bootstrapStateProvider.overrideWith((ref) => BootstrapPhase.tier2Ready),
           tier2StatusProvider.overrideWith((ref) => Tier2Status.ready),
           entitlementStatusProvider.overrideWith((ref) => EntitlementStatus.valid),
@@ -98,7 +102,11 @@ class TestHarness {
           clockProvider.overrideWithValue(fakeClock),
           ...overrides,
         ],
-        child: child ?? const IronBookApp(storageHealthy: true, useGoogleFonts: false),
+        child: child ?? IronBookApp(
+          key: key,
+          storageHealthy: true, 
+          useGoogleFonts: false
+        ),
       ),
     );
 
@@ -107,16 +115,16 @@ class TestHarness {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
-  static Future<void> pumpAuthenticatedApp(WidgetTester tester, {List<Override> overrides = const []}) async {
-    await pumpTestApp(tester, isAuthenticated: true, isUnlocked: true, overrides: overrides);
+  static Future<void> pumpAuthenticatedApp(WidgetTester tester, {List<Override> overrides = const [], Key? key}) async {
+    await pumpTestApp(tester, isAuthenticated: true, isUnlocked: true, overrides: overrides, key: key);
   }
 
-  static Future<void> pumpOnboardingApp(WidgetTester tester, {List<Override> overrides = const []}) async {
-    await pumpTestApp(tester, isAuthenticated: false, isFirstLaunch: true, overrides: overrides);
+  static Future<void> pumpOnboardingApp(WidgetTester tester, {List<Override> overrides = const [], Key? key}) async {
+    await pumpTestApp(tester, isAuthenticated: false, isFirstLaunch: true, overrides: overrides, key: key);
   }
 
-  static Future<void> pumpDashboardApp(WidgetTester tester, {List<Override> overrides = const []}) async {
-    await pumpAuthenticatedApp(tester, overrides: overrides);
+  static Future<void> pumpDashboardApp(WidgetTester tester, {List<Override> overrides = const [], Key? key}) async {
+    await pumpAuthenticatedApp(tester, overrides: overrides, key: key);
     // Wait for router to settle on dashboard
     await tester.pump(const Duration(milliseconds: 100));
   }

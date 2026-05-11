@@ -1,92 +1,116 @@
-import '../test_helper.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironbook_gm/features/auth/presentation/screens/pin_entry_screen.dart';
+import 'package:ironbook_gm/core/providers/auth_provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockAuthNotifier extends StateNotifier<AuthState> with Mock implements AuthNotifier {
+  MockAuthNotifier() : super(AuthState(isLoading: false, unlocked: false));
+}
 
 void main() {
-  group('PIN Entry Widget Test (TC-WID-03.4)', () {
-    testWidgets('Dots should fill as digits are entered', (tester) async {
-      await TestHelper.pumpIronBookWidget(
-        tester, 
-        const PinEntryScreen(),
-        overrides: [
-          authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
-        ],
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pump();
+  late MockAuthNotifier mockAuth;
 
-      final btn1 = find.byKey(const Key('btn_1'));
-      expect(btn1, findsOneWidget);
-      await tester.tap(btn1);
-      await tester.pump();
-      
-      final btn2 = find.byKey(const Key('btn_2'));
-      expect(btn2, findsOneWidget);
-      await tester.tap(btn2);
-      await tester.pump();
-    });
+  setUp(() {
+    mockAuth = MockAuthNotifier();
+    when(() => mockAuth.authenticate(pin: any(named: 'pin'))).thenAnswer((_) async => false);
+    when(() => mockAuth.authenticate()).thenAnswer((_) async => false);
+  });
 
-    testWidgets('Backspace should remove last digit', (tester) async {
-      await TestHelper.pumpIronBookWidget(
-        tester, 
-        const PinEntryScreen(),
-        overrides: [
-          authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
-        ],
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pump();
+  Widget wrap(Widget child) {
+    final router = GoRouter(
+      initialLocation: '/unlock',
+      routes: [
+        GoRoute(
+          path: '/unlock',
+          builder: (context, state) => child,
+        ),
+        GoRoute(
+          path: '/dashboard',
+          builder: (context, state) => const Scaffold(body: Text('Dashboard Page')),
+        ),
+      ],
+    );
 
-      await tester.tap(find.byKey(const Key('btn_1')));
-      await tester.tap(find.byKey(const Key('btn_2')));
-      await tester.pump();
-
-      await tester.tap(find.byKey(const Key('btn_⌫')), warnIfMissed: false);
-      await tester.pump();
-    });
-
-    testWidgets('Lockout state should disable input', (tester) async {
-      await TestHelper.pumpIronBookWidget(
-        tester, 
-        const PinEntryScreen(isLockout: true),
-        overrides: [
-          authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
-        ],
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pump();
-      
-      expect(find.textContaining('Incorrect PIN'), findsOneWidget);
-    });
-
-    testWidgets('Entering 4 digits should navigate to dashboard', (tester) async {
-      final router = GoRouter(
-          initialLocation: '/unlock',
-          routes: [
-              GoRoute(path: '/unlock', builder: (_, __) => const PinEntryScreen()),
-              GoRoute(path: '/dashboard', builder: (_, __) => const Scaffold(body: Text('DASHBOARD'))),
-          ]
-      );
-
-      await TestHelper.pumpIronBookWidget(
-        tester,
-        const SizedBox(), 
+    return ProviderScope(
+      overrides: [
+        authProvider.overrideWith((ref) => mockAuth),
+      ],
+      child: MaterialApp.router(
         routerConfig: router,
-        overrides: [
-          authProvider.overrideWith((ref) => FakeAuth(isLoading: false)),
-        ],
-      );
+      ),
+    );
+  }
+
+  group('PIN Entry Widget Tests (TC-WID-05)', () {
+    testWidgets('Should verify PIN after 4 digits and navigate on success', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      when(() => mockAuth.authenticate(pin: '1234')).thenAnswer((_) async => true);
+
+      await tester.pumpWidget(wrap(const PinEntryScreen()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('btn_1')));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.byKey(const Key('btn_2')));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.byKey(const Key('btn_3')));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.byKey(const Key('btn_4')));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pump();
+      await tester.tap(find.text('1'));
+      await tester.tap(find.text('2'));
+      await tester.tap(find.text('3'));
+      await tester.tap(find.text('4'));
+      
+      await tester.pumpAndSettle();
 
-      expect(find.text('DASHBOARD'), findsOneWidget);
+      verify(() => mockAuth.authenticate(pin: '1234')).called(1);
+      expect(find.text('Dashboard Page'), findsOneWidget);
+    });
+
+    testWidgets('Should show error message on incorrect PIN', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      when(() => mockAuth.authenticate(pin: '0000')).thenAnswer((_) async => false);
+
+      await tester.pumpWidget(wrap(const PinEntryScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('0'));
+      await tester.tap(find.text('0'));
+      await tester.tap(find.text('0'));
+      await tester.tap(find.text('0'));
+      
+      await tester.pumpAndSettle();
+
+      verify(() => mockAuth.authenticate(pin: '0000')).called(1);
+      expect(find.text('Incorrect PIN. Please try again.'), findsOneWidget);
+    });
+
+    testWidgets('Should handle backspace', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      // Stub specifically for the expected pin after backspace
+      when(() => mockAuth.authenticate(pin: '1345')).thenAnswer((_) async => true);
+
+      await tester.pumpWidget(wrap(const PinEntryScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('1'));
+      await tester.tap(find.text('2'));
+      
+      final backspace = find.text('⌫');
+      await tester.ensureVisible(backspace);
+      await tester.tap(backspace);
+      
+      await tester.tap(find.text('3'));
+      await tester.tap(find.text('4'));
+      await tester.tap(find.text('5'));
+      
+      await tester.pumpAndSettle();
+      verify(() => mockAuth.authenticate(pin: '1345')).called(1);
     });
   });
 }

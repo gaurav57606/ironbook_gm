@@ -96,8 +96,13 @@ class MemberSnapshot extends HiveObject {
   }
 
   MemberStatus getStatus(DateTime relativeTo) {
+    if (archived) return MemberStatus.archived;
     if (expiryDate == null) return MemberStatus.pending;
-    final d = getDaysRemaining(relativeTo);
+    
+    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
+    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
+    final d = expiry.difference(today).inDays;
+
     if (d < 0) return MemberStatus.expired;
     if (d <= 7) return MemberStatus.expiring;
     return MemberStatus.active;
@@ -255,7 +260,7 @@ class MemberSnapshot extends HiveObject {
   }
 }
 
-enum MemberStatus { pending, active, expiring, expired }
+enum MemberStatus { pending, active, expiring, expired, archived }
 
 
 

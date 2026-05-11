@@ -41,12 +41,12 @@ class AppTextStyles {
 
   static TextStyle get sectionTitle => _font(
     fontSize: microSize,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w800,
     color: AppColors.textSecondary,
-    letterSpacing: 1.5,
+    letterSpacing: 2.0,
   );
 
-  static TextStyle get cardTitle => _font(fontSize: h4Size, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
+  static TextStyle get cardTitle => _font(fontSize: h4Size, fontWeight: FontWeight.w800, color: AppColors.textPrimary);
 
   static TextStyle get cardSubtitle => _font(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary);
 
@@ -56,19 +56,25 @@ class AppTextStyles {
 
   static TextStyle get label => _font(fontSize: smallSize, fontWeight: FontWeight.w600, color: AppColors.textPrimary);
 
-  static TextStyle get memberName => _font(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
+  static TextStyle get labelMedium => _font(fontSize: smallSize, fontWeight: FontWeight.w500, color: AppColors.textSecondary);
 
-  static TextStyle get invoiceValue => _font(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary);
+  static TextStyle get memberName => _font(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary);
+
+  static TextStyle get currencyLarge => _font(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textPrimary);
+
+  static TextStyle get invoiceValue => _font(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.textPrimary);
 
   static TextStyle get h1 => _font(fontSize: h1Size, fontWeight: FontWeight.w900, color: AppColors.textPrimary);
 
-  static TextStyle get h2 => _font(fontSize: h2Size, fontWeight: FontWeight.w800, color: AppColors.textPrimary);
+  static TextStyle get h2 => _font(fontSize: h2Size, fontWeight: FontWeight.w900, color: AppColors.textPrimary);
   
-  static TextStyle get h3 => _font(fontSize: h3Size, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
+  static TextStyle get h3 => _font(fontSize: h3Size, fontWeight: FontWeight.w800, color: AppColors.textPrimary);
+
+  static TextStyle get buttonLarge => _font(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white);
 
   static TextStyle get buttonSmall => _font(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary);
 
-  static TextStyle get tiny => _font(fontSize: tinySize, fontWeight: FontWeight.w500, color: AppColors.textSecondary);
+  static TextStyle get tiny => _font(fontSize: tinySize, fontWeight: FontWeight.w600, color: AppColors.textSecondary);
 }
 
 

@@ -119,9 +119,9 @@ class HmacService {
   }
 
   Future<String> signEvent(DomainEvent event) async {
-    debugPrint('HmacService: Generating signature for event ${event.id}...');
+    if (kDebugMode) debugPrint('HmacService: Generating signature for event ${event.id}...');
     final keyStr = _testKey ?? await _getOrCreateKey();
-    debugPrint('HmacService: Key retrieved.');
+    if (kDebugMode) debugPrint('HmacService: Key retrieved.');
     return signStatic(event, keyStr);
   }
 
@@ -191,7 +191,7 @@ class HmacService {
       await _storage.write(key: _keyStorageName, value: finalKey);
       return true;
     } catch (e) {
-      debugPrint('HmacService: Key restoration failed: $e');
+      if (kDebugMode) debugPrint('HmacService: Key restoration failed: $e');
       return false;
     }
   }
@@ -227,12 +227,12 @@ class HmacService {
           }
           keyMap[deviceId] = finalKey;
         } catch (e) {
-          debugPrint('HmacService: Failed to unwrap key for device $deviceId: $e');
+          if (kDebugMode) debugPrint('HmacService: Failed to unwrap key for device $deviceId: $e');
         }
       }
       return keyMap;
     } catch (e) {
-      debugPrint('HmacService: Failed to restore all keys: $e');
+      if (kDebugMode) debugPrint('HmacService: Failed to restore all keys: $e');
       return {};
     }
   }

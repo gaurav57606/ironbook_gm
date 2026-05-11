@@ -3,6 +3,7 @@ import '../../../../core/providers/member_provider.dart';
 import '../../../../core/providers/payment_provider.dart';
 import '../../../../core/data/local/models/member_snapshot_model.dart';
 import '../../../../shared/utils/clock.dart';
+import 'package:collection/collection.dart';
 
 class DashboardMemberStats {
   final int activeCount;
@@ -20,6 +21,27 @@ class DashboardMemberStats {
     required this.expiringMembers,
     required this.dueMembers,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DashboardMemberStats &&
+          runtimeType == other.runtimeType &&
+          activeCount == other.activeCount &&
+          expiringCount == other.expiringCount &&
+          expiredCount == other.expiredCount &&
+          expiredMembers == other.expiredMembers &&
+          expiringMembers == other.expiringMembers &&
+          const ListEquality().equals(dueMembers, other.dueMembers);
+
+  @override
+  int get hashCode =>
+      activeCount.hashCode ^
+      expiringCount.hashCode ^
+      expiredCount.hashCode ^
+      expiredMembers.hashCode ^
+      expiringMembers.hashCode ^
+      dueMembers.hashCode;
 }
 
 class DashboardRevenueStats {
@@ -32,6 +54,19 @@ class DashboardRevenueStats {
     required this.trend,
     required this.dailyRevenue,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DashboardRevenueStats &&
+          runtimeType == other.runtimeType &&
+          currentRevenue == other.currentRevenue &&
+          trend == other.trend &&
+          const ListEquality().equals(dailyRevenue, other.dailyRevenue);
+
+  @override
+  int get hashCode =>
+      currentRevenue.hashCode ^ trend.hashCode ^ dailyRevenue.hashCode;
 }
 
 final dashboardMemberStatsProvider = Provider<DashboardMemberStats>((ref) {
@@ -66,6 +101,8 @@ final dashboardMemberStatsProvider = Provider<DashboardMemberStats>((ref) {
         if (expiredMemberNames.length < 3) expiredMemberNames.add(m.name);
         break;
       case MemberStatus.pending:
+        break;
+      case MemberStatus.archived:
         break;
     }
   }

@@ -9,6 +9,7 @@ import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 import 'package:ironbook_gm/core/services/config_service.dart';
 import 'package:ironbook_gm/core/services/notification_gateway.dart';
+import 'package:ironbook_gm/core/services/membership_service.dart';
 
 final notificationGatewayProvider = Provider<NotificationGateway>((ref) {
   return FlutterLocalNotificationGateway();
@@ -52,6 +53,10 @@ final hmacServiceProvider = Provider<HmacService>((ref) {
   final config = ref.watch(configServiceProvider);
   
   return HmacService(storage, auth, firestore, config);
+});
+
+final membershipServiceProvider = Provider<MembershipService>((ref) {
+  return const MembershipService();
 });
 
 

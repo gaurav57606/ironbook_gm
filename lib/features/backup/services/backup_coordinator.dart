@@ -17,7 +17,6 @@ import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/plan_provider.dart';
 import 'package:ironbook_gm/core/providers/sale_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
-import 'package:ironbook_gm/features/nutrition/presentation/providers/nutrition_provider.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 
 // Models
@@ -30,9 +29,6 @@ import 'package:ironbook_gm/core/data/local/models/app_settings_model.dart';
 import 'package:ironbook_gm/core/data/local/models/invoice_sequence.dart';
 import 'package:ironbook_gm/core/data/local/models/product_model.dart';
 import 'package:ironbook_gm/core/data/local/models/sale_model.dart';
-import 'package:ironbook_gm/features/nutrition/data/models/nutrition_plan_model.dart';
-import 'package:ironbook_gm/features/nutrition/data/models/meal_item_model.dart';
-import 'package:ironbook_gm/features/nutrition/data/models/water_log_model.dart';
 
 final backupCoordinatorProvider = Provider((ref) => BackupCoordinator(ref));
 
@@ -104,7 +100,6 @@ class BackupCoordinator {
     _ref.invalidate(productsProvider);
     _ref.invalidate(saleProvider);
     _ref.invalidate(settingsProvider);
-    _ref.invalidate(nutritionProvider);
   }
 
   _ParsedBackupData _parseBackupData(Map<String, dynamic> data) {
@@ -168,21 +163,9 @@ class BackupCoordinator {
       }
     }
 
-    if (data.containsKey('nutrition_plans')) {
-      for (final item in data['nutrition_plans'] as List) {
-        parsed.nutritionPlans.add(NutritionPlan.fromFirestore(Map<String, dynamic>.from(item)));
-      }
-    }
-
-    if (data.containsKey('meal_items')) {
-      for (final item in data['meal_items'] as List) {
-        parsed.mealItems.add(MealItem.fromFirestore(Map<String, dynamic>.from(item)));
-      }
-    }
-
-    if (data.containsKey('water_logs')) {
-      for (final item in data['water_logs'] as List) {
-        parsed.waterLogs.add(WaterLog.fromFirestore(Map<String, dynamic>.from(item)));
+    if (data.containsKey('sales')) {
+      for (final item in data['sales'] as List) {
+        parsed.sales.add(Sale.fromFirestore(Map<String, dynamic>.from(item)));
       }
     }
 
@@ -324,37 +307,16 @@ class BackupCoordinator {
         ));
       }
 
-      for (final np in parsed.nutritionPlans) {
-        await database.into(database.nutritionPlans).insert(db.NutritionPlansCompanion.insert(
-          id: np.id,
-          memberId: np.memberId,
-          planName: np.planName,
-          dailyCalories: np.dailyCalories,
-          adherence: drift.Value(np.adherence),
-          waterGoalMl: drift.Value(np.waterGoalMl),
-          hmacSignature: drift.Value(np.hmacSignature),
-        ));
-      }
-
-      for (final mi in parsed.mealItems) {
-        await database.into(database.mealItems).insert(db.MealItemsCompanion.insert(
-          id: mi.id,
-          memberId: mi.memberId,
-          foodName: mi.foodName,
-          grams: mi.grams,
-          calories: mi.calories,
-          timestamp: mi.timestamp,
-          hmacSignature: drift.Value(mi.hmacSignature),
-        ));
-      }
-
-      for (final wl in parsed.waterLogs) {
-        await database.into(database.waterLogs).insert(db.WaterLogsCompanion.insert(
-          id: wl.id,
-          memberId: wl.memberId,
-          amountMl: wl.amountMl,
-          timestamp: wl.timestamp,
-          hmacSignature: drift.Value(wl.hmacSignature),
+      for (final sale in parsed.sales) {
+        await database.into(database.sales).insert(db.SalesCompanion.insert(
+          id: sale.id,
+          memberId: drift.Value(sale.memberId),
+          date: sale.date,
+          totalAmount: sale.totalAmount,
+          paymentMethod: sale.paymentMethod,
+          invoiceNumber: sale.invoiceNumber,
+          itemsJson: jsonEncode(sale.items.map((i) => {'productId': i.productId, 'productName': i.productName, 'price': i.price, 'quantity': i.quantity}).toList()),
+          hmacSignature: drift.Value(sale.hmacSignature ?? ''),
         ));
       }
     });
@@ -374,11 +336,6 @@ class BackupCoordinator {
     data['sales'] = (await database.select(database.sales).get()).map((r) => Sale.fromDrift(r).toFirestore()).toList();
     data['events'] = (await database.select(database.outboxEvents).get()).map((r) => DomainEvent.fromOutbox(r).toFirestore()).toList();
     
-    // Nutrition
-    data['nutrition_plans'] = (await database.select(database.nutritionPlans).get()).map((r) => NutritionPlan.fromDrift(r).toFirestore()).toList();
-    data['meal_items'] = (await database.select(database.mealItems).get()).map((r) => MealItem.fromDrift(r).toFirestore()).toList();
-    data['water_logs'] = (await database.select(database.waterLogs).get()).map((r) => WaterLog.fromDrift(r).toFirestore()).toList();
-
     return data;
   }
 
@@ -394,9 +351,6 @@ class BackupCoordinator {
       await database.delete(database.products).go();
       await database.delete(database.ownerProfiles).go();
       await database.delete(database.appSettingsTable).go();
-      await database.delete(database.nutritionPlans).go();
-      await database.delete(database.mealItems).go();
-      await database.delete(database.waterLogs).go();
     });
   }
 }
@@ -411,7 +365,4 @@ class _ParsedBackupData {
   final List<InvoiceSequence> sequences = [];
   final List<Product> products = [];
   final List<Sale> sales = [];
-  final List<NutritionPlan> nutritionPlans = [];
-  final List<MealItem> mealItems = [];
-  final List<WaterLog> waterLogs = [];
 }

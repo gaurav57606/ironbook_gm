@@ -45,7 +45,7 @@ extension PaymentExtension on Payment {
   }
 }
 
-final paymentsProvider = StreamProvider.family<List<Payment>, String?>((ref, memberId) {
+final memberPaymentsProvider = StreamProvider.family<List<Payment>, String?>((ref, memberId) {
   final repository = ref.watch(billingRepositoryProvider);
   if (memberId == null) {
     // repository doesn't have watchAllPayments yet, but it has getAllPayments
@@ -80,31 +80,6 @@ class BillingNotifier {
   BillingNotifier(this._repository);
 
   Future<void> recordPayment(Payment payment) async {
-    await _repository.recordPayment(payment);
-  }
-
-  Future<void> recordMemberPayment({
-    required String memberId,
-    required Plan plan,
-    required String method,
-  }) async {
-    final id = const Uuid().v4();
-    final payment = Payment(
-      id: id,
-      memberId: memberId,
-      date: DateTime.now(),
-      amount: plan.totalPrice,
-      method: method,
-      planId: plan.id,
-      planName: plan.name,
-      durationMonths: plan.durationMonths,
-      invoiceNumber: 'INV-${DateTime.now().millisecondsSinceEpoch}',
-      subtotal: plan.totalPrice / 1.18,
-      gstAmount: plan.totalPrice - (plan.totalPrice / 1.18),
-      gstRate: 0.18,
-      componentsJson: plan.componentsJson,
-      hmacSignature: '',
-    );
     await _repository.recordPayment(payment);
   }
 
