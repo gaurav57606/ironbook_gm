@@ -13,6 +13,7 @@ import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:ironbook_gm/core/services/membership_service.dart';
@@ -27,6 +28,7 @@ class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
 class MockMembershipService extends Mock implements MembershipService {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockOutboxDatabase extends Mock implements OutboxDatabase {}
+class MockLoggerService extends Mock implements LoggerService {}
 
 void main() {
   late MockSyncWorker mockSyncWorker;
@@ -66,7 +68,8 @@ void main() {
             FrozenClock(DateTime(2026, 1, 1)), 
             mockHmac, 
             mockMembership,
-            mockCoordinator
+            mockCoordinator,
+            MockLoggerService(),
           );
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = members;

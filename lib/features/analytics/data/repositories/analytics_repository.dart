@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/data/repositories/event_repository.dart';
+import '../../../../core/data/repositories/member_repository.dart';
+import '../../../../core/data/repositories/payment_repository.dart';
 import '../../../../core/data/local/models/domain_event_model.dart';
 import '../models/analytics_summary.dart';
 

@@ -42,6 +42,7 @@ APP_NAME=IronBook GM
   }
   
   String get appName => dotenv.get('APP_NAME', fallback: 'IronBook GM');
+  String get appVersion => dotenv.get('APP_VERSION', fallback: '2.4.0');
 }
 
 final configServiceProvider = Provider<ConfigService>((ref) => ConfigService());

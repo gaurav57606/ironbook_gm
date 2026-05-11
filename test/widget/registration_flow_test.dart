@@ -1,22 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:ironbook_gm/core/providers/member_provider.dart';
-import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
-import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
-import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as domain_plan;
 import 'package:ironbook_gm/features/members/presentation/screens/quick_add_member_screen.dart';
 import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
-import 'package:ironbook_gm/features/billing/data/billing_repository.dart';
-import 'package:ironbook_gm/core/providers/base_providers.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
+import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as domain_plan;
 import '../test_helper.dart';
 import '../helpers/mock_factory.dart';
 
 class FakeBillingNotifier extends Fake implements BillingNotifier {
-  @override
   Future<void> recordMemberPayment({
     required String memberId,
     required db.Plan plan,

@@ -16,6 +16,7 @@ import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
+import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'dart:async';
 
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
@@ -30,6 +31,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   final HmacService _hmac;
   final MembershipService _membership;
   final SyncCoordinator _coordinator;
+  final LoggerService _logger;
   String _deviceId = 'device-loading';
   Completer<void>? _syncLock;
   StreamSubscription? _eventSubscription;
@@ -44,6 +46,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     this._hmac,
     this._membership,
     this._coordinator,
+    this._logger,
   ) : _db = db, super([]) {
     _init();
   }
@@ -62,7 +65,10 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       _eventSubscription = _eventRepo.watch().listen((event) async {
         if (event.eventType == EventType.paymentRecorded) {
           if (!mounted) return;
-          debugPrint('[STATE] PaymentNotifier: Processing payment event for ${event.entityId}');
+          _logger.debug(
+            'Processing payment event for ${event.entityId}', 
+            category: 'STATE'
+          );
           await _paymentRepo.applyEvent(event);
           if (!mounted) return;
           final paymentId = event.payload[EventPayloadKeys.paymentId] as String?;
@@ -89,7 +95,10 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
         await _reconcilePayments();
       }
     } catch (e) {
-      debugPrint('[WARN] PaymentNotifier: Init failed (likely due to disposal/teardown): $e');
+      _logger.warn(
+        'Init failed (likely due to disposal/teardown): $e', 
+        category: 'STATE'
+      );
     }
   }
 
@@ -107,7 +116,10 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
 
     if (missingEvents.isEmpty) return;
 
-    debugPrint('PaymentNotifier: Reconciling ${missingEvents.length} missing payments parallelized');
+    _logger.info(
+      'Reconciling ${missingEvents.length} missing payments parallelized', 
+      category: 'DB'
+    );
 
     // Apply events in batches of 50
     for (var i = 0; i < missingEvents.length; i += 50) {
@@ -136,7 +148,10 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     // Audit Check 6.1: Simple throttle (5 seconds) per member
     final lastAction = _recentPayments[memberId];
     if (lastAction != null && nowTime.difference(lastAction).inSeconds < 5) {
-      debugPrint('[WARN] PaymentNotifier: Ignoring rapid duplicate payment for $memberId');
+      _logger.warn(
+        'Ignoring rapid duplicate payment for $memberId', 
+        category: 'BILLING'
+      );
       throw Exception('Payment already in progress. Please wait.');
     }
     _recentPayments[memberId] = nowTime;
@@ -217,13 +232,19 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       );
       
       await _db.transaction(() async {
-        debugPrint('[TRANSACTION] PaymentNotifier: Starting recordMemberPayment for $memberId');
+        _logger.info(
+          'Starting recordMemberPayment for $memberId', 
+          category: 'TRANSACTION'
+        );
         // 5. Emit Domain Event
         await _eventRepo.persist(event);
 
         // 6. Persist Cache in Drift
         await _paymentRepo.upsertPayment(payment);
-        debugPrint('[TRANSACTION] PaymentNotifier: recordMemberPayment transaction complete');
+        _logger.info(
+          'recordMemberPayment transaction complete', 
+          category: 'TRANSACTION'
+        );
       });
       
       _coordinator.triggerSync();
@@ -252,7 +273,9 @@ final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((
   final coordinator = ref.watch(syncCoordinatorProvider);
   final membership = ref.watch(membershipServiceProvider);
   
-  return PaymentNotifier(db, sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, membership, coordinator);
+  final logger = ref.watch(loggerProvider);
+  
+  return PaymentNotifier(db, sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, membership, coordinator, logger);
 });
 
 final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, memberId) {

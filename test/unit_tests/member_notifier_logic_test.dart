@@ -44,6 +44,7 @@ void main() {
   late FakeHmacService hmac;
   late MembershipService membership;
   late TrackingSyncCoordinator coordinator;
+  late FakeLoggerService logger;
   late MemberNotifier notifier;
 
   setUp(() async {
@@ -56,6 +57,7 @@ void main() {
     clock = FakeClock();
     membership = MembershipService();
     coordinator = TrackingSyncCoordinator();
+    logger = FakeLoggerService();
 
     notifier = MemberNotifier(
       db,
@@ -67,6 +69,7 @@ void main() {
       hmac,
       membership,
       coordinator,
+      logger,
     );
   });
 

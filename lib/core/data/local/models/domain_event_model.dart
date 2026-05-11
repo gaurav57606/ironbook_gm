@@ -120,6 +120,7 @@ class DomainEvent extends HiveObject {
     bool? synced,
     String? hmacSignature,
     String? deviceId,
+    bool? isVerified,
   }) {
     return DomainEvent(
       id: id ?? this.id,

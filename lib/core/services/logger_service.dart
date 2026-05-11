@@ -76,7 +76,7 @@ class LoggerService {
     // Basic regex for emails
     final emailRegex = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
     // Regex for common token/secret keywords followed by values
-    final secretRegex = RegExp(r'(token|secret|apiKey|hmac|password|auth)[:\s=]+([^\s,]+)', caseSensitive: false);
+    final secretRegex = RegExp(r'(token|secret|apiKey|hmac|password|auth|pin)[:\s=]+([^\s,]+)', caseSensitive: false);
 
     String masked = text.replaceAllMapped(phoneRegex, (match) => '[PHONE_REDACTED]');
     masked = masked.replaceAllMapped(emailRegex, (match) => '[EMAIL_REDACTED]');
@@ -85,11 +85,30 @@ class LoggerService {
     return masked;
   }
 
+  /// Sets a persistent health signal in Crashlytics.
+  /// This key-value pair will be attached to every crash report.
+  Future<void> setHealthSignal(String key, dynamic value) async {
+    if (!_firebaseInitialized || kIsWeb) return;
+    try {
+      if (value is String) {
+        await FirebaseCrashlytics.instance.setCustomKey(key, value);
+      } else if (value is bool) {
+        await FirebaseCrashlytics.instance.setCustomKey(key, value);
+      } else if (value is int) {
+        await FirebaseCrashlytics.instance.setCustomKey(key, value);
+      } else if (value is double) {
+        await FirebaseCrashlytics.instance.setCustomKey(key, value);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('LoggerService: Failed to set health signal [$key]: $e');
+    }
+  }
+
   void _processLog(String message, LogLevel level, String category, Object? error, StackTrace? stackTrace) {
     try {
       // 1. Add breadcrumb to Crashlytics for context
       if (!kIsWeb) {
-        FirebaseCrashlytics.instance.log('[$category] $message');
+        FirebaseCrashlytics.instance.log('[$category] [${level.name.toUpperCase()}] $message');
       }
 
       // 2. Track significant events in Analytics
@@ -159,7 +178,18 @@ class LoggerService {
       await FirebaseCrashlytics.instance.setUserIdentifier(userId);
       await _analytics?.setUserId(id: userId);
     } catch (e) {
-      if (kDebugMode) debugPrint('LoggerService: Failed to set user ID in Firebase: $e');
+      if (kDebugMode) debugPrint('LoggerService: Failed to set user identity: $e');
+    }
+  }
+
+  Future<void> logAnalyticsEvent(String name, Map<String, dynamic> parameters) async {
+    if (!_firebaseInitialized || _analytics == null) return;
+    try {
+      await _analytics!.logEvent(
+        name: name, 
+        parameters: parameters.cast<String, Object>(),
+      );
+    } catch (e) {
     }
   }
 }

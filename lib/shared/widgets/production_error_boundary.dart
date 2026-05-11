@@ -52,24 +52,65 @@ class ProductionErrorBoundary extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                ElevatedButton(
-                  onPressed: () {
-                    // In a real app, we might try to trigger a rebuild or navigate back
-                    // For now, we just suggest restarting if it's a major screen
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white10,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
-                      vertical: AppSpacing.m,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: AppRadius.radiusM,
+                const SizedBox(height: AppSpacing.m),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xs),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: AppRadius.radiusS,
+                  ),
+                  child: Text(
+                    'Diagnostic Code: ${errorDetails.exception.hashCode.toRadixString(16).toUpperCase()}',
+                    style: TextStyle(
+                      color: Colors.blueGrey.shade600,
+                      fontSize: 10,
+                      fontFamily: 'monospace',
                     ),
                   ),
-                  child: const Text('Try Again'),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {
+                        // Navigate to home or root
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(color: Colors.white10),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.l,
+                          vertical: AppSpacing.m,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadius.radiusM,
+                        ),
+                      ),
+                      child: const Text('Return Home'),
+                    ),
+                    const SizedBox(width: AppSpacing.m),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Force a re-build of the entire widget tree
+                        // In many cases, a simple rebuild can recover from a transient UI error
+                        (context as Element).markNeedsBuild();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xl,
+                          vertical: AppSpacing.m,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadius.radiusM,
+                        ),
+                      ),
+                      child: const Text('Try Again'),
+                    ),
+                  ],
                 ),
               ],
             ),

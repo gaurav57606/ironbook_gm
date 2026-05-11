@@ -144,12 +144,33 @@ class SyncWorker {
       await _prefs.setInt('sync_consecutive_failures', 0);
       _lastSuccessAt = DateTime.now();
       _ref.read(loggerProvider).info('Sync batch completed successfully', category: 'SYNC');
+      _ref.read(loggerProvider).setHealthSignal('last_sync_success', _lastSuccessAt!.toIso8601String());
+      _ref.read(loggerProvider).setHealthSignal('sync_status', 'healthy');
     } catch (e, stack) {
       _consecutiveFailures++;
       await _prefs.setInt('sync_consecutive_failures', _consecutiveFailures);
       _lastErrorAt = DateTime.now();
-      _lastErrorMessage = e.toString();
-      _ref.read(loggerProvider).error('Sync batch failure (Attempt $_consecutiveFailures)', category: 'SYNC', error: e, stackTrace: stack);
+      
+      // Categorize error for better observability
+      String category = 'SYNC_UNKNOWN';
+      if (e is FirebaseException) {
+        if (e.code == 'permission-denied') category = 'SYNC_AUTH';
+        if (e.code == 'unavailable' || e.code == 'network-request-failed') category = 'SYNC_NETWORK';
+      } else if (e is TimeoutException) {
+        category = 'SYNC_TIMEOUT';
+      }
+
+      _lastErrorMessage = '[$category] ${e.toString()}';
+      _ref.read(loggerProvider).error(
+        'Sync failure ($_consecutiveFailures consecutive)', 
+        category: category, 
+        error: e, 
+        stackTrace: stack
+      );
+      
+      _ref.read(loggerProvider).setHealthSignal('last_sync_error', _lastErrorAt!.toIso8601String());
+      _ref.read(loggerProvider).setHealthSignal('sync_status', 'failed_$_consecutiveFailures');
+      
       rethrow; // Rethrow to allow scheduler to handle backoff
     } finally {
       _isSyncing = false;

@@ -46,6 +46,7 @@ import 'package:ironbook_gm/core/providers/payment_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ironbook_gm/features/billing/data/billing_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
+import 'package:ironbook_gm/core/services/logger_service.dart';
 
 // Re-exports for convenience in tests
 export 'package:flutter/material.dart';
@@ -79,6 +80,7 @@ export 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
 export 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 export 'package:ironbook_gm/features/billing/data/billing_repository.dart';
 export 'package:ironbook_gm/core/services/sync_coordinator.dart';
+export 'package:ironbook_gm/core/services/logger_service.dart';
 export 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Payment, Plan, Sale, Product, InvoiceSequence, OwnerProfile;
 export 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 
@@ -563,4 +565,17 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>
   Future<void> deleteMember(String memberId) async {}
   @override
   Future<void> recordAttendance(String memberId) async {}
+}
+
+class FakeLoggerService extends Fake implements LoggerService {
+  @override
+  void debug(String message, {String? category, Object? error, StackTrace? stackTrace}) {}
+  @override
+  void info(String message, {String? category, Object? error, StackTrace? stackTrace}) {}
+  @override
+  void warn(String message, {String? category, Object? error, StackTrace? stackTrace}) {}
+  @override
+  void error(String message, {String? category, Object? error, StackTrace? stackTrace}) {}
+  @override
+  void critical(String message, {String? category, Object? error, StackTrace? stackTrace}) {}
 }

@@ -4,6 +4,7 @@ import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/providers/payment_provider.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as model;
+import 'package:ironbook_gm/core/services/logger_service.dart';
 
 class RegistrationState {
   final bool isSaving;
@@ -32,8 +33,9 @@ class RegistrationState {
 class MemberRegistrationController extends StateNotifier<RegistrationState> {
   final MemberNotifier _memberNotifier;
   final PaymentNotifier _paymentNotifier;
+  final LoggerService _logger;
 
-  MemberRegistrationController(this._memberNotifier, this._paymentNotifier)
+  MemberRegistrationController(this._memberNotifier, this._paymentNotifier, this._logger)
       : super(RegistrationState());
 
   Future<void> registerMember({
@@ -50,7 +52,10 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
     state = state.copyWith(isSaving: true, error: null);
 
     try {
-      debugPrint('[CONTROLLER] MemberRegistration: Orchestrating registration for $name');
+      _logger.info(
+        'Orchestrating registration for $name', 
+        category: 'REGISTRATION'
+      );
       
       // 1. Create Member
       final memberId = await _memberNotifier.addMember(
@@ -69,10 +74,33 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
         method: paymentMethod,
         date: joiningDate,
       );
+      
+      // Production Observability: Structured Log
+      _logger.info(
+        'New member registered successfully: $memberId', 
+        category: 'REGISTRATION'
+      );
+
+      // Business Analytics: Success
+      _logger.logAnalyticsEvent('member_registered', {
+        'member_id': memberId,
+        'mode': 'offline_first', // Default mode for this app
+      });
 
       state = state.copyWith(isSaving: false, successMemberId: memberId);
-    } catch (e) {
-      debugPrint('[CONTROLLER] MemberRegistration: Failed: $e');
+    } catch (e, stack) {
+      _logger.error(
+        'Member registration failed', 
+        category: 'REGISTRATION', 
+        error: e, 
+        stackTrace: stack
+      );
+
+      // Business Analytics: Failure
+      _logger.logAnalyticsEvent('member_registration_failed', {
+        'error': e.toString(),
+      });
+
       state = state.copyWith(
         isSaving: false,
         error: e.toString().replaceAll('Exception: ', ''),
@@ -89,5 +117,6 @@ final memberRegistrationControllerProvider =
     StateNotifierProvider<MemberRegistrationController, RegistrationState>((ref) {
   final memberNotifier = ref.watch(membersProvider.notifier);
   final paymentNotifier = ref.watch(paymentsProvider.notifier);
-  return MemberRegistrationController(memberNotifier, paymentNotifier);
+  final logger = ref.watch(loggerProvider);
+  return MemberRegistrationController(memberNotifier, paymentNotifier, logger);
 });

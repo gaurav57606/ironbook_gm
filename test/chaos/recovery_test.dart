@@ -61,6 +61,7 @@ class MockRepo implements IEventRepository {
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockOutboxDatabase extends Mock implements drift.OutboxDatabase {}
 class MockMembershipService extends Mock implements MembershipService {}
+class MockLoggerService extends Mock implements LoggerService {}
 
 void main() {
   TestBootstrap.init();
@@ -112,6 +113,7 @@ void main() {
         hmac,
         MockMembershipService(),
         MockSyncCoordinator(),
+        FakeLoggerService(),
       );
 
       // Wait for init to complete

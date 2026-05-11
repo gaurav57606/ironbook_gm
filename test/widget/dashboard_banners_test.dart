@@ -14,6 +14,7 @@ import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
+import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockSyncWorker extends Mock implements SyncWorker {}
@@ -25,6 +26,7 @@ class MockPreferencesRepo extends Mock implements IPreferencesRepository {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockOutboxDatabase extends Mock implements OutboxDatabase {}
 class MockMembershipService extends Mock implements MembershipService {}
+class MockLoggerService extends Mock implements LoggerService {}
 
 void main() {
   late MockSyncWorker mockSyncWorker;
@@ -62,6 +64,7 @@ void main() {
             mockHmac,
             MockMembershipService(), // Added missing dependency
             mockCoordinator,
+            MockLoggerService(),
           );
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = members;

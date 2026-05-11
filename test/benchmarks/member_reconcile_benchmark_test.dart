@@ -14,6 +14,7 @@ import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as drift;
 import 'package:mocktail/mocktail.dart';
+import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide MemberSnapshotAdapter;
 
 class MockEventRepository extends Mock implements IEventRepository {}
@@ -25,6 +26,7 @@ class MockHmacService extends Mock implements HmacService {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockOutboxDatabase extends Mock implements drift.OutboxDatabase {}
 class MockMembershipService extends Mock implements MembershipService {}
+class MockLoggerService extends Mock implements LoggerService {}
 
 void main() {
   late MockEventRepository mockRepo;
@@ -36,6 +38,7 @@ void main() {
   late MockHmacService mockHmac;
   late MockOutboxDatabase mockDb;
   late MockMembershipService mockMembership;
+  late MockLoggerService mockLogger;
   late Directory tempDir;
 
   setUpAll(() async {
@@ -63,6 +66,7 @@ void main() {
     mockHmac = MockHmacService();
     mockDb = MockOutboxDatabase();
     mockMembership = MockMembershipService();
+    mockLogger = MockLoggerService();
 
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
     when(() => mockHmac.signSnapshot(any(), any())).thenAnswer((_) async => 'mock-sig');
@@ -126,7 +130,7 @@ void main() {
     await snapshotBox.clear();
 
     final stopwatch = Stopwatch()..start();
-    final notifier = MemberNotifier(mockDb as drift.OutboxDatabase, mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockMembership, mockCoordinator);
+    final notifier = MemberNotifier(mockDb as drift.OutboxDatabase, mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockMembership, mockCoordinator, mockLogger);
 
     await notifier.init();
     stopwatch.stop();

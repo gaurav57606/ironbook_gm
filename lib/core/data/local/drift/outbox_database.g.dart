@@ -62,6 +62,16 @@ class $OutboxEventsTable extends OutboxEvents
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _isVerifiedMeta =
+      const VerificationMeta('isVerified');
+  @override
+  late final GeneratedColumn<bool> isVerified = GeneratedColumn<bool>(
+      'is_verified', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_verified" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -71,7 +81,8 @@ class $OutboxEventsTable extends OutboxEvents
         deviceTimestamp,
         isSynced,
         hmacSignature,
-        deviceId
+        deviceId,
+        isVerified
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -130,6 +141,12 @@ class $OutboxEventsTable extends OutboxEvents
       context.handle(_deviceIdMeta,
           deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta));
     }
+    if (data.containsKey('is_verified')) {
+      context.handle(
+          _isVerifiedMeta,
+          isVerified.isAcceptableOrUnknown(
+              data['is_verified']!, _isVerifiedMeta));
+    }
     return context;
   }
 
@@ -155,6 +172,8 @@ class $OutboxEventsTable extends OutboxEvents
           .read(DriftSqlType.string, data['${effectivePrefix}hmac_signature'])!,
       deviceId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}device_id'])!,
+      isVerified: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_verified'])!,
     );
   }
 
@@ -173,6 +192,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
   final int isSynced;
   final String hmacSignature;
   final String deviceId;
+  final bool isVerified;
   const OutboxEvent(
       {required this.id,
       required this.entityId,
@@ -181,7 +201,8 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
       required this.deviceTimestamp,
       required this.isSynced,
       required this.hmacSignature,
-      required this.deviceId});
+      required this.deviceId,
+      required this.isVerified});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -193,6 +214,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
     map['is_synced'] = Variable<int>(isSynced);
     map['hmac_signature'] = Variable<String>(hmacSignature);
     map['device_id'] = Variable<String>(deviceId);
+    map['is_verified'] = Variable<bool>(isVerified);
     return map;
   }
 
@@ -206,6 +228,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
       isSynced: Value(isSynced),
       hmacSignature: Value(hmacSignature),
       deviceId: Value(deviceId),
+      isVerified: Value(isVerified),
     );
   }
 
@@ -221,6 +244,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
       isSynced: serializer.fromJson<int>(json['isSynced']),
       hmacSignature: serializer.fromJson<String>(json['hmacSignature']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      isVerified: serializer.fromJson<bool>(json['isVerified']),
     );
   }
   @override
@@ -235,6 +259,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
       'isSynced': serializer.toJson<int>(isSynced),
       'hmacSignature': serializer.toJson<String>(hmacSignature),
       'deviceId': serializer.toJson<String>(deviceId),
+      'isVerified': serializer.toJson<bool>(isVerified),
     };
   }
 
@@ -246,7 +271,8 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
           int? deviceTimestamp,
           int? isSynced,
           String? hmacSignature,
-          String? deviceId}) =>
+          String? deviceId,
+          bool? isVerified}) =>
       OutboxEvent(
         id: id ?? this.id,
         entityId: entityId ?? this.entityId,
@@ -256,6 +282,7 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
         isSynced: isSynced ?? this.isSynced,
         hmacSignature: hmacSignature ?? this.hmacSignature,
         deviceId: deviceId ?? this.deviceId,
+        isVerified: isVerified ?? this.isVerified,
       );
   OutboxEvent copyWithCompanion(OutboxEventsCompanion data) {
     return OutboxEvent(
@@ -272,6 +299,8 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
           ? data.hmacSignature.value
           : this.hmacSignature,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      isVerified:
+          data.isVerified.present ? data.isVerified.value : this.isVerified,
     );
   }
 
@@ -285,14 +314,15 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
           ..write('deviceTimestamp: $deviceTimestamp, ')
           ..write('isSynced: $isSynced, ')
           ..write('hmacSignature: $hmacSignature, ')
-          ..write('deviceId: $deviceId')
+          ..write('deviceId: $deviceId, ')
+          ..write('isVerified: $isVerified')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, entityId, eventType, payloadJson,
-      deviceTimestamp, isSynced, hmacSignature, deviceId);
+      deviceTimestamp, isSynced, hmacSignature, deviceId, isVerified);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -304,7 +334,8 @@ class OutboxEvent extends DataClass implements Insertable<OutboxEvent> {
           other.deviceTimestamp == this.deviceTimestamp &&
           other.isSynced == this.isSynced &&
           other.hmacSignature == this.hmacSignature &&
-          other.deviceId == this.deviceId);
+          other.deviceId == this.deviceId &&
+          other.isVerified == this.isVerified);
 }
 
 class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
@@ -316,6 +347,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
   final Value<int> isSynced;
   final Value<String> hmacSignature;
   final Value<String> deviceId;
+  final Value<bool> isVerified;
   final Value<int> rowid;
   const OutboxEventsCompanion({
     this.id = const Value.absent(),
@@ -326,6 +358,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     this.isSynced = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.isVerified = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OutboxEventsCompanion.insert({
@@ -337,6 +370,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     this.isSynced = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.isVerified = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         entityId = Value(entityId),
@@ -352,6 +386,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     Expression<int>? isSynced,
     Expression<String>? hmacSignature,
     Expression<String>? deviceId,
+    Expression<bool>? isVerified,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -363,6 +398,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
       if (isSynced != null) 'is_synced': isSynced,
       if (hmacSignature != null) 'hmac_signature': hmacSignature,
       if (deviceId != null) 'device_id': deviceId,
+      if (isVerified != null) 'is_verified': isVerified,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -376,6 +412,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
       Value<int>? isSynced,
       Value<String>? hmacSignature,
       Value<String>? deviceId,
+      Value<bool>? isVerified,
       Value<int>? rowid}) {
     return OutboxEventsCompanion(
       id: id ?? this.id,
@@ -386,6 +423,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
       isSynced: isSynced ?? this.isSynced,
       hmacSignature: hmacSignature ?? this.hmacSignature,
       deviceId: deviceId ?? this.deviceId,
+      isVerified: isVerified ?? this.isVerified,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -417,6 +455,9 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (isVerified.present) {
+      map['is_verified'] = Variable<bool>(isVerified.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -434,6 +475,7 @@ class OutboxEventsCompanion extends UpdateCompanion<OutboxEvent> {
           ..write('isSynced: $isSynced, ')
           ..write('hmacSignature: $hmacSignature, ')
           ..write('deviceId: $deviceId, ')
+          ..write('isVerified: $isVerified, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4985,6 +5027,7 @@ typedef $$OutboxEventsTableCreateCompanionBuilder = OutboxEventsCompanion
   Value<int> isSynced,
   Value<String> hmacSignature,
   Value<String> deviceId,
+  Value<bool> isVerified,
   Value<int> rowid,
 });
 typedef $$OutboxEventsTableUpdateCompanionBuilder = OutboxEventsCompanion
@@ -4997,6 +5040,7 @@ typedef $$OutboxEventsTableUpdateCompanionBuilder = OutboxEventsCompanion
   Value<int> isSynced,
   Value<String> hmacSignature,
   Value<String> deviceId,
+  Value<bool> isVerified,
   Value<int> rowid,
 });
 
@@ -5033,6 +5077,9 @@ class $$OutboxEventsTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
       column: $table.deviceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isVerified => $composableBuilder(
+      column: $table.isVerified, builder: (column) => ColumnFilters(column));
 }
 
 class $$OutboxEventsTableOrderingComposer
@@ -5069,6 +5116,9 @@ class $$OutboxEventsTableOrderingComposer
 
   ColumnOrderings<String> get deviceId => $composableBuilder(
       column: $table.deviceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isVerified => $composableBuilder(
+      column: $table.isVerified, builder: (column) => ColumnOrderings(column));
 }
 
 class $$OutboxEventsTableAnnotationComposer
@@ -5103,6 +5153,9 @@ class $$OutboxEventsTableAnnotationComposer
 
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<bool> get isVerified => $composableBuilder(
+      column: $table.isVerified, builder: (column) => column);
 }
 
 class $$OutboxEventsTableTableManager extends RootTableManager<
@@ -5139,6 +5192,7 @@ class $$OutboxEventsTableTableManager extends RootTableManager<
             Value<int> isSynced = const Value.absent(),
             Value<String> hmacSignature = const Value.absent(),
             Value<String> deviceId = const Value.absent(),
+            Value<bool> isVerified = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               OutboxEventsCompanion(
@@ -5150,6 +5204,7 @@ class $$OutboxEventsTableTableManager extends RootTableManager<
             isSynced: isSynced,
             hmacSignature: hmacSignature,
             deviceId: deviceId,
+            isVerified: isVerified,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -5161,6 +5216,7 @@ class $$OutboxEventsTableTableManager extends RootTableManager<
             Value<int> isSynced = const Value.absent(),
             Value<String> hmacSignature = const Value.absent(),
             Value<String> deviceId = const Value.absent(),
+            Value<bool> isVerified = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               OutboxEventsCompanion.insert(
@@ -5172,6 +5228,7 @@ class $$OutboxEventsTableTableManager extends RootTableManager<
             isSynced: isSynced,
             hmacSignature: hmacSignature,
             deviceId: deviceId,
+            isVerified: isVerified,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

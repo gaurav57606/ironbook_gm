@@ -17,6 +17,7 @@ import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
+import 'package:ironbook_gm/core/services/logger_service.dart';
 
 class MockSequenceRepository extends Mock implements ISequenceRepository {}
 class MockEventRepository extends Mock implements IEventRepository {}
@@ -26,6 +27,7 @@ class MockHmacService extends Mock implements HmacService {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockOutboxDatabase extends Mock implements OutboxDatabase {}
 class MockMembershipService extends Mock implements MembershipService {}
+class MockLoggerService extends Mock implements LoggerService {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 class FakePayment extends Fake implements Payment {}
 
@@ -108,6 +110,7 @@ void main() {
         hmacService,
         membershipService,
         syncCoordinator,
+        MockLoggerService(),
       );
 
       final plan = Plan(

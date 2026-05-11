@@ -56,7 +56,6 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
     state = state.copyWith(isFirstLaunch: false);
   }
 
-  @override
   Future<bool> verifyPin(String pin) async => true;
 
   @override

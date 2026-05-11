@@ -21,6 +21,7 @@ import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
+import 'package:ironbook_gm/core/services/logger_service.dart';
 
 import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
@@ -37,6 +38,7 @@ class MockSequenceRepo extends Mock implements ISequenceRepository {}
 class MockMembershipService extends Mock implements MembershipService {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockOutboxDatabase extends Mock implements OutboxDatabase {}
+class MockLoggerService extends Mock implements LoggerService {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 
 void main() {
@@ -105,7 +107,8 @@ void main() {
             FrozenClock(DateTime(2024, 1, 1)), 
             mockHmac,
             mockMembership,
-            mockCoordinator
+            mockCoordinator,
+            MockLoggerService(),
           );
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = [];
@@ -122,7 +125,8 @@ void main() {
             clock, 
             mockHmac,
             mockMembership,
-            mockCoordinator
+            mockCoordinator,
+            MockLoggerService(),
           );
           // ignore: invalid_use_of_visible_for_testing_member
           notifier.debugState = [];

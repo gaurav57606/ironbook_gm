@@ -13,6 +13,7 @@ import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
+import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'package:ironbook_gm/core/data/local/adapters/manual_adapters.dart' hide AppSettingsAdapter, MemberSnapshotAdapter;
 import 'dart:io';
 
@@ -25,6 +26,7 @@ class MockPrefRepo extends Mock implements IPreferencesRepository {}
 class MockSyncCoordinator extends Mock implements SyncCoordinator {}
 class MockOutboxDatabase extends Mock implements OutboxDatabase {}
 class MockMembershipService extends Mock implements MembershipService {}
+class MockLoggerService extends Mock implements LoggerService {}
 class FakeDomainEvent extends Fake implements DomainEvent {}
 class FakeMemberSnapshot extends Fake implements MemberSnapshot {}
 
@@ -37,6 +39,7 @@ void main() {
   late MockSyncCoordinator mockCoordinator;
   late MockMembershipService mockMembership;
   late MockHmacService mockHmac;
+  late MockLoggerService mockLogger;
   late Box<DomainEvent> eventBox;
   late LazyBox<MemberSnapshot> snapshotBox;
 
@@ -64,6 +67,7 @@ void main() {
     mockCoordinator = MockSyncCoordinator();
     mockMembership = MockMembershipService();
     mockHmac = MockHmacService();
+    mockLogger = MockLoggerService();
 
     when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
     when(() => mockHmac.signSnapshot(any(), any())).thenAnswer((_) async => 'mock-sig');
@@ -115,7 +119,7 @@ void main() {
       when(() => mockMemberRepo.upsertMember(any())).thenAnswer((_) async => {});
       when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => [snapshot]);
 
-      final notifier = MemberNotifier(MockOutboxDatabase(), mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockMembership, mockCoordinator);
+      final notifier = MemberNotifier(MockOutboxDatabase(), mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockMembership, mockCoordinator, mockLogger);
       
       // Wait for init/reconcile
       await Future.delayed(const Duration(milliseconds: 100));
@@ -132,7 +136,7 @@ void main() {
        when(() => mockRepo.getAll()).thenAnswer((_) async => []);
        when(() => mockRepo.persist(any())).thenAnswer((_) async {});
        
-       final notifier = MemberNotifier(MockOutboxDatabase(), mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockMembership, mockCoordinator);
+       final notifier = MemberNotifier(MockOutboxDatabase(), mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockMembership, mockCoordinator, mockLogger);
        await Future.delayed(const Duration(milliseconds: 50));
        
        // Note: addMember requires 'plans' box

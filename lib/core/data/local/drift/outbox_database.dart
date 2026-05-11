@@ -222,7 +222,7 @@ class OutboxDatabase extends _$OutboxDatabase {
         await m.addColumn(appSettingsTable, appSettingsTable.hmacSignature);
       }
       if (from < 12) {
-        await m.addColumn(outboxEvents, outboxEvents.isVerified);
+        await m.addColumn(outboxEvents, outboxEvents.isVerified as GeneratedColumn<Object>);
       }
     },
   );

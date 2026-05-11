@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'dart:async';
+import 'dart:isolate';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -115,25 +116,39 @@ class AppBootstrap {
         logger.setFirebaseInitialized(true);
         logger.info('Firebase Initialized Successfully.', category: 'FIREBASE');
 
-        // 1.1 Configure Monitoring (Connecting to early handlers from main.dart)
-        if (!kIsWeb) {
-          await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
-          
-          // Re-hook Flutter error handler to Crashlytics
-          final originalFlutterError = FlutterError.onError;
-          FlutterError.onError = (errorDetails) {
-            FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-            originalFlutterError?.call(errorDetails);
-          };
+          // 1.1 Configure Monitoring (Connecting to early handlers from main.dart)
+          if (!kIsWeb) {
+            await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
+            
+            // Re-hook Flutter error handler to Crashlytics
+            final originalFlutterError = FlutterError.onError;
+            FlutterError.onError = (errorDetails) {
+              FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+              originalFlutterError?.call(errorDetails);
+            };
 
-          // Re-hook Platform error handler to Crashlytics
-          PlatformDispatcher.instance.onError = (error, stack) {
-            FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-            return true;
-          };
+            // Re-hook Platform error handler to Crashlytics
+            PlatformDispatcher.instance.onError = (error, stack) {
+              FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+              return true;
+            };
 
-          logger.info('Crashlytics & Analytics hooked into global handlers.', category: 'FIREBASE');
-        }
+            // Capture errors from the main isolate
+            Isolate.current.addErrorListener(RawReceivePort((pair) async {
+              final List<dynamic> errorAndStacktrace = pair;
+              await FirebaseCrashlytics.instance.recordError(
+                errorAndStacktrace.first,
+                errorAndStacktrace.last,
+                fatal: true,
+              );
+            }).sendPort);
+
+            // Set initial health signals
+            await logger.setHealthSignal('app_version', container.read(configServiceProvider).appVersion);
+            await logger.setHealthSignal('is_debug', kDebugMode);
+            
+            logger.info('Crashlytics & Analytics hooked into global handlers (including Isolates).', category: 'FIREBASE');
+          }
 
         // 1.2 Notifications
         if (!kIsWeb) {
@@ -192,6 +207,14 @@ class AppBootstrap {
         } else {
           logger.info('Skipping Periodic Sync start in test environment.', category: 'SYNC');
         }
+        
+        // Connect health signals for outbox
+        container.listen(unsyncedCountProvider, (previous, next) {
+          next.whenData((count) {
+            logger.setHealthSignal('outbox_size', count);
+          });
+        });
+
         container.read(tier2StatusProvider.notifier).state = Tier2Status.ready;
         container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Ready;
       } else {

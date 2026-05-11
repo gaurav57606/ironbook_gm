@@ -16,6 +16,7 @@ import 'package:ironbook_gm/core/providers/payment_provider.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as model;
+import 'package:ironbook_gm/features/members/presentation/controllers/member_registration_controller.dart';
 import 'package:ironbook_gm/shared/utils/app_snack_bar.dart';
 
 class QuickAddMemberScreen extends ConsumerStatefulWidget {
@@ -168,7 +169,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const AppSectionHeader(title: 'Gender'),
-                              _buildGenderChips(),
+                              _buildGenderChips(isSaving),
                             ],
                           ),
                         ),
@@ -194,14 +195,14 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                           style: TextStyle(color: AppColors.red, fontSize: 10)),
                       )
                     else ...[
-                      _buildPlanDropdown(basePlanNames),
+                      _buildPlanDropdown(basePlanNames, isSaving),
                       const AppSectionHeader(title: 'Subscription Duration'),
-                      _buildPlanChips(selectedBasePlans),
+                      _buildPlanChips(selectedBasePlans, isSaving),
                     ],
                     AppSpacing.gapM,
                     if (selectedPlan != null) _buildPlanSummary(selectedPlan),
                     const AppSectionHeader(title: 'Payment Method'),
-                    _buildPaymentChips(),
+                    _buildPaymentChips(isSaving),
                     AppSpacing.gapXL,
                     AppButton(
                       key: const Key('btn-register'),
@@ -260,7 +261,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     );
   }
 
-  Widget _buildPlanChips(List<db.Plan> plans) {
+  Widget _buildPlanChips(List<db.Plan> plans, bool isSaving) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -299,7 +300,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     );
   }
 
-  Widget _buildGenderChips() {
+  Widget _buildGenderChips(bool isSaving) {
     final genders = ['Male', 'Female', 'Other'];
     return Row(
       children: List.generate(genders.length, (index) {
@@ -334,7 +335,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     );
   }
 
-  Widget _buildPaymentChips() {
+  Widget _buildPaymentChips(bool isSaving) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -481,10 +482,9 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                 colorScheme: const ColorScheme.dark(
                   primary: AppColors.primary,
                   onPrimary: Colors.white,
-                  surface: AppColors.elevation2,
+                  surface: AppColors.bg,
                   onSurface: AppColors.text,
                 ),
-                dialogBackgroundColor: AppColors.bg,
               ),
               child: child!,
             );
@@ -505,7 +505,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     );
   }
 
-  Widget _buildPlanDropdown(List<String> basePlanNames) {
+  Widget _buildPlanDropdown(List<String> basePlanNames, bool isSaving) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.m),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l, vertical: 4),
