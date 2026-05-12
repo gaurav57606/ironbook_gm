@@ -70,6 +70,14 @@ class NotificationService {
 
         logger.info('Navigating to member details from notification: $memberId', category: 'NAV');
         router.push('/members/member-details/$memberId');
+      } else if (payload == 'sync') {
+        final router = _container?.read(routerProvider(true));
+        if (router == null) {
+          _pendingPayload = payload;
+          return;
+        }
+        logger.info('Navigating to backup settings from sync notification', category: 'NAV');
+        router.push('/settings/backup');
       }
     } catch (e, stack) {
       logger.error('Error handling notification payload: $payload', category: 'NOTIFICATION', error: e, stackTrace: stack);
@@ -130,6 +138,32 @@ class NotificationService {
     } catch (e) {
       logger.error('Failed to send local notification alert', category: 'NOTIFICATION', error: e);
     }
+  }
+
+  static Future<void> sendNewMemberAlert({
+    required String memberId,
+    required String name,
+    required String planName,
+  }) async {
+    await sendGenericNotification(
+      title: 'New Member Joined',
+      body: '$name has joined with $planName plan.',
+      category: 'System',
+      dedupKey: 'new_member_$memberId',
+      payload: 'member:$memberId',
+    );
+  }
+
+  static Future<void> sendSyncAlert({
+    required String error,
+  }) async {
+    await sendGenericNotification(
+      title: 'Cloud Sync Issue',
+      body: 'Sync is currently unavailable. Tap to check backup settings.',
+      category: 'System',
+      dedupKey: 'sync_failure_alert',
+      payload: 'sync',
+    );
   }
 
   static Future<void> sendGenericNotification({

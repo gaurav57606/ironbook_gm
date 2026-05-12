@@ -9,6 +9,8 @@ import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import '../services/logger_service.dart';
 
+import 'package:ironbook_gm/core/services/notification_service.dart';
+
 enum SyncWorkerStatus { idle, syncing, failed }
 
 class SyncWorkerState {
@@ -171,6 +173,11 @@ class SyncWorker {
       _ref.read(loggerProvider).setHealthSignal('last_sync_error', _lastErrorAt!.toIso8601String());
       _ref.read(loggerProvider).setHealthSignal('sync_status', 'failed_$_consecutiveFailures');
       
+      // Trigger notification on persistent failure
+      if (_consecutiveFailures >= 3) {
+        NotificationService.sendSyncAlert(error: _lastErrorMessage!);
+      }
+
       rethrow; // Rethrow to allow scheduler to handle backoff
     } finally {
       _isSyncing = false;

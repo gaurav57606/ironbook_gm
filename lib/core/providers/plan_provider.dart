@@ -94,6 +94,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
         'name': p.name,
         'durationMonths': p.durationMonths,
         'active': p.active,
+        'price': p.price,
         'components': p.components.map((c) => {'id': c.id, 'name': c.name, 'price': c.price}).toList(),
       }).toList()},
     );
@@ -127,6 +128,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
         'name': p.name,
         'durationMonths': p.durationMonths,
         'active': p.active,
+        'price': p.price,
         'components': p.components.map((c) => {'id': c.id, 'name': c.name, 'price': c.price}).toList(),
       }).toList()},
     );

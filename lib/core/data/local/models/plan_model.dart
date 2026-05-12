@@ -18,31 +18,38 @@ class Plan extends HiveObject {
 
   @HiveField(5)
   String? hmacSignature;
+  @HiveField(6)
+  late double price;
 
   Plan({
     required this.id,
     required this.name,
     required this.durationMonths,
     required this.components,
+    required this.price,
     this.active = true,
     this.hmacSignature,
   });
 
   factory Plan.fromFirestore(Map<String, dynamic> data) {
+    final comps = (data['components'] as List? ?? []).map((c) => PlanComponent(
+      id: c['id'],
+      name: c['name'],
+      price: (c['price'] as num).toDouble(),
+    )).toList();
+
     return Plan(
       id: data['id'],
       name: data['name'],
       durationMonths: data['durationMonths'],
       active: data['active'] ?? true,
-      components: (data['components'] as List).map((c) => PlanComponent(
-        id: c['id'],
-        name: c['name'],
-        price: (c['price'] as num).toDouble(),
-      )).toList(),
+      price: (data['price'] as num?)?.toDouble() ?? 
+             comps.fold(0.0, (sum, c) => sum + c.price),
+      components: comps,
     );
   }
 
-  double get totalPrice => components.fold(0, (sum, c) => sum + c.price);
+  double get totalPrice => price;
 
   Map<String, dynamic> toFirestore() {
     return {
@@ -50,6 +57,7 @@ class Plan extends HiveObject {
       'name': name,
       'durationMonths': durationMonths,
       'active': active,
+      'price': price,
       'components': components.map((c) => {
         'id': c.id,
         'name': c.name,
@@ -79,6 +87,7 @@ class Plan extends HiveObject {
       name: d.name,
       durationMonths: d.durationMonths,
       active: d.active,
+      price: d.price,
       components: comps,
       hmacSignature: d.hmacSignature,
     );

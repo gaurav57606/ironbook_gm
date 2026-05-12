@@ -49,6 +49,7 @@ void main() {
         id: 'plan_1',
         name: 'Basic Plan',
         durationMonths: 1,
+        price: 1000,
         components: [],
         active: true,
       );

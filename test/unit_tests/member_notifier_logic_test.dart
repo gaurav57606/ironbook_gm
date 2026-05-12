@@ -85,6 +85,7 @@ void main() {
         id: 'plan-1',
         name: 'Monthly',
         durationMonths: 1,
+        price: 1000,
         components: [PlanComponent(id: 'c1', name: 'Base', price: 1000)],
       );
       when(() => planRepo.getPlan('plan-1')).thenAnswer((_) async => plan);
@@ -114,6 +115,7 @@ void main() {
         id: 'plan-1',
         name: 'Monthly',
         durationMonths: 1,
+        price: 1000,
         components: [PlanComponent(id: 'c1', name: 'Base', price: 1000)],
       );
       when(() => planRepo.getPlan('plan-1')).thenAnswer((_) async => plan);
@@ -133,6 +135,7 @@ void main() {
         id: 'plan-1',
         name: 'Monthly',
         durationMonths: 1,
+        price: 1000,
         components: [PlanComponent(id: 'c1', name: 'Base', price: 1000)],
       );
       when(() => planRepo.getPlan('plan-1')).thenAnswer((_) async => plan);

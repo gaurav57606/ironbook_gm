@@ -17,7 +17,7 @@ extension PlanExtension on Plan {
     )).toList();
   }
 
-  double get totalPrice => components.fold(0, (sum, c) => sum + c.price);
+  double get totalPrice => price;
 }
 
 extension SaleExtension on Sale {

@@ -27,7 +27,7 @@ class DriftPlanRepository implements IPlanRepository {
         id: plan.id,
         name: plan.name,
         durationMonths: plan.durationMonths,
-        price: plan.totalPrice,
+        price: plan.price,
         active: Value(plan.active),
         componentsJson: Value(jsonEncode(plan.components.map((c) => {
           'id': c.id,
@@ -65,6 +65,8 @@ class DriftPlanRepository implements IPlanRepository {
             name: planMap['name'],
             durationMonths: planMap['durationMonths'] ?? 1,
             active: planMap['active'] ?? true,
+            price: (planMap['price'] as num?)?.toDouble() ?? 
+                   (planMap['components'] as List? ?? []).fold(0.0, (sum, c) => sum + (c['price'] as num? ?? 0.0)),
             components: (planMap['components'] as List? ?? []).map<PlanComponent>((c) {
               final cMap = Map<String, dynamic>.from(c);
               return PlanComponent(

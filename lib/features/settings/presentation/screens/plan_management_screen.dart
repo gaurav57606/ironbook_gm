@@ -226,6 +226,8 @@ class PlanManagementScreen extends ConsumerWidget {
     final nameController = TextEditingController(text: plan?.name ?? "");
     final durationController =
         TextEditingController(text: plan?.durationMonths.toString() ?? "1");
+    final priceController =
+        TextEditingController(text: plan?.price.toInt().toString() ?? "500");
     List<PlanComponent> components = plan != null
         ? List.from(plan.components
             .map((c) => PlanComponent(id: c.id, name: c.name, price: c.price)))
@@ -258,6 +260,9 @@ class PlanManagementScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _buildDialogField("Duration (Months)", durationController,
                     keyboardType: TextInputType.number),
+                const SizedBox(height: 16),
+                _buildDialogField("Price (₹)", priceController,
+                    keyboardType: TextInputType.number),
                 const SizedBox(height: 32),
                 Text(
                   "COMPONENTS",
@@ -284,7 +289,7 @@ class PlanManagementScreen extends ConsumerWidget {
                   const Text("Cancel", style: TextStyle(color: AppColors.textMuted)),
             ),
             _buildSavePlanButton(context, ref, plan, nameController,
-                durationController, components),
+                durationController, priceController, components),
           ],
         ),
       ),
@@ -342,6 +347,7 @@ class PlanManagementScreen extends ConsumerWidget {
     Plan? plan,
     TextEditingController nameController,
     TextEditingController durationController,
+    TextEditingController priceController,
     List<PlanComponent> components,
   ) {
     return ElevatedButton(
@@ -356,6 +362,7 @@ class PlanManagementScreen extends ConsumerWidget {
           id: plan?.id ?? const Uuid().v4(),
           name: nameController.text,
           durationMonths: int.tryParse(durationController.text) ?? 1,
+          price: double.tryParse(priceController.text) ?? 0,
           components: components,
         );
         if (plan == null) {

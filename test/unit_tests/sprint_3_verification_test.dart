@@ -117,6 +117,7 @@ void main() {
         id: 'p1',
         name: 'Plan 1',
         durationMonths: 1,
+        price: 100,
         components: [PlanComponent(id: 'c1', name: 'Base', price: 100)],
       );
 

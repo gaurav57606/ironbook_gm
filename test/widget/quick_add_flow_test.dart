@@ -71,12 +71,14 @@ void main() {
         id: 'p1',
         name: 'Monthly',
         durationMonths: 1,
+        price: 1000,
         components: [PlanComponent(id: 'c1', name: 'Base', price: 1000)],
       ),
       Plan(
         id: 'p2',
         name: 'Quarterly',
         durationMonths: 3,
+        price: 2500,
         components: [PlanComponent(id: 'c2', name: 'Base', price: 2500)],
       ),
     ];

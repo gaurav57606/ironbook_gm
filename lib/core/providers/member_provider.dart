@@ -17,6 +17,7 @@ import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
+import 'package:ironbook_gm/core/services/notification_service.dart';
 import 'dart:async';
 
 final membersProvider =
@@ -408,6 +409,14 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
       // 4. Trigger immediate sync
       _coordinator.triggerSync();
+
+      // 5. Trigger live notification
+      NotificationService.sendNewMemberAlert(
+        memberId: memberId,
+        name: name,
+        planName: plan.name,
+      );
+
       return memberId;
     } catch (e) {
       // Event or snapshot write failed — clean up any partial state

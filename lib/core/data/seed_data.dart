@@ -74,6 +74,7 @@ class SeedData {
       name: 'Monthly',
       durationMonths: 1,
       components: [gymAccess, locker, steam],
+      price: gymAccess.price + locker.price + steam.price,
       active: true,
     );
 
@@ -82,6 +83,7 @@ class SeedData {
       name: 'Quarterly',
       durationMonths: 3,
       components: [gymAccess, locker, steam],
+      price: (gymAccess.price + locker.price + steam.price) * 3 * 0.9, // 10% discount
       active: true,
     );
 
@@ -90,6 +92,7 @@ class SeedData {
       name: 'Half-Yearly',
       durationMonths: 6,
       components: [gymAccess, locker, steam],
+      price: (gymAccess.price + locker.price + steam.price) * 6 * 0.8, // 20% discount
       active: true,
     );
 
@@ -98,6 +101,7 @@ class SeedData {
       name: 'Annual',
       durationMonths: 12,
       components: [gymAccess, locker, steam],
+      price: (gymAccess.price + locker.price + steam.price) * 12 * 0.7, // 30% discount
       active: true,
     );
 

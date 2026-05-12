@@ -54,6 +54,7 @@ void main() {
       id: 'plan-monthly',
       name: 'Monthly',
       durationMonths: 1,
+      price: 1000,
       components: [
         PlanComponent(id: 'c1', name: 'Base', price: 1000),
       ],
