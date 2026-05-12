@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
 import '../router/app_router.dart';
 import '../providers/base_providers.dart';
+import '../data/local/drift/outbox_database.dart';
 import 'logger_service.dart';
 
 class NotificationService {
@@ -114,8 +115,81 @@ class NotificationService {
         androidDetails: androidDetails,
         iosDetails: iosDetails,
       );
+
+      // Persistence (Audit Check 5.1)
+      final repo = _container!.read(outboxRepositoryProvider);
+      await repo.insertNotification(Notification(
+        id: dedupKey,
+        title: title,
+        body: 'Tap to view member details',
+        timestamp: now0,
+        category: 'Reminder',
+        isRead: false,
+        payload: 'member:${snapshot.memberId}',
+      ));
     } catch (e) {
       logger.error('Failed to send local notification alert', category: 'NOTIFICATION', error: e);
     }
+  }
+
+  static Future<void> sendGenericNotification({
+    required String title,
+    required String body,
+    required String category,
+    required String dedupKey,
+    String? payload,
+    DateTime? timestamp,
+  }) async {
+    if (_container == null) return;
+    
+    final gateway = _container!.read(notificationGatewayProvider);
+    final logger = _container!.read(loggerProvider);
+
+    try {
+      final now = timestamp ?? DateTime.now();
+      final notifId = dedupKey.hashCode.abs();
+      
+      const androidDetails = AndroidNotificationDetails(
+        'system_alerts',
+        'System Alerts',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+      );
+      const iosDetails = DarwinNotificationDetails();
+
+      await gateway.show(
+        notifId,
+        title,
+        body,
+        payload: payload,
+        androidDetails: androidDetails,
+        iosDetails: iosDetails,
+      );
+
+      final repo = _container!.read(outboxRepositoryProvider);
+      await repo.insertNotification(Notification(
+        id: dedupKey,
+        title: title,
+        body: body,
+        timestamp: now,
+        category: category,
+        isRead: false,
+        payload: payload,
+      ));
+    } catch (e) {
+      logger.error('Failed to send generic notification', category: 'NOTIFICATION', error: e);
+    }
+  }
+
+  static Future<void> markAsRead(String id) async {
+    if (_container == null) return;
+    final repo = _container!.read(outboxRepositoryProvider);
+    await repo.markNotificationAsRead(id);
+  }
+
+  static Future<void> markAllAsRead() async {
+    if (_container == null) return;
+    final repo = _container!.read(outboxRepositoryProvider);
+    await repo.markAllNotificationsAsRead();
   }
 }

@@ -302,31 +302,29 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
 
   Widget _buildGenderChips(bool isSaving) {
     final genders = ['Male', 'Female', 'Other'];
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: List.generate(genders.length, (index) {
         final isSelected = _selectedGender == genders[index];
-        return Expanded(
-          child: GestureDetector(
-            onTap: isSaving ? null : () => setState(() => _selectedGender = genders[index]),
-            child: Container(
-              margin: EdgeInsets.only(right: index == genders.length - 1 ? 0 : 8),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                gradient: isSelected ? AppColors.glassGradient : null,
-                color: isSelected ? null : AppColors.elevation1.withValues(alpha: 0.3),
-                borderRadius: AppRadius.radiusM,
-                border: Border.all(
-                  color: isSelected ? AppColors.primary.withValues(alpha: 0.5) : AppColors.border.withValues(alpha: 0.2),
-                ),
+        return GestureDetector(
+          onTap: isSaving ? null : () => setState(() => _selectedGender = genders[index]),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: isSelected ? AppColors.glassGradient : null,
+              color: isSelected ? null : AppColors.elevation1.withValues(alpha: 0.3),
+              borderRadius: AppRadius.radiusM,
+              border: Border.all(
+                color: isSelected ? AppColors.primary.withValues(alpha: 0.5) : AppColors.border.withValues(alpha: 0.2),
               ),
-              alignment: Alignment.center,
-              child: Text(
-                genders[index].toUpperCase(),
-                style: AppTextStyles.label.copyWith(
-                  fontSize: 10,
-                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                  color: isSelected ? AppColors.primary : AppColors.textMuted,
-                ),
+            ),
+            child: Text(
+              genders[index].toUpperCase(),
+              style: AppTextStyles.label.copyWith(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                color: isSelected ? AppColors.primary : AppColors.textMuted,
               ),
             ),
           ),
@@ -437,7 +435,10 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('TOTAL AMOUNT', style: AppTextStyles.label.copyWith(fontSize: 12, fontWeight: FontWeight.w900)),
-              Text('₹${plan.totalPrice.toInt()}', style: AppTextStyles.h1.copyWith(fontSize: 24, color: AppColors.primary)),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('₹${plan.totalPrice.toInt()}', style: AppTextStyles.h1.copyWith(fontSize: 24, color: AppColors.primary))
+              ),
             ],
           ),
           const SizedBox(height: 16),

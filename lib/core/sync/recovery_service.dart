@@ -6,6 +6,11 @@ import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
+import 'package:ironbook_gm/core/providers/owner_provider.dart';
+import 'package:ironbook_gm/core/providers/settings_provider.dart';
+import 'package:ironbook_gm/core/providers/plan_provider.dart';
+import 'package:ironbook_gm/core/providers/payment_provider.dart';
+import 'package:ironbook_gm/core/providers/sale_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/logger_service.dart';
 
@@ -47,7 +52,10 @@ class RecoveryService {
 
       // Ensure current device key is in storage (for signing future events)
       final installationId = await _hmac.getInstallationId();
-      await _hmac.restoreKeyFromFirestore(installationId);
+      final restored = await _hmac.restoreKeyFromFirestore(installationId);
+      if (!restored) {
+        await _hmac.syncCurrentKeyToCloud();
+      }
 
       // Checkpoint Optimization
       final lastRecoveryTs = _prefs.getInt('last_recovery_at');
@@ -131,9 +139,16 @@ class RecoveryService {
 
       logger.info('Event restoration complete. Recovered: $recoveredCount, Rejected: $tamperedCount', category: 'RECOVERY');
       
-      // 5. Rebuild Local Cache (Event Sourcing)
-      logger.info('Triggering full cache rebuild...', category: 'RECOVERY');
+      // 5. Rebuild All Local Caches (Event Sourcing)
+      logger.info('Triggering full state rebuild...', category: 'RECOVERY');
+      
+      // We rebuild sequentially to avoid database lock contention if many writes happen
       await _ref.read(membersProvider.notifier).rebuildCache();
+      await _ref.read(ownerProvider.notifier).rebuildCache();
+      await _ref.read(settingsProvider.notifier).rebuildCache();
+      await _ref.read(planProvider.notifier).rebuildCache();
+      await _ref.read(paymentsProvider.notifier).rebuildCache();
+      await _ref.read(saleProvider.notifier).rebuildCache();
       
       logger.info('Recovery process successful.', category: 'RECOVERY');
     } catch (e, stack) {

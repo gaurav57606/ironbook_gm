@@ -58,6 +58,11 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     await _reconcilePlans();
   }
 
+  Future<void> rebuildCache() async {
+    debugPrint('[STATE] PlanNotifier: Full rebuild triggered');
+    await _reconcilePlans();
+  }
+
   Future<void> _reconcilePlans() async {
     final allEvents = await _eventRepo.getAll();
     final planEvents = allEvents.where((e) => e.eventType == EventType.plansUpdated).toList();

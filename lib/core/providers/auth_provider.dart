@@ -116,11 +116,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
       logger.error('Failed to load owner/settings: $e', category: 'AUTH');
     }
 
+    final hasOwner = await _ownerRepo.getOwner() != null;
+    
+    // Recovery Logic: If SecureStorage is cleared but DB has owner, restore flag
+    if (onboardingDone != 'true' && hasOwner) {
+      await _storage.write(key: 'onboarding_done', value: 'true');
+    }
+
     if (mounted) {
-      logger.info('Initializing AuthNotifier. PIN set: $isPinSetup, First launch: ${onboardingDone != 'true'}', category: 'AUTH');
+      logger.info('Initializing AuthNotifier. PIN set: $isPinSetup, First launch: ${onboardingDone != 'true' && !hasOwner}', category: 'AUTH');
       state = state.copyWith(
         isPinSetup: isPinSetup,
-        isFirstLaunch: onboardingDone != 'true',
+        isFirstLaunch: onboardingDone != 'true' && !hasOwner,
         isLoading: false,
       );
     }
@@ -128,14 +135,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void onFirebaseReady(fb.FirebaseAuth auth) {
     _authSubscription?.cancel();
-    _authSubscription = auth.authStateChanges().listen((user) {
-      _ref.read(loggerProvider).info('Firebase state change. User: ${user?.email ?? 'anonymous'}', category: 'AUTH');
+    _authSubscription = auth.authStateChanges().listen((user) async {
+      final logger = _ref.read(loggerProvider);
+      logger.info('Firebase state change. User: ${user?.email ?? 'anonymous'}', category: 'AUTH');
+      
+      final wasNull = state.user == null;
+      
       if (mounted) {
         state = state.copyWith(
           user: user,
           isAuthenticated: user != null,
+          isFirstLaunch: user != null ? false : state.isFirstLaunch,
           isLoading: false,
         );
+
+        if (user != null) {
+          await _storage.write(key: 'onboarding_done', value: 'true');
+          
+          // CRITICAL: If this is a login transition (null -> user), 
+          // sync the new device key and start recovery.
+          if (wasNull) {
+            logger.info('New login detected. Starting identity sync and recovery...', category: 'AUTH');
+            await _hmacService.syncCurrentKeyToCloud();
+            _ref.read(recoveryServiceProvider).recoverAll();
+          }
+        }
       }
     });
 
@@ -175,6 +199,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
       );
       state = state.copyWith(authAttempts: 0);
+      await _storage.write(key: 'onboarding_done', value: 'true');
       // Invalidate entitlement cache so fresh check runs after each login
       _ref.invalidate(entitlementStatusProvider);
       return true;
@@ -279,6 +304,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         
         await _eventRepo.persist(event);
         await _ownerRepo.upsertOwner(owner);
+        await _storage.write(key: 'onboarding_done', value: 'true');
         
         _ref.read(syncWorkerProvider).performSync();
 

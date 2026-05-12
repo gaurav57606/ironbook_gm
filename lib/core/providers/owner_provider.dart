@@ -69,4 +69,18 @@ class OwnerNotifier extends StateNotifier<OwnerProfile?> {
     await _eventRepo.persist(event);
     await _repo.upsertOwner(profile);
   }
+
+  Future<void> rebuildCache() async {
+    debugPrint('[STATE] OwnerNotifier: Full rebuild triggered');
+    final events = await _eventRepo.getByEntityId('owner');
+    if (events.isNotEmpty) {
+      // Sort by timestamp and apply latest
+      events.sort((a, b) => a.deviceTimestamp.compareTo(b.deviceTimestamp));
+      final latest = events.last;
+      await _repo.applyEvent(latest);
+      if (mounted) {
+        state = await _repo.getOwner();
+      }
+    }
+  }
 }

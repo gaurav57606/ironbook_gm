@@ -23,9 +23,11 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
     
     switch (state) {
       case AppLifecycleState.paused:
-      case AppLifecycleState.inactive:
-      case AppLifecycleState.hidden: 
         _handleBackground();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        // Ignore these for locking to prevent screenshot/overlay issues
         break;
       case AppLifecycleState.resumed:
         _handleForeground();

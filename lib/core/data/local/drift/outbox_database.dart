@@ -155,6 +155,19 @@ class AppSettingsTable extends Table {
   TextColumn get hmacSignature => text().nullable()();
 }
 
+class Notifications extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text()();
+  TextColumn get body => text()();
+  DateTimeColumn get timestamp => dateTime()();
+  TextColumn get category => text()();
+  BoolColumn get isRead => boolean().withDefault(const Constant(false))();
+  TextColumn get payload => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 
 
 @DriftDatabase(tables: [
@@ -169,12 +182,13 @@ class AppSettingsTable extends Table {
   Preferences,
   OwnerProfiles,
   AppSettingsTable,
+  Notifications,
 ])
 class OutboxDatabase extends _$OutboxDatabase {
   OutboxDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -223,6 +237,9 @@ class OutboxDatabase extends _$OutboxDatabase {
       }
       if (from < 12) {
         await m.addColumn(outboxEvents, outboxEvents.isVerified as GeneratedColumn<Object>);
+      }
+      if (from < 13) {
+        await m.createTable(notifications);
       }
     },
   );

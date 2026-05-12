@@ -46,13 +46,16 @@ class StatsCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                value,
-                style: AppTextStyles.h2.copyWith(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  color: isPrimary ? Colors.white : (valueColor ?? AppColors.text),
-                  height: 1,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: AppTextStyles.h2.copyWith(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: isPrimary ? Colors.white : (valueColor ?? AppColors.text),
+                    height: 1,
+                  ),
                 ),
               ),
               const SizedBox(height: 6),

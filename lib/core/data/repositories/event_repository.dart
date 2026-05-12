@@ -113,7 +113,23 @@ class DriftEventRepository implements IEventRepository {
   @override
   Future<List<DomainEvent>> getByEntityId(String entityId) async {
     final docs = await (_db.select(_db.outboxEvents)..where((t) => t.entityId.equals(entityId))).get();
-    return docs.map((d) => DomainEvent.fromOutbox(d)).toList();
+    final List<DomainEvent> validEvents = [];
+    final List<String> toMarkVerified = [];
+
+    for (final d in docs) {
+      final e = DomainEvent.fromOutbox(d);
+      if (e.isVerified) {
+        validEvents.add(e);
+      } else if (await _hmacService.verifyInstance(e)) {
+        validEvents.add(e);
+        toMarkVerified.add(e.id);
+      }
+    }
+
+    if (toMarkVerified.isNotEmpty) {
+      _markVerified(toMarkVerified);
+    }
+    return validEvents;
   }
 
   @override

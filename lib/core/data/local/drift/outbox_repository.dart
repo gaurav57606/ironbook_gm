@@ -137,6 +137,48 @@ class OutboxRepository {
       batch.deleteAll(_db.preferences);
       batch.deleteAll(_db.ownerProfiles);
       batch.deleteAll(_db.appSettingsTable);
+      batch.deleteAll(_db.notifications);
     });
+  }
+
+  // --- Notifications ---
+
+  Future<void> insertNotification(Notification notification) async {
+    await _db.into(_db.notifications).insert(
+          NotificationsCompanion.insert(
+            id: notification.id,
+            title: notification.title,
+            body: notification.body,
+            timestamp: notification.timestamp,
+            category: notification.category,
+            isRead: Value(notification.isRead),
+            payload: Value(notification.payload),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+  }
+
+  Stream<List<Notification>> watchNotifications() {
+    return (_db.select(_db.notifications)
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.timestamp, mode: OrderMode.desc),
+          ]))
+        .watch();
+  }
+
+  Future<void> markNotificationAsRead(String id) async {
+    await (_db.update(_db.notifications)..where((t) => t.id.equals(id))).write(
+      const NotificationsCompanion(isRead: Value(1)),
+    );
+  }
+
+  Future<void> markAllNotificationsAsRead() async {
+    await _db.update(_db.notifications).write(
+          const NotificationsCompanion(isRead: Value(1)),
+        );
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await (_db.delete(_db.notifications)..where((t) => t.id.equals(id))).go();
   }
 }

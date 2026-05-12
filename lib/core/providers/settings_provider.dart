@@ -68,4 +68,17 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     await _eventRepo.persist(event);
     await _repo.updateSettings(settings);
   }
+
+  Future<void> rebuildCache() async {
+    debugPrint('[STATE] SettingsNotifier: Full rebuild triggered');
+    final events = await _eventRepo.getByEntityId('settings');
+    if (events.isNotEmpty) {
+      events.sort((a, b) => a.deviceTimestamp.compareTo(b.deviceTimestamp));
+      final latest = events.last;
+      await _repo.applyEvent(latest);
+      if (mounted) {
+        state = await _repo.getSettings();
+      }
+    }
+  }
 }

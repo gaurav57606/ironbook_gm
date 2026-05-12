@@ -17,6 +17,7 @@ import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'package:ironbook_gm/core/services/logger_service.dart';
+import 'package:ironbook_gm/core/services/notification_service.dart';
 import 'dart:async';
 
 import 'package:ironbook_gm/core/data/repositories/sequence_repository.dart';
@@ -100,6 +101,11 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
         category: 'STATE'
       );
     }
+  }
+
+  Future<void> rebuildCache() async {
+    _logger.warn('Manual full payment rebuild triggered.', category: 'DB');
+    await _reconcilePayments();
   }
 
   Future<void> _reconcilePayments() async {
@@ -248,6 +254,16 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       });
       
       _coordinator.triggerSync();
+
+      // Trigger Local Notification for Hub (Live feel)
+      await NotificationService.sendGenericNotification(
+        title: 'Payment Recorded',
+        body: '₹${payment.amount.toInt()} received from ${member!.name} for ${payment.planName}',
+        category: 'Payment',
+        dedupKey: 'payment_${payment.id}',
+        payload: 'member:${payment.memberId}',
+        timestamp: now,
+      );
 
       return payment;
     } finally {

@@ -39,6 +39,13 @@ class HmacService {
     return key;
   }
 
+  Future<void> syncCurrentKeyToCloud() async {
+    final key = await _storage.read(key: _keyStorageName);
+    if (key != null) {
+      await _backupKeyToFirestore(key);
+    }
+  }
+
   Future<String> getInstallationId() async {
     const idKey = 'installation_id';
     var id = await _storage.read(key: idKey);

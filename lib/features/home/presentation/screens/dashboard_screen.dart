@@ -18,6 +18,7 @@ import '../widgets/alert_banner.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/member_row.dart';
 import '../../../../shared/widgets/sync_status_indicator.dart';
+import '../../../../core/providers/notification_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -188,9 +189,13 @@ class DashboardScreen extends ConsumerWidget {
                   style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted, letterSpacing: 1.2),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  gymName,
-                  style: AppTextStyles.cardTitle.copyWith(fontSize: 24, fontWeight: FontWeight.w900),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    gymName,
+                    style: AppTextStyles.cardTitle.copyWith(fontSize: 24, fontWeight: FontWeight.w900),
+                  ),
                 ),
               ],
             ),
@@ -203,23 +208,29 @@ class DashboardScreen extends ConsumerWidget {
                   backgroundColor: AppColors.elevation2,
                   padding: const EdgeInsets.all(10),
                 ),
-                icon: Stack(
-                  children: [
-                    const Icon(Icons.notifications_none_rounded, color: AppColors.text3, size: 22),
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: AppColors.orange,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.bg, width: 1.5),
-                        ),
-                      ),
-                    ),
-                  ],
+                icon: Consumer(
+                  builder: (context, ref, _) {
+                    final unreadCount = ref.watch(unreadNotificationsCountProvider);
+                    return Stack(
+                      children: [
+                        const Icon(Icons.notifications_none_rounded, color: AppColors.text3, size: 22),
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: AppColors.orange,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.bg, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -359,10 +370,13 @@ class DashboardScreen extends ConsumerWidget {
                 style: AppTextStyles.sectionTitle.copyWith(color: AppColors.textMuted),
               ),
               AppSpacing.gapS,
-              Text(
-                '₹$totalRevenue',
-                style: AppTextStyles.cardTitle
-                    .copyWith(fontSize: 24, color: AppColors.primary),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '₹$totalRevenue',
+                  style: AppTextStyles.cardTitle
+                      .copyWith(fontSize: 24, color: AppColors.primary),
+                ),
               ),
               AppSpacing.gapXS,
               Row(

@@ -532,6 +532,9 @@ class FakePaymentNotifier extends StateNotifier<List<Payment>>
   Payment? getLatestForMember(String memberId) {
     return state.firstWhereOrNull((p) => p.memberId == memberId);
   }
+
+  @override
+  Future<void> rebuildCache() async {}
 }
 
 class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>

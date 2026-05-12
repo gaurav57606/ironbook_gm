@@ -54,6 +54,9 @@ class MidnightEngine {
         
         final logger = container.read(loggerProvider);
         if (firebaseReady) logger.setFirebaseInitialized(true);
+
+        // Audit Check 5.1: Init NotificationService for persistence access
+        await NotificationService.init(container);
         
         logger.info("[WORKER] Background task '$task' started.", category: 'BOOT');
 
