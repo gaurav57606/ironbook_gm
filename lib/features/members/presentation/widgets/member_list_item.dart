@@ -27,7 +27,7 @@ class MemberListItem extends ConsumerWidget {
         member.name.isNotEmpty ? member.name.substring(0, 1).toUpperCase() : '?';
 
     return GestureDetector(
-      onTap: () => context.push('/gym/member-details/${member.memberId}'),
+      onTap: () => context.push('/members/member-details/${member.memberId}'),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.m),
         decoration: BoxDecoration(

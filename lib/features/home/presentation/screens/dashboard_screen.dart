@@ -6,7 +6,6 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_radius.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../shared/utils/greeting_formatter.dart';
-import '../../../../shared/utils/date_utils.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../core/data/local/models/member_snapshot_model.dart';
 import '../../../../core/providers/member_provider.dart';
@@ -69,6 +68,8 @@ class DashboardScreen extends ConsumerWidget {
                           builder: (context, ref, _) {
                             final memberStats = ref.watch(dashboardMemberStatsProvider);
                             return _buildStatsGrid(
+                              context,
+                              ref,
                               membersLength,
                               memberStats.activeCount,
                               memberStats.expiringCount,
@@ -96,6 +97,10 @@ class DashboardScreen extends ConsumerWidget {
                                     title: '${memberStats.expiredCount} memberships expired',
                                     subtitle: '${memberStats.expiredMembers}${memberStats.expiredCount > 3 ? " +${memberStats.expiredCount - 3}" : ""}',
                                     isError: true,
+                                    onTap: () {
+                                      ref.read(memberTabProvider.notifier).state = 3;
+                                      context.go('/members');
+                                    },
                                   ),
                                 if (memberStats.expiringCount > 0)
                                   Padding(
@@ -105,13 +110,17 @@ class DashboardScreen extends ConsumerWidget {
                                       title: '${memberStats.expiringCount} expiring in 7 days',
                                       subtitle: '${memberStats.expiringMembers}${memberStats.expiringCount > 3 ? " +${memberStats.expiringCount - 3}" : ""}',
                                       isError: false,
+                                      onTap: () {
+                                        ref.read(memberTabProvider.notifier).state = 2;
+                                        context.go('/members');
+                                      },
                                     ),
                                   ),
                                 AppSectionHeader(
                                   title: 'DUE TODAY',
                                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.sectionGap),
                                   trailing: GestureDetector(
-                                    onTap: () => context.go('/gym'),
+                                    onTap: () => context.go('/members'),
                                     child: Row(
                                       children: [
                                         Text(
@@ -222,7 +231,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsGrid(int total, int active, int expiring, int expired) {
+  Widget _buildStatsGrid(BuildContext context, WidgetRef ref, int total, int active, int expiring, int expired) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: GridView.count(
@@ -234,19 +243,41 @@ class DashboardScreen extends ConsumerWidget {
         childAspectRatio: 1.8,
         children: [
           StatsCard(
-              value: total.toString(), label: 'Total Members', isPrimary: true),
+            value: total.toString(),
+            label: 'Total Members',
+            isPrimary: true,
+            onTap: () {
+              ref.read(memberTabProvider.notifier).state = 0;
+              context.go('/members');
+            },
+          ),
           StatsCard(
-              value: active.toString(),
-              label: 'Active',
-              valueColor: AppColors.green),
+            value: active.toString(),
+            label: 'Active',
+            valueColor: AppColors.green,
+            onTap: () {
+              ref.read(memberTabProvider.notifier).state = 1;
+              context.go('/members');
+            },
+          ),
           StatsCard(
-              value: expiring.toString(),
-              label: 'Expiring Soon',
-              valueColor: AppColors.amber),
+            value: expiring.toString(),
+            label: 'Expiring Soon',
+            valueColor: AppColors.amber,
+            onTap: () {
+              ref.read(memberTabProvider.notifier).state = 2;
+              context.go('/members');
+            },
+          ),
           StatsCard(
-              value: expired.toString(),
-              label: 'Expired',
-              valueColor: AppColors.red),
+            value: expired.toString(),
+            label: 'Expired',
+            valueColor: AppColors.red,
+            onTap: () {
+              ref.read(memberTabProvider.notifier).state = 3;
+              context.go('/members');
+            },
+          ),
         ],
       ),
     );

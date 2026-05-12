@@ -68,7 +68,7 @@ class NotificationService {
         }
 
         logger.info('Navigating to member details from notification: $memberId', category: 'NAV');
-        router.push('/gym/member-details/$memberId');
+        router.push('/members/member-details/$memberId');
       }
     } catch (e, stack) {
       logger.error('Error handling notification payload: $payload', category: 'NOTIFICATION', error: e, stackTrace: stack);

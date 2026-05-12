@@ -275,7 +275,7 @@ class MemberDetailScreen extends ConsumerWidget {
                 flex: 2,
                 child: AppButton(
                   text: 'Generate Invoice',
-                  onPressed: () => context.push('/gym/member-details/${member.memberId}/invoice'),
+                  onPressed: () => context.push('/members/member-details/${member.memberId}/invoice'),
                 ),
               ),
               const SizedBox(width: 6),

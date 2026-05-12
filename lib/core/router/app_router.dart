@@ -203,11 +203,11 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/gym',
+                path: '/members',
                 builder: (context, state) => const MembersListScreen(),
                 routes: [
                   GoRoute(
-                    path: 'add-member',
+                    path: 'add',
                     builder: (context, state) => const QuickAddMemberScreen(),
                   ),
                   GoRoute(
@@ -237,16 +237,8 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/pos',
+                path: '/invoices',
                 builder: (context, state) => const PosScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/analytics',
-                builder: (context, state) => const AnalyticsScreen(),
               ),
             ],
           ),
@@ -327,6 +319,14 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
                         const OwnershipTransferScreen(),
                   ),
                 ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/analytics',
+                builder: (context, state) => const AnalyticsScreen(),
               ),
             ],
           ),
