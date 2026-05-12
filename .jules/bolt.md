@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2024-05-24 - [Avoid N+1 queries during data reconciliation]
+**Learning:** Performing multiple sequential DB operations (get, then get history, then insert) inside a loop results in an N+1 query problem, severely impacting performance for large numbers of records.
+**Action:** When reconstructing or checking state for many entities, use batch read methods (like `getMembers`), chunk processing with `Future.wait` for parallel history fetching, and batch update methods (like `upsertMembers`). This minimizes DB roundtrips and significantly improves speed.

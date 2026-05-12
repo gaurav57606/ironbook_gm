@@ -262,24 +262,49 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       eventsByEntity.putIfAbsent(e.entityId, () => []).add(e);
     }
 
-    bool updatedAny = false;
-    for (final entityId in eventsByEntity.keys) {
-      final snap = await _memberRepo.getMember(entityId);
+    final entityIds = eventsByEntity.keys.toList();
+    final existingMembers = await _memberRepo.getMembers(entityIds);
+    final existingMemberMap = {for (final m in existingMembers) m.memberId: m};
+
+    final List<String> laggingEntities = [];
+
+    for (final entityId in entityIds) {
+      final snap = existingMemberMap[entityId];
       final latestEventTime = eventsByEntity[entityId]!
           .map((e) => e.deviceTimestamp)
           .reduce((a, b) => a.isAfter(b) ? a : b);
 
       if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-        _logger.warn(
-          'Lagging Drift state for $entityId. Rebuilding from event log...', 
-          category: 'DB'
-        );
-        final fullHistory = await _eventRepo.getByEntityId(entityId);
-        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
-        if (rebuilt != null) {
-          await _memberRepo.upsertMember(rebuilt);
-          if (!rebuilt.archived) updatedAny = true;
-        }
+        laggingEntities.add(entityId);
+      }
+    }
+
+    bool updatedAny = false;
+
+    if (laggingEntities.isNotEmpty) {
+      _logger.warn(
+        'Found ${laggingEntities.length} lagging members. Rebuilding from event log...',
+        category: 'DB'
+      );
+
+      // Process in chunks to avoid overwhelming memory/connections
+      final chunkSize = 50;
+      final List<MemberSnapshot> allRebuilt = [];
+
+      for (int i = 0; i < laggingEntities.length; i += chunkSize) {
+        final chunk = laggingEntities.skip(i).take(chunkSize).toList();
+
+        final rebuiltResults = await Future.wait(chunk.map((entityId) async {
+          final fullHistory = await _eventRepo.getByEntityId(entityId);
+          return SnapshotBuilder.rebuild(fullHistory);
+        }));
+
+        allRebuilt.addAll(rebuiltResults.nonNulls);
+      }
+
+      if (allRebuilt.isNotEmpty) {
+        await _memberRepo.upsertMembers(allRebuilt);
+        if (allRebuilt.any((m) => !m.archived)) updatedAny = true;
       }
     }
 
