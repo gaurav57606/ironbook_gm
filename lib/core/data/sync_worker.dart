@@ -158,7 +158,18 @@ class SyncWorker {
       _consecutiveFailures = 0;
       await _prefs.setInt('sync_consecutive_failures', 0);
       _lastSuccessAt = DateTime.now();
+      
+      // Update global sync health in preferences (Drift-backed)
+      await _ref.read(preferencesRepositoryProvider).setString(
+        'last_successful_sync_at', 
+        _lastSuccessAt!.toIso8601String()
+      );
+
       _ref.read(loggerProvider).info('Sync batch completed successfully', category: 'SYNC');
+      
+      // 3. Snapshot Projection Layer: Sync current state of affected entities
+      await _syncSnapshots(unsynced, uid);
+
       _ref.read(loggerProvider).setHealthSignal('last_sync_success', _lastSuccessAt!.toIso8601String());
       _ref.read(loggerProvider).setHealthSignal('sync_status', 'healthy');
     } catch (e, stack) {
@@ -202,6 +213,55 @@ class SyncWorker {
       }
       
       await _coordinator.releaseLock(holderId);
+    }
+  }
+
+  Future<void> _syncSnapshots(List<DomainEvent> syncedEvents, String uid) async {
+    final memberIds = syncedEvents.map((e) => e.entityId).toSet();
+    if (memberIds.isEmpty) return;
+
+    final memberRepo = _ref.read(memberRepositoryProvider);
+    final logger = _ref.read(loggerProvider);
+    
+    logger.info('Syncing snapshots for ${memberIds.length} affected members...', category: 'SYNC');
+    
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      int count = 0;
+
+      for (final id in memberIds) {
+        final member = await memberRepo.getMember(id);
+        if (member != null) {
+          final hmac = _ref.read(hmacServiceProvider);
+          final signature = await hmac.signSnapshot(id, member.toFirestore());
+          final signedMember = member.copyWith(hmacSignature: signature);
+
+          final docRef = FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('snapshots')
+              .doc('members')
+              .collection('items')
+              .doc(id);
+          
+          batch.set(docRef, signedMember.toFirestore());
+          count++;
+        }
+        
+        // Firestore batch limit is 500
+        if (count >= 400) {
+          await batch.commit();
+          count = 0;
+        }
+      }
+      
+      if (count > 0) {
+        await batch.commit();
+      }
+      logger.info('Snapshot sync complete.', category: 'SYNC');
+    } catch (e) {
+      logger.error('Failed to sync snapshots', category: 'SYNC', error: e);
+      // We don't rethrow here because event sync already succeeded
     }
   }
 
@@ -300,6 +360,20 @@ final syncWorkerProvider = Provider<SyncWorker>((ref) {
 final unsyncedCountProvider = StreamProvider<int>((ref) {
   final outboxRepo = ref.watch(outboxRepositoryProvider);
   return outboxRepo.watchUnsyncedCount();
+});
+
+final syncHealthProvider = FutureProvider<bool>((ref) async {
+  final prefs = ref.watch(preferencesRepositoryProvider);
+  final lastSyncStr = await prefs.getString('last_successful_sync_at');
+  if (lastSyncStr == null) return true; // Never synced yet, assume okay or pending
+
+  try {
+    final lastSync = DateTime.parse(lastSyncStr);
+    final diff = DateTime.now().difference(lastSync);
+    return diff.inDays < 7;
+  } catch (_) {
+    return true;
+  }
 });
 
 

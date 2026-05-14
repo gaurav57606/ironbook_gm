@@ -62,7 +62,15 @@ class MidnightEngine {
         );
         
         final logger = container.read(loggerProvider);
-        if (firebaseReady) logger.setFirebaseInitialized(true);
+        if (firebaseReady) {
+          logger.setFirebaseInitialized(true);
+          final auth = container.read(firebaseAuthProvider);
+          if (auth?.currentUser != null) {
+            logger.info("[WORKER] Background isolate: User is authenticated (${auth!.currentUser!.uid})", category: 'BOOT');
+          } else {
+            logger.warn("[WORKER] Background isolate: No user authenticated.", category: 'BOOT');
+          }
+        }
 
         // Audit Check 5.1: Init critical services for background isolate
         await container.read(configServiceProvider).init();

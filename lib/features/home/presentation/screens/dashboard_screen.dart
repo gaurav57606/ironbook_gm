@@ -17,6 +17,7 @@ import '../widgets/member_health_donut.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/member_row.dart';
+import '../widgets/sync_health_banner.dart';
 import '../../../../shared/widgets/sync_status_indicator.dart';
 import '../../../../core/providers/notification_provider.dart';
 import 'package:go_router/go_router.dart';
@@ -65,6 +66,7 @@ class DashboardScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const SyncHealthBanner(),
                         Consumer(
                           builder: (context, ref, _) {
                             final memberStats = ref.watch(dashboardMemberStatsProvider);

@@ -13,6 +13,7 @@ import 'package:ironbook_gm/core/providers/payment_provider.dart';
 import 'package:ironbook_gm/core/providers/sale_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/logger_service.dart';
+import '../data/local/models/member_snapshot_model.dart';
 
 /// Service responsible for recovering all domain events from Firestore
 /// and rebuilding the local database cache.
@@ -44,6 +45,8 @@ class RecoveryService {
     logger.info('Starting event recovery for ${user.uid}', category: 'RECOVERY');
 
     try {
+      // 0. Fast-Path: Restore current state snapshots for immediate UI availability
+      await recoverSnapshots();
       // 1. Mandatory: Restore all available HMAC keys to support multi-device recovery
       final keyMap = await _hmac.restoreAllUserKeys();
       if (keyMap.isEmpty) {
@@ -162,6 +165,54 @@ class RecoveryService {
     } catch (e, stack) {
       logger.error('Recovery process failure', category: 'RECOVERY', error: e, stackTrace: stack);
       rethrow;
+    }
+  }
+
+  Future<void> recoverSnapshots() async {
+    final logger = _ref.read(loggerProvider);
+    if (_auth == null || _firestore == null) return;
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    logger.info('Restoring cloud snapshots for immediate availability...', category: 'RECOVERY');
+
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('snapshots')
+          .doc('members')
+          .collection('items')
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        logger.info('No cloud snapshots found.', category: 'RECOVERY');
+        return;
+      }
+
+      final memberRepo = _ref.read(memberRepositoryProvider);
+      int count = 0;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final member = MemberSnapshot.fromPayload(doc.id, data);
+        
+        // Security Check: Verify snapshot integrity before trusting it
+        final isValid = await _hmac.verifySnapshot(member.memberId, data, member.hmacSignature ?? '');
+        if (isValid) {
+          await memberRepo.upsertMember(member);
+          count++;
+        } else {
+          logger.warn('Snapshot integrity check failed for ${member.memberId}. Skipping.', category: 'RECOVERY');
+        }
+      }
+      
+      // Notify UI that we have some data
+      await _ref.read(membersProvider.notifier).init();
+      
+      logger.info('Snapshot restoration complete. Restored $count members.', category: 'RECOVERY');
+    } catch (e) {
+      logger.error('Snapshot restoration failed', category: 'RECOVERY', error: e);
+      // We don't fail the whole recovery if snapshots fail; event replay will still run.
     }
   }
 }

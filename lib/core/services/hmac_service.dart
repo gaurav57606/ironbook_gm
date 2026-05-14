@@ -56,10 +56,16 @@ class HmacService {
   }
 
   Future<bool> verifyCloudKeyPresence() async {
-    if (!isCloudReady) return false;
+    if (!isCloudReady) {
+      if (kDebugMode) debugPrint('HmacService: verifyCloudKeyPresence failed - cloud not ready');
+      return false;
+    }
     
     final user = _auth!.currentUser;
-    if (user == null) return false;
+    if (user == null) {
+      if (kDebugMode) debugPrint('HmacService: verifyCloudKeyPresence failed - no current user');
+      return false;
+    }
     
     final installationId = await getInstallationId();
     final doc = await _firestore!
@@ -163,7 +169,10 @@ class HmacService {
   Future<String> signSnapshot(String entityId, Map<String, dynamic> data) async {
     final keyStr = _testKey ?? await _getOrCreateKey();
     final keyBytes = base64Decode(keyStr);
-    final payloadJson = CanonicalJson.encode(data);
+    
+    // Create a copy and remove signature to ensure deterministic signing
+    final signableData = Map<String, dynamic>.from(data)..remove('hmacSignature');
+    final payloadJson = CanonicalJson.encode(signableData);
     final canonical = '$entityId|$payloadJson';
     
     final hmacSha256 = crypto.Hmac(crypto.sha256, keyBytes);

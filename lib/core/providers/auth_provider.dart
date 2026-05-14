@@ -261,7 +261,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (_firebaseAuth != null) {
         await _firebaseAuth.signOut();
       }
+
+      // Preserve installation identity to allow cryptographic recovery after re-login
+      final installationId = await _storage.read(key: 'installation_id');
+
       await _storage.deleteAll();
+      
+      if (installationId != null) {
+        await _storage.write(key: 'installation_id', value: installationId);
+        _ref.read(loggerProvider).info('Preserved installation_id during logout', category: 'AUTH');
+      }
 
       // OPTIMIZED: Parallel Hive clearing + Batched Drift clearing
       final boxes = ['members', 'payments', 'plans', 'settings', 'events', 'snapshots'];
