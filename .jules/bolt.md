@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2024-05-25 - [O(N) vs O(1) Reconciliations]
+**Learning:** Reconciling state by fetching all events (`_eventRepo.getAll()`) and then filtering them in memory causes a severe N+1 memory bloat and database scan pattern as the Outbox grows.
+**Action:** When a provider manages a specific domain entity (like `gym-plans` for `PlanNotifier`), always fetch events via the database-level index `await _eventRepo.getByEntityId('gym-plans')` to keep the operation O(1) in memory.
