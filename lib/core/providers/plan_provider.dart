@@ -64,8 +64,9 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   }
 
   Future<void> _reconcilePlans() async {
-    final allEvents = await _eventRepo.getAll();
-    final planEvents = allEvents.where((e) => e.eventType == EventType.plansUpdated).toList();
+    // ⚡ Bolt Performance Optimization: Filter at database level instead of in-memory.
+    // getByEntityId is O(1) indexed fetch vs getAll() which is O(N) loading every event into memory.
+    final planEvents = await _eventRepo.getByEntityId('gym-plans');
     
     if (planEvents.isEmpty) return;
 
