@@ -116,7 +116,11 @@ class RecoveryService {
           }
 
           if (!isValid) {
-            logger.warn('REJECTED event ${event.id} - HMAC mismatch', category: 'RECOVERY');
+            final reason = deviceKey == null ? 'Missing key for device ${event.deviceId}' : 'Signature mismatch';
+            logger.warn('REJECTED event ${event.id} (${event.eventType.name}) - $reason', category: 'RECOVERY');
+            
+            // Record mismatch to Crashlytics for production debugging
+            _ref.read(loggerProvider).setHealthSignal('recovery_rejection', event.id);
             tamperedCount++;
             continue;
           }
@@ -137,10 +141,14 @@ class RecoveryService {
       // Save checkpoint
       await _prefs.setInt('last_recovery_at', DateTime.now().millisecondsSinceEpoch);
 
-      logger.info('Event restoration complete. Recovered: $recoveredCount, Rejected: $tamperedCount', category: 'RECOVERY');
+      if (tamperedCount > 0) {
+        logger.critical('RECOVERY FINISHED WITH ERRORS: $tamperedCount events rejected. This indicates cryptographic or versioning issues.', category: 'RECOVERY');
+      } else {
+        logger.info('Event restoration complete. Recovered: $recoveredCount, All signatures valid.', category: 'RECOVERY');
+      }
       
       // 5. Rebuild All Local Caches (Event Sourcing)
-      logger.info('Triggering full state rebuild...', category: 'RECOVERY');
+      logger.info('Triggering full state rebuild for ${recoveredCount} new events...', category: 'RECOVERY');
       
       // We rebuild sequentially to avoid database lock contention if many writes happen
       await _ref.read(membersProvider.notifier).rebuildCache();

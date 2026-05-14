@@ -39,7 +39,7 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
   }
 
   void _handleBackground() {
-    _ref.read(loggerProvider).info('App moved to background/inactive. Locking session.', category: 'LIFECYCLE');
+    _ref.read(loggerProvider).info('App moved to background. Locking session.', category: 'LIFECYCLE');
     _ref.read(authProvider.notifier).lock();
   }
 

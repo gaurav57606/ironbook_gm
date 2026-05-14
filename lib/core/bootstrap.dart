@@ -161,9 +161,9 @@ class AppBootstrap {
           }
         }
 
-        // Notify AuthNotifier that Firebase is ready
+        // 1.3 Notify AuthNotifier that Firebase is ready and AWAIT readiness
         final auth = FirebaseAuth.instance;
-        container.read(authProvider.notifier).onFirebaseReady(auth);
+        await container.read(authProvider.notifier).onFirebaseReady(auth);
         
       } catch (e, stack) {
         logger.warn('Cloud services initialization failed or timed out: $e', category: 'FIREBASE', error: e, stackTrace: stack);

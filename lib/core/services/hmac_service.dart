@@ -20,6 +20,8 @@ class HmacService {
   static const _keyStorageName = 'hmac_device_key';
   
   HmacService(this._storage, this._auth, this._firestore, [this._config]);
+
+  bool get isCloudReady => _auth != null && _firestore != null;
   
   static String? _testKey;
   static void setKeyForTest(String key) => _testKey = key;
@@ -40,10 +42,34 @@ class HmacService {
   }
 
   Future<void> syncCurrentKeyToCloud() async {
+    if (!isCloudReady) {
+      throw Exception('HmacService: Cannot sync key to cloud. Firebase not initialized.');
+    }
+    
     final key = await _storage.read(key: _keyStorageName);
-    if (key != null) {
+    if (key == null) {
+      // If key is missing, create it first which will trigger backup
+      await _getOrCreateKey();
+    } else {
       await _backupKeyToFirestore(key);
     }
+  }
+
+  Future<bool> verifyCloudKeyPresence() async {
+    if (!isCloudReady) return false;
+    
+    final user = _auth!.currentUser;
+    if (user == null) return false;
+    
+    final installationId = await getInstallationId();
+    final doc = await _firestore!
+        .collection('users')
+        .doc(user.uid)
+        .collection('device_keys')
+        .doc(installationId)
+        .get();
+        
+    return doc.exists;
   }
 
   Future<String> getInstallationId() async {
@@ -57,9 +83,11 @@ class HmacService {
   }
 
   Future<void> _backupKeyToFirestore(String key) async {
-    final auth = _auth;
-    final firestore = _firestore;
-    if (auth == null || firestore == null) return;
+    if (!isCloudReady) {
+      throw Exception('HmacService: Backup failed. Firebase services unavailable.');
+    }
+    final auth = _auth!;
+    final firestore = _firestore!;
 
     final user = auth.currentUser;
     if (user == null) return;
@@ -116,8 +144,8 @@ class HmacService {
   static Future<String> signStatic(DomainEvent event, String keyStr) async {
     final keyBytes = base64Decode(keyStr);
     final payloadJson = CanonicalJson.encode(event.payload);
-    final canonical = '${event.id}|${event.entityId}|${event.eventType}|'
-        '${event.deviceTimestamp.toIso8601String()}|'
+    final canonical = '${event.id}|${event.entityId}|${event.eventType.name}|'
+        '${event.deviceTimestamp.toUtc().toIso8601String()}|'
         '$payloadJson|${event.deviceId}';
     
     final hmacSha256 = crypto.Hmac(crypto.sha256, keyBytes);

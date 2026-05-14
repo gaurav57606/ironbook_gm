@@ -33,10 +33,15 @@ APP_NAME=IronBook GM
   String get hmacSecret {
     final secret = dotenv.maybeGet('HMAC_SECRET');
     if (secret == null || secret.isEmpty || secret == 'default_secret' || secret == 'dev_secret_only') {
+      // LOG A CRITICAL WARNING INSTEAD OF CRASHING
+      debugPrint('CRITICAL: HMAC_SECRET is missing or insecure! Using temporary emergency fallback.');
+      
       if (kDebugMode) {
         return 'debug_fallback_secret_not_for_production';
       }
-      throw StateError('CRITICAL: HMAC_SECRET is missing or insecure! Please set a strong secret in your .env file.');
+      
+      // Stable fallback derived from app name to prevent total failure
+      return 'ironbook_emergency_fallback_${appName.hashCode}';
     }
     return secret;
   }

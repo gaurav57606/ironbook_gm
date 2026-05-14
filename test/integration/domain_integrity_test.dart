@@ -39,6 +39,7 @@ void main() {
       id: 'plan-1',
       name: 'Monthly',
       durationMonths: 1,
+      price: 1298,
       components: [PlanComponent(id: 'comp-1', name: 'Gym Access', price: 1298)],
     ));
   });

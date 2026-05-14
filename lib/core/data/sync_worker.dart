@@ -81,6 +81,19 @@ class SyncWorker {
     _ref.read(_statusProvider.notifier).state = SyncWorkerState(status: SyncWorkerStatus.syncing);
 
     try {
+      // 0. Provisioning Guard: Ensure cloud key exists before pushing events signed with it.
+      final hmac = _ref.read(hmacServiceProvider);
+      final isKeyProvisioned = await hmac.verifyCloudKeyPresence();
+      if (!isKeyProvisioned) {
+        _ref.read(loggerProvider).warn('Device key not found in cloud. Attempting provisioning...', category: 'SYNC');
+        try {
+          await hmac.syncCurrentKeyToCloud();
+          _ref.read(loggerProvider).info('Cloud key provisioned successfully.', category: 'SYNC');
+        } catch (provisionError) {
+          _ref.read(loggerProvider).error('Cloud key provisioning failed. Blocking sync.', category: 'SYNC', error: provisionError);
+          rethrow; // This will trigger the catch block below and handle lock release
+        }
+      }
       final unsynced = await _outboxRepo.getUnsyncedEvents();
       if (unsynced.isEmpty) {
          _ref.read(loggerProvider).info('Outbox empty, nothing to sync.', category: 'SYNC');

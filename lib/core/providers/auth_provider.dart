@@ -11,6 +11,7 @@ import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/owner_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/settings_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
@@ -69,6 +70,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final IOwnerRepository _ownerRepo;
   final ISettingsRepository _settingsRepo;
   final HmacService _hmacService;
+  final IPreferencesRepository _preferencesRepo;
   final Ref _ref;
   String _deviceId = 'device-unknown';
 
@@ -82,6 +84,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     this._ownerRepo,
     this._settingsRepo,
     this._hmacService,
+    this._preferencesRepo,
     this._ref,
   ) : super(AuthState()) {
     init();
@@ -100,7 +103,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     
     final pinHash = await _storage.read(key: 'pin_hash');
     final pinSalt = await _storage.read(key: 'pin_salt');
-    final onboardingDone = await _storage.read(key: 'onboarding_done');
+    
+    // MIGRATION: onboarding_done moved to PreferencesRepository (Drift)
+    String? onboardingDone = await _preferencesRepo.getString('onboarding_done');
+    final legacyOnboarding = await _storage.read(key: 'onboarding_done');
+    
+    if (onboardingDone == null && legacyOnboarding == 'true') {
+      await _preferencesRepo.setString('onboarding_done', 'true');
+      onboardingDone = 'true';
+    }
 
     bool isPinSetup = pinHash != null && pinSalt != null;
     if (pinHash != null && pinSalt == null) {
@@ -118,9 +129,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     final hasOwner = await _ownerRepo.getOwner() != null;
     
-    // Recovery Logic: If SecureStorage is cleared but DB has owner, restore flag
+    // Recovery Logic: If Preferences is cleared but DB has owner, restore flag
     if (onboardingDone != 'true' && hasOwner) {
-      await _storage.write(key: 'onboarding_done', value: 'true');
+      await _preferencesRepo.setString('onboarding_done', 'true');
+      onboardingDone = 'true';
     }
 
     if (mounted) {
@@ -133,11 +145,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  void onFirebaseReady(fb.FirebaseAuth auth) {
+  Future<void> onFirebaseReady(fb.FirebaseAuth auth) async {
     _authSubscription?.cancel();
+    
+    // Initial sync if user already logged in
+    if (auth.currentUser != null) {
+      await _syncAndRecover();
+    }
+
     _authSubscription = auth.authStateChanges().listen((user) async {
       final logger = _ref.read(loggerProvider);
-      logger.info('Firebase state change. User: ${user?.email ?? 'anonymous'}', category: 'AUTH');
+      logger.info('Firebase auth state change: ${user?.email ?? 'signed-out'}', category: 'AUTH');
       
       final wasNull = state.user == null;
       
@@ -149,27 +167,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isLoading: false,
         );
 
-        if (user != null) {
-          await _storage.write(key: 'onboarding_done', value: 'true');
-          
-          // CRITICAL: If this is a login transition (null -> user), 
-          // sync the new device key and start recovery.
-          if (wasNull) {
-            logger.info('New login detected. Starting identity sync and recovery...', category: 'AUTH');
-            await _hmacService.syncCurrentKeyToCloud();
-            _ref.read(recoveryServiceProvider).recoverAll();
-          }
+        if (user != null && wasNull) {
+          await _syncAndRecover();
         }
       }
     });
+  }
 
-    if (auth.currentUser != null) {
-      _ref.read(recoveryServiceProvider).recoverAll();
+  Future<void> _syncAndRecover() async {
+    final logger = _ref.read(loggerProvider);
+    try {
+      logger.info('Starting identity sync and recovery...', category: 'AUTH');
+      
+      // Ensure key is synced before recovery begins
+      await _hmacService.syncCurrentKeyToCloud().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => logger.warn('Key sync timed out, continuing recovery in degraded mode.', category: 'AUTH'),
+      );
+      
+      await _ref.read(recoveryServiceProvider).recoverAll();
+      
+      // Update onboarding status if recovery succeeded and we have an owner
+      final hasOwner = await _ownerRepo.getOwner() != null;
+      if (hasOwner) {
+        await _preferencesRepo.setString('onboarding_done', 'true');
+        state = state.copyWith(isFirstLaunch: false);
+      }
+    } catch (e) {
+      logger.error('Sync/Recovery failed during bootstrap: $e', category: 'AUTH', error: e);
     }
   }
 
   Future<void> completeOnboarding() async {
-    await _storage.write(key: 'onboarding_done', value: 'true');
+    await _preferencesRepo.setString('onboarding_done', 'true');
     state = state.copyWith(isFirstLaunch: false);
   }
 
@@ -199,7 +229,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
       );
       state = state.copyWith(authAttempts: 0);
-      await _storage.write(key: 'onboarding_done', value: 'true');
+      await _preferencesRepo.setString('onboarding_done', 'true');
       // Invalidate entitlement cache so fresh check runs after each login
       _ref.invalidate(entitlementStatusProvider);
       return true;
@@ -304,7 +334,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         
         await _eventRepo.persist(event);
         await _ownerRepo.upsertOwner(owner);
-        await _storage.write(key: 'onboarding_done', value: 'true');
+        await _preferencesRepo.setString('onboarding_done', 'true');
         
         _ref.read(syncWorkerProvider).performSync();
 
@@ -371,6 +401,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final settingsRepo = ref.watch(settingsRepositoryProvider);
   final firebaseAuth = ref.watch(firebaseAuthProvider);
   final hmac = ref.watch(hmacServiceProvider);
+  final preferences = ref.watch(preferencesRepositoryProvider);
   
   return AuthNotifier(
     storage, 
@@ -380,6 +411,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     ownerRepo, 
     settingsRepo, 
     hmac, 
+    preferences,
     ref
   );
 });

@@ -39,7 +39,7 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   Future<void> init() async {}
   
   @override
-  void onFirebaseReady(any) {}
+  Future<void> onFirebaseReady(fb.FirebaseAuth auth) async {}
   
   @override
   Future<void> completeOnboarding() async {
@@ -116,6 +116,7 @@ class MockFactory {
         id: 'fallback',
         name: 'fallback',
         durationMonths: 1,
+        price: 0,
         components: [],
         active: true,
       ));

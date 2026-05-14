@@ -161,20 +161,20 @@ class OutboxRepository {
   Stream<List<Notification>> watchNotifications() {
     return (_db.select(_db.notifications)
           ..orderBy([
-            (t) => OrderingTerm(expression: t.timestamp, mode: OrderMode.desc),
+            (t) => OrderingTerm(expression: t.timestamp, mode: OrderingMode.desc),
           ]))
         .watch();
   }
 
   Future<void> markNotificationAsRead(String id) async {
     await (_db.update(_db.notifications)..where((t) => t.id.equals(id))).write(
-      const NotificationsCompanion(isRead: Value(1)),
+      const NotificationsCompanion(isRead: Value(true)),
     );
   }
 
   Future<void> markAllNotificationsAsRead() async {
     await _db.update(_db.notifications).write(
-          const NotificationsCompanion(isRead: Value(1)),
+          const NotificationsCompanion(isRead: Value(true)),
         );
   }
 

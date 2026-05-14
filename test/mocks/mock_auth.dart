@@ -65,7 +65,7 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   }
 
   @override
-  void onFirebaseReady(dynamic auth) {}
+  Future<void> onFirebaseReady(fb.FirebaseAuth auth) async {}
 
   @override
   void lock() {

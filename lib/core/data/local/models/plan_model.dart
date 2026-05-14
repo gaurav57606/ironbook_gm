@@ -82,12 +82,14 @@ class Plan extends HiveObject {
       }
     }
 
+    final priceVal = d.price > 0 ? d.price : comps.fold(0.0, (sum, c) => sum + c.price);
+
     return Plan(
       id: d.id,
       name: d.name,
       durationMonths: d.durationMonths,
       active: d.active,
-      price: d.price,
+      price: priceVal,
       components: comps,
       hmacSignature: d.hmacSignature,
     );

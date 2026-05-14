@@ -165,13 +165,21 @@ class PlanAdapter extends TypeAdapter<Plan> {
 
   @override
   Plan read(BinaryReader reader) {
+    final id = reader.read() as String;
+    final name = reader.read() as String;
+    final durationMonths = (reader.read() as num).toInt();
+    final components = List<PlanComponent>.from(reader.read());
+    final active = reader.read() as bool;
+    final hmacSignature = reader.read() as String?;
+    
     return Plan(
-      id: reader.read() as String,
-      name: reader.read() as String,
-      durationMonths: (reader.read() as num).toInt(),
-      components: List<PlanComponent>.from(reader.read()),
-      active: reader.read() as bool,
-      hmacSignature: reader.read() as String?,
+      id: id,
+      name: name,
+      durationMonths: durationMonths,
+      components: components,
+      active: active,
+      hmacSignature: hmacSignature,
+      price: components.fold(0.0, (sum, c) => sum + c.price),
     );
   }
 
@@ -183,6 +191,7 @@ class PlanAdapter extends TypeAdapter<Plan> {
     writer.write(obj.components);
     writer.write(obj.active);
     writer.write(obj.hmacSignature);
+    writer.write(obj.price);
   }
 }
 

@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ironbook_gm/core/services/config_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/firebase_options.dart';
 import 'package:ironbook_gm/core/services/logger_service.dart';
@@ -24,11 +26,18 @@ class MidnightEngine {
       // 1. Initialize core binding for the background isolate
       WidgetsFlutterBinding.ensureInitialized();
       
+      // 2. Initialize environment (CRITICAL for background isolates)
       try {
-        // 2. Initialize critical local services
+        await dotenv.load(fileName: ".env");
+      } catch (e) {
+        debugPrint('[MidnightEngine] Background isolate: Failed to load .env: $e');
+      }
+
+      try {
+        // 3. Initialize critical local services
         final prefs = await SharedPreferences.getInstance();
         
-        // 3. Attempt Firebase init with options (Required for Release Mode)
+        // 4. Attempt Firebase init with options (Required for Release Mode)
         bool firebaseReady = false;
         try {
           await Firebase.initializeApp(
@@ -55,7 +64,8 @@ class MidnightEngine {
         final logger = container.read(loggerProvider);
         if (firebaseReady) logger.setFirebaseInitialized(true);
 
-        // Audit Check 5.1: Init NotificationService for persistence access
+        // Audit Check 5.1: Init critical services for background isolate
+        await container.read(configServiceProvider).init();
         await NotificationService.init(container);
         
         logger.info("[WORKER] Background task '$task' started.", category: 'BOOT');

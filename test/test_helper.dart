@@ -81,7 +81,7 @@ export 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 export 'package:ironbook_gm/features/billing/data/billing_repository.dart';
 export 'package:ironbook_gm/core/services/sync_coordinator.dart';
 export 'package:ironbook_gm/core/services/logger_service.dart';
-export 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Payment, Plan, Sale, Product, InvoiceSequence, OwnerProfile;
+export 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Payment, Plan, Sale, Product, InvoiceSequence, OwnerProfile, Notification;
 export 'package:ironbook_gm/core/data/local/drift/outbox_repository.dart';
 
 // Import and re-export mocks from integration_test/mocks
@@ -374,6 +374,7 @@ class FakeAuth extends AuthNotifier {
           MockOwnerRepo(),
           MockSettingsRepo(),
           FakeHmacService(),
+          MockPreferencesRepo(),
           MockRef(),
         ) {
     state = AuthState(
@@ -426,7 +427,7 @@ class FakeAuth extends AuthNotifier {
   }
 
   @override
-  void onFirebaseReady(dynamic auth) {} // Noop
+  Future<void> onFirebaseReady(fb.FirebaseAuth auth) async {} // Noop
 }
 
 class MockHmacService extends Mock implements HmacService {}
