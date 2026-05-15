@@ -185,6 +185,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     
     try {
       logger.info('Starting identity sync and recovery...', category: 'AUTH');
+
+      // FIX: Clear the recovery checkpoint HERE — at the top of _syncAndRecover()
+      // — not in login(). The previous placement in login() lost the race against
+      // authStateChanges(), which fires during signInWithEmailAndPassword() and
+      // triggers _syncAndRecover() BEFORE prefs.remove() could execute.
+      // By clearing it here, every recovery path (login, app-resume, auth callback)
+      // is guaranteed to fetch ALL events from Firestore from epoch.
+      final prefs = _ref.read(sharedPreferencesProvider);
+      await prefs.remove('last_recovery_at');
+      logger.info('Recovery checkpoint cleared — full event fetch from epoch.', category: 'AUTH');
       
       // 1. Ensure key is synced before recovery begins (with strict timeout)
       await _hmacService.syncCurrentKeyToCloud().timeout(
@@ -247,9 +257,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
       );
 
-      // Force full recovery on login by clearing the checkpoint
-      final prefs = _ref.read(sharedPreferencesProvider);
-      await prefs.remove('last_recovery_at');
+      // NOTE: DO NOT clear 'last_recovery_at' here. It is now cleared at the
+      // top of _syncAndRecover() to avoid the race condition where
+      // authStateChanges() fires DURING signInWithEmailAndPassword and
+      // triggers _syncAndRecover() before this line could execute.
 
       state = state.copyWith(authAttempts: 0);
       await _preferencesRepo.setString('onboarding_done', 'true');
