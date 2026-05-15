@@ -47,9 +47,12 @@ class RecoveryService {
 
     try {
       // 0. Fast-Path: Restore current state snapshots for immediate UI availability
-      await recoverSnapshots().timeout(
+      final snapshotCount = await recoverSnapshots().timeout(
         const Duration(seconds: 30),
-        onTimeout: () => logger.warn('Snapshot restoration timed out, proceeding to event replay.', category: 'RECOVERY'),
+        onTimeout: () {
+          logger.warn('Snapshot restoration timed out, proceeding to event replay.', category: 'RECOVERY');
+          return 0;
+        },
       );
 
       // 1. Mandatory: Restore all available HMAC keys to support multi-device recovery
@@ -185,6 +188,19 @@ class RecoveryService {
       await _ref.read(saleProvider.notifier).rebuildCache().timeout(rebuildTimeout);
       
       logger.info('Rebuild complete. Duration: ${rebuildStopwatch.elapsedMilliseconds}ms', category: 'RECOVERY');
+
+      // RECOVERY DIAGNOSTICS
+      final finalMembers = _ref.read(membersProvider);
+      logger.info(
+        '''
+        --- RECOVERY DIAGNOSTICS ---
+        Cloud Snapshots: $snapshotCount
+        Final Local Members: ${finalMembers.length}
+        Status: ${snapshotCount == finalMembers.length ? 'VERIFIED' : 'DRIFT DETECTED'}
+        ---------------------------
+        ''',
+        category: 'RECOVERY'
+      );
       logger.info('Recovery process successful.', category: 'RECOVERY');
     } catch (e, stack) {
       logger.error('Recovery process failure', category: 'RECOVERY', error: e, stackTrace: stack);
@@ -192,11 +208,11 @@ class RecoveryService {
     }
   }
 
-  Future<void> recoverSnapshots() async {
+  Future<int> recoverSnapshots() async {
     final logger = _ref.read(loggerProvider);
-    if (_auth == null || _firestore == null) return;
+    if (_auth == null || _firestore == null) return 0;
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) return 0;
 
     logger.info('Restoring cloud snapshots for immediate availability...', category: 'RECOVERY');
 
@@ -214,7 +230,23 @@ class RecoveryService {
 
       if (snapshot.docs.isEmpty) {
         logger.info('No cloud snapshots found for members. This is expected for new accounts.', category: 'RECOVERY');
-        return;
+        
+        // CHECK FOR EVENTS (Diagnostic fallback)
+        final eventCheck = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('events')
+            .limit(1)
+            .get()
+            .timeout(const Duration(seconds: 10));
+            
+        if (eventCheck.docs.isNotEmpty) {
+           logger.warn(
+             'CRITICAL: Events exist but snapshots are MISSING. Restoration will be slow (Event Replay required).', 
+             category: 'RECOVERY'
+           );
+        }
+        return 0;
       }
 
       final memberRepo = _ref.read(memberRepositoryProvider);
@@ -240,9 +272,11 @@ class RecoveryService {
       await _ref.read(membersProvider.notifier).init();
       
       logger.info('Snapshot restoration complete. Restored $count members.', category: 'RECOVERY');
+      return count;
     } catch (e) {
       logger.error('Snapshot restoration failed', category: 'RECOVERY', error: e);
       // We don't fail the whole recovery if snapshots fail; event replay will still run.
+      return 0;
     }
   }
 }

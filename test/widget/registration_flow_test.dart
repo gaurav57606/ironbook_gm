@@ -43,6 +43,7 @@ void main() {
         active: true,
         hmacSignature: '',
         componentsJson: '[]',
+        isSynced: true,
       );
 
       final domainPlan = domain_plan.Plan(

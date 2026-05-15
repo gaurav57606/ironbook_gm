@@ -11,6 +11,7 @@ import '../../../../core/data/local/models/member_snapshot_model.dart';
 import '../../../../core/providers/member_provider.dart';
 import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/data/sync_worker.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/sync_status_badge.dart';
 import '../widgets/member_health_donut.dart';
@@ -51,12 +52,37 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               if (membersLength == 0)
-                const SliverFillRemaining(
+                SliverFillRemaining(
                   hasScrollBody: false,
-                  child: AppEmptyState(
-                    title: 'Welcome to IronBook',
-                    icon: Icons.fitness_center_rounded,
-                    subtitle: 'Add your first member to start tracking growth.',
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final isRecovering = ref.watch(authProvider.select((s) => s.isRecovering));
+                      if (isRecovering) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircularProgressIndicator(color: AppColors.orange),
+                              AppSpacing.gapXL,
+                              Text(
+                                'Restoring your data...',
+                                style: AppTextStyles.cardTitle.copyWith(color: AppColors.primary),
+                              ),
+                              AppSpacing.gapXS,
+                              Text(
+                                'This may take a moment.',
+                                style: AppTextStyles.bodySmall,
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const AppEmptyState(
+                        title: 'Welcome to IronBook',
+                        icon: Icons.fitness_center_rounded,
+                        subtitle: 'Add your first member to start tracking growth.',
+                      );
+                    },
                   ),
                 )
               else

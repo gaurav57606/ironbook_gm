@@ -118,8 +118,12 @@ class DriftMemberRepository implements IMemberRepository {
 
   @override
   Future<void> archiveMember(String memberId) async {
-    await (_db.update(_db.members)..where((t) => t.id.equals(memberId)))
-        .write(MembersCompanion(archived: const Value(true)));
+    await (_db.update(_db.members)..where((t) => t.id.equals(memberId))).write(
+      MembersCompanion(
+        archived: const Value(true),
+        isSynced: const Value(false),
+      ),
+    );
   }
 
   @override

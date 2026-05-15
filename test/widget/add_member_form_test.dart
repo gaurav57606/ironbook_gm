@@ -112,6 +112,7 @@ void main() {
               active: true,
               hmacSignature: '',
               componentsJson: '[]',
+              isSynced: true,
             )
           ])),
         ],
@@ -155,6 +156,7 @@ void main() {
               active: true,
               hmacSignature: '',
               componentsJson: '[]',
+              isSynced: true,
             )
           ])),
         ],
@@ -209,6 +211,7 @@ void main() {
               active: true,
               hmacSignature: '',
               componentsJson: '[]',
+              isSynced: true,
             )
           ])),
         ],

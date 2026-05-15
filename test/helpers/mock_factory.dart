@@ -150,6 +150,7 @@ class MockFactory {
         planId: 'fallback',
         planName: 'fallback',
         hmacSignature: 'fallback',
+        isSynced: true,
       ));
     } catch (_) {}
   }

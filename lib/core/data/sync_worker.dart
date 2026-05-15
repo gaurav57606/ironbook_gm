@@ -226,10 +226,10 @@ class SyncWorker {
       final unsynced = await memberRepo.getUnsyncedMembers();
       if (unsynced.isEmpty) return;
 
-      logger.info('Syncing snapshots for ${unsynced.length} members...', category: 'SYNC');
+      logger.info('Queueing ${unsynced.length} snapshots for projection...', category: 'SYNC');
       
       final hmac = _ref.read(hmacServiceProvider);
-      final batch = FirebaseFirestore.instance.batch();
+      var batch = FirebaseFirestore.instance.batch();
       int count = 0;
       final List<String> syncedIds = [];
 
@@ -256,22 +256,47 @@ class SyncWorker {
         // Process in chunks of 400
         if (count >= 400) {
           await batch.commit();
+          
+          // Post-Upload Verification (Sample check)
+          final verifyDoc = await docRef.get();
+          if (!verifyDoc.exists) {
+            logger.warn('Snapshot verification FAILED for ${member.memberId} after batch commit', category: 'SYNC');
+          }
+
           for (final id in syncedIds) {
             await memberRepo.markSynced(id);
           }
+          batch = FirebaseFirestore.instance.batch();
           syncedIds.clear();
           count = 0;
         }
       }
-      
+
       if (count > 0) {
         await batch.commit();
+        
+        // Post-Upload Verification (Sample check for the last ID)
+        final lastId = syncedIds.last;
+        final verifyDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('snapshots')
+            .doc('members')
+            .collection('items')
+            .doc(lastId).get();
+        
+        if (verifyDoc.exists) {
+          logger.info('Snapshot verification successful for $lastId', category: 'SYNC');
+        } else {
+          logger.warn('Snapshot verification FAILED for $lastId after commit', category: 'SYNC');
+        }
+
         for (final id in syncedIds) {
           await memberRepo.markSynced(id);
         }
       }
       
-      logger.info('Snapshot sync complete.', category: 'SYNC');
+      logger.info('Successfully projected ${unsynced.length} snapshots to cloud.', category: 'SYNC');
     } catch (e) {
       logger.error('Failed to sync snapshots', category: 'SYNC', error: e);
       // We don't rethrow here because event sync already succeeded
