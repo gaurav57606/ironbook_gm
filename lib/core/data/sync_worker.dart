@@ -10,6 +10,8 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 import '../services/logger_service.dart';
 
 import 'package:ironbook_gm/core/services/notification_service.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 
 enum SyncWorkerStatus { idle, syncing, failed }
 
@@ -168,7 +170,7 @@ class SyncWorker {
       _ref.read(loggerProvider).info('Sync batch completed successfully', category: 'SYNC');
       
       // 3. Snapshot Projection Layer: Sync current state of affected entities
-      await _syncSnapshots(unsynced, uid);
+      await _syncSnapshots(uid);
 
       _ref.read(loggerProvider).setHealthSignal('last_sync_success', _lastSuccessAt!.toIso8601String());
       _ref.read(loggerProvider).setHealthSignal('sync_status', 'healthy');
@@ -216,48 +218,59 @@ class SyncWorker {
     }
   }
 
-  Future<void> _syncSnapshots(List<DomainEvent> syncedEvents, String uid) async {
-    final memberIds = syncedEvents.map((e) => e.entityId).toSet();
-    if (memberIds.isEmpty) return;
-
+  Future<void> _syncSnapshots(String uid) async {
     final memberRepo = _ref.read(memberRepositoryProvider);
     final logger = _ref.read(loggerProvider);
     
-    logger.info('Syncing snapshots for ${memberIds.length} affected members...', category: 'SYNC');
-    
     try {
+      final unsynced = await memberRepo.getUnsyncedMembers();
+      if (unsynced.isEmpty) return;
+
+      logger.info('Syncing snapshots for ${unsynced.length} members...', category: 'SYNC');
+      
+      final hmac = _ref.read(hmacServiceProvider);
       final batch = FirebaseFirestore.instance.batch();
       int count = 0;
+      final List<String> syncedIds = [];
 
-      for (final id in memberIds) {
-        final member = await memberRepo.getMember(id);
-        if (member != null) {
-          final hmac = _ref.read(hmacServiceProvider);
-          final signature = await hmac.signSnapshot(id, member.toFirestore());
-          final signedMember = member.copyWith(hmacSignature: signature);
-
-          final docRef = FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .collection('snapshots')
-              .doc('members')
-              .collection('items')
-              .doc(id);
-          
-          batch.set(docRef, signedMember.toFirestore());
-          count++;
+      for (final member in unsynced) {
+        // Ensure signed
+        String signature = member.hmacSignature ?? '';
+        if (signature.isEmpty) {
+          signature = await hmac.signSnapshot(member.memberId, member.toFirestore());
         }
+        final signedMember = member.copyWith(hmacSignature: signature);
+
+        final docRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('snapshots')
+            .doc('members')
+            .collection('items')
+            .doc(member.memberId);
         
-        // Firestore batch limit is 500
+        batch.set(docRef, signedMember.toFirestore());
+        syncedIds.add(member.memberId);
+        count++;
+        
+        // Process in chunks of 400
         if (count >= 400) {
           await batch.commit();
+          for (final id in syncedIds) {
+            await memberRepo.markSynced(id);
+          }
+          syncedIds.clear();
           count = 0;
         }
       }
       
       if (count > 0) {
         await batch.commit();
+        for (final id in syncedIds) {
+          await memberRepo.markSynced(id);
+        }
       }
+      
       logger.info('Snapshot sync complete.', category: 'SYNC');
     } catch (e) {
       logger.error('Failed to sync snapshots', category: 'SYNC', error: e);

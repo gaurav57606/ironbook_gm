@@ -30,6 +30,7 @@ class AuthState {
   final bool isPinSetup;
   final bool unlocked;
   final int authAttempts;
+  final bool isRecovering;
 
   AuthState({
     this.isLoading = true,
@@ -39,6 +40,7 @@ class AuthState {
     this.isPinSetup = false,
     this.unlocked = false,
     this.authAttempts = 0,
+    this.isRecovering = false,
   });
 
   AuthState copyWith({
@@ -49,6 +51,7 @@ class AuthState {
     bool? isPinSetup,
     bool? unlocked,
     int? authAttempts,
+    bool? isRecovering,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
@@ -58,6 +61,7 @@ class AuthState {
       isPinSetup: isPinSetup ?? this.isPinSetup,
       unlocked: unlocked ?? this.unlocked,
       authAttempts: authAttempts ?? this.authAttempts,
+      isRecovering: isRecovering ?? this.isRecovering,
     );
   }
 }
@@ -148,9 +152,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> onFirebaseReady(fb.FirebaseAuth auth) async {
     _authSubscription?.cancel();
     
-    // Initial sync if user already logged in
+    // Initial sync if user already logged in (BACKGROUND)
     if (auth.currentUser != null) {
-      await _syncAndRecover();
+      _syncAndRecover(); 
     }
 
     _authSubscription = auth.authStateChanges().listen((user) async {
@@ -168,7 +172,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
 
         if (user != null && wasNull) {
-          await _syncAndRecover();
+          _syncAndRecover();
         }
       }
     });
@@ -176,25 +180,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _syncAndRecover() async {
     final logger = _ref.read(loggerProvider);
+    if (mounted) state = state.copyWith(isRecovering: true);
+    
     try {
       logger.info('Starting identity sync and recovery...', category: 'AUTH');
       
-      // Ensure key is synced before recovery begins
+      // 1. Ensure key is synced before recovery begins (with strict timeout)
       await _hmacService.syncCurrentKeyToCloud().timeout(
         const Duration(seconds: 10),
         onTimeout: () => logger.warn('Key sync timed out, continuing recovery in degraded mode.', category: 'AUTH'),
       );
       
-      await _ref.read(recoveryServiceProvider).recoverAll();
+      // 2. Trigger Recovery (This still rebuilds caches, so it's heavy)
+      // Added 5 minute total timeout for recovery process
+      await _ref.read(recoveryServiceProvider).recoverAll().timeout(
+        const Duration(minutes: 5),
+        onTimeout: () => logger.error('Full recovery process timed out after 5 minutes.', category: 'AUTH'),
+      );
       
       // Update onboarding status if recovery succeeded and we have an owner
-      final hasOwner = await _ownerRepo.getOwner() != null;
-      if (hasOwner) {
+      final hasOwner = await _ownerRepo.getOwner().timeout(const Duration(seconds: 2));
+      if (hasOwner != null) {
         await _preferencesRepo.setString('onboarding_done', 'true');
-        state = state.copyWith(isFirstLaunch: false);
+        if (mounted) state = state.copyWith(isFirstLaunch: false);
       }
     } catch (e) {
       logger.error('Sync/Recovery failed during bootstrap: $e', category: 'AUTH', error: e);
+    } finally {
+      if (mounted) state = state.copyWith(isRecovering: false);
     }
   }
 

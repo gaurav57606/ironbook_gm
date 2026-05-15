@@ -31,17 +31,21 @@ typedef BootstrapResult = ({bool initialized});
 class AppBootstrap {
   static Future<BootstrapResult> initialize(ProviderContainer container) async {
     final logger = container.read(loggerProvider);
+    final stopwatch = Stopwatch()..start();
     logger.info('Starting Tier 1 (Native/Local) Initialization...', category: 'BOOT');
 
     try {
-      // 1. Safety Timeout: If Tier 1 takes > 10s, it's a likely ANR candidate
-      return await _runTier1(container).timeout(
-        const Duration(seconds: 10),
+      // 1. Safety Timeout: If Tier 1 takes > 5s, it's a likely ANR candidate
+      final result = await _runTier1(container).timeout(
+        const Duration(seconds: 5),
         onTimeout: () {
           logger.critical('TIER 1 INITIALIZATION TIMEOUT: Possible dead-lock or file system delay.', category: 'BOOT');
           return (initialized: false);
         },
       );
+      
+      logger.info('Tier 1 Startup took: ${stopwatch.elapsedMilliseconds}ms', category: 'BOOT');
+      return result;
     } catch (e, stack) {
       logger.critical('FATAL TIER 1 FAILURE: $e', category: 'BOOT', error: e, stackTrace: stack);
       container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Pending;
@@ -54,27 +58,19 @@ class AppBootstrap {
     
     // 1. Core Config
     logger.info('Initializing ConfigService...', category: 'BOOT');
-    await container.read(configServiceProvider).init();
+    await container.read(configServiceProvider).init().timeout(const Duration(seconds: 2));
     
     // 2. System UI Setup
     _setupSystemUI();
     
     // 3. Security Essentials (Secure Storage)
     logger.info('Initializing HMAC Service...', category: 'BOOT');
-    await container.read(hmacServiceProvider).getInstallationId();
+    await container.read(hmacServiceProvider).getInstallationId().timeout(const Duration(seconds: 3));
     
     // 4. Primary Database (Drift)
     logger.info('Opening Drift Outbox Database...', category: 'DB');
     // Accessing the database triggers initialization
     container.read(outboxDatabaseProvider);
-    
-    // Safety: Clear any stale sync locks on startup (Audit Check 4.3)
-    await container.read(syncCoordinatorProvider).clearAllLocks();
-    
-    if (kDebugMode) {
-      logger.info('Seeding debug data if empty...', category: 'DB');
-      await SeedData.seedIfEmpty(container);
-    }
     
     // 5. Tier 1 Success
     container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Ready;
@@ -99,10 +95,21 @@ class AppBootstrap {
 
   static Future<void> _runTier2(ProviderContainer container) async {
     final logger = container.read(loggerProvider);
+    final stopwatch = Stopwatch()..start();
     logger.info('Starting Tier 2 (Cloud/Background) Initialization...', category: 'BOOT');
     container.read(tier2StatusProvider.notifier).state = Tier2Status.pending;
     
     try {
+      // 0. Delayed Non-Essential Native Tasks (Moved from Tier 1)
+      try {
+        await container.read(syncCoordinatorProvider).clearAllLocks().timeout(const Duration(seconds: 2));
+        if (kDebugMode) {
+          await SeedData.seedIfEmpty(container).timeout(const Duration(seconds: 5));
+        }
+      } catch (e) {
+        logger.warn('Non-essential native initialization failed: $e', category: 'BOOT');
+      }
+
       // 1. Firebase & Cloud Services
       logger.info('Initializing Firebase...', category: 'FIREBASE');
       
@@ -114,7 +121,7 @@ class AppBootstrap {
         // Mark Firebase as initialized for providers and logger
         container.read(firebaseInitializedProvider.notifier).state = true;
         logger.setFirebaseInitialized(true);
-        logger.info('Firebase Initialized Successfully.', category: 'FIREBASE');
+        logger.info('Firebase Initialized Successfully (${stopwatch.elapsedMilliseconds}ms).', category: 'FIREBASE');
 
           // 1.1 Configure Monitoring (Connecting to early handlers from main.dart)
           if (!kIsWeb) {

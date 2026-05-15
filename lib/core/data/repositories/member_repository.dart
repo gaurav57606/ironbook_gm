@@ -9,8 +9,8 @@ import '../../services/hmac_service.dart';
 import '../../providers/base_providers.dart';
 
 abstract class IMemberRepository {
-  Future<void> upsertMember(MemberSnapshot member);
-  Future<void> upsertMembers(List<MemberSnapshot> members);
+  Future<void> upsertMember(MemberSnapshot member, {bool isSynced = false});
+  Future<void> upsertMembers(List<MemberSnapshot> members, {bool isSynced = false});
   Future<void> archiveMember(String memberId);
   Future<void> deleteMember(String id);
   Future<MemberSnapshot?> getMember(String id);
@@ -19,6 +19,8 @@ abstract class IMemberRepository {
   Stream<List<MemberSnapshot>> watchAllMembers();
   Future<void> applyEvent(DomainEvent event);
   Future<int> countActiveMembers();
+  Future<List<MemberSnapshot>> getUnsyncedMembers();
+  Future<void> markSynced(String id);
 }
 
 class DriftMemberRepository implements IMemberRepository {
@@ -28,7 +30,7 @@ class DriftMemberRepository implements IMemberRepository {
   DriftMemberRepository(this._db, this._hmac);
 
   @override
-  Future<void> upsertMember(MemberSnapshot member) async {
+  Future<void> upsertMember(MemberSnapshot member, {bool isSynced = false}) async {
     // Ensure signed
     String signature = member.hmacSignature ?? '';
     if (signature.isEmpty) {
@@ -52,13 +54,14 @@ class DriftMemberRepository implements IMemberRepository {
         checkInPin: Value(member.checkInPin),
         lastCheckIn: Value(member.lastCheckIn),
         hmacSignature: Value(signature),
+        isSynced: Value(isSynced),
       ),
       mode: InsertMode.insertOrReplace,
     );
   }
 
   @override
-  Future<void> upsertMembers(List<MemberSnapshot> members) async {
+  Future<void> upsertMembers(List<MemberSnapshot> members, {bool isSynced = false}) async {
     final List<MemberSnapshot> signedMembers = [];
 
     // Parallelize signing in chunks of 20 to balance isolate overhead and batch processing
@@ -92,6 +95,7 @@ class DriftMemberRepository implements IMemberRepository {
             checkInPin: Value(member.checkInPin),
             lastCheckIn: Value(member.lastCheckIn),
             hmacSignature: Value(member.hmacSignature ?? ''),
+            isSynced: Value(isSynced),
           ),
           mode: InsertMode.insertOrReplace,
         );
@@ -156,6 +160,18 @@ class DriftMemberRepository implements IMemberRepository {
       ..where(_db.members.archived.equals(false));
     final row = await query.getSingle();
     return row.read(countExp) ?? 0;
+  }
+  
+  @override
+  Future<List<MemberSnapshot>> getUnsyncedMembers() async {
+    final docs = await (_db.select(_db.members)..where((t) => t.isSynced.equals(false))).get();
+    return docs.map((d) => MemberSnapshot.fromDrift(d)).toList();
+  }
+
+  @override
+  Future<void> markSynced(String id) async {
+    await (_db.update(_db.members)..where((t) => t.id.equals(id)))
+        .write(MembersCompanion(isSynced: const Value(true)));
   }
 }
 

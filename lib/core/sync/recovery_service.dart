@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
@@ -42,22 +43,40 @@ class RecoveryService {
       return;
     }
 
-    logger.info('Starting event recovery for ${user.uid}', category: 'RECOVERY');
+    logger.info('Starting full event recovery process for user: ${user.uid}', category: 'RECOVERY');
 
     try {
       // 0. Fast-Path: Restore current state snapshots for immediate UI availability
-      await recoverSnapshots();
+      await recoverSnapshots().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => logger.warn('Snapshot restoration timed out, proceeding to event replay.', category: 'RECOVERY'),
+      );
+
       // 1. Mandatory: Restore all available HMAC keys to support multi-device recovery
-      final keyMap = await _hmac.restoreAllUserKeys();
+      final keyMap = await _hmac.restoreAllUserKeys().timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {
+          logger.error('HMAC key restoration timed out.', category: 'RECOVERY');
+          return <String, String>{};
+        },
+      );
+
       if (keyMap.isEmpty) {
         logger.debug('No security keys found on cloud. Attempting with local key only...', category: 'RECOVERY');
       }
 
       // Ensure current device key is in storage (for signing future events)
-      final installationId = await _hmac.getInstallationId();
-      final restored = await _hmac.restoreKeyFromFirestore(installationId);
+      final installationId = await _hmac.getInstallationId().timeout(const Duration(seconds: 5));
+      final restored = await _hmac.restoreKeyFromFirestore(installationId).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => false,
+      );
+      
       if (!restored) {
-        await _hmac.syncCurrentKeyToCloud();
+        await _hmac.syncCurrentKeyToCloud().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => logger.warn('Current key sync timed out.', category: 'RECOVERY'),
+        );
       }
 
       // Checkpoint Optimization
@@ -151,16 +170,21 @@ class RecoveryService {
       }
       
       // 5. Rebuild All Local Caches (Event Sourcing)
-      logger.info('Triggering full state rebuild for ${recoveredCount} new events...', category: 'RECOVERY');
+      final rebuildStopwatch = Stopwatch()..start();
+      logger.info('Triggering full state rebuild for $recoveredCount new events...', category: 'RECOVERY');
       
       // We rebuild sequentially to avoid database lock contention if many writes happen
-      await _ref.read(membersProvider.notifier).rebuildCache();
-      await _ref.read(ownerProvider.notifier).rebuildCache();
-      await _ref.read(settingsProvider.notifier).rebuildCache();
-      await _ref.read(planProvider.notifier).rebuildCache();
-      await _ref.read(paymentsProvider.notifier).rebuildCache();
-      await _ref.read(saleProvider.notifier).rebuildCache();
+      // Added timeouts to each rebuild to prevent total lockup
+      final rebuildTimeout = const Duration(seconds: 45);
       
+      await _ref.read(membersProvider.notifier).rebuildCache().timeout(rebuildTimeout);
+      await _ref.read(ownerProvider.notifier).rebuildCache().timeout(rebuildTimeout);
+      await _ref.read(settingsProvider.notifier).rebuildCache().timeout(rebuildTimeout);
+      await _ref.read(planProvider.notifier).rebuildCache().timeout(rebuildTimeout);
+      await _ref.read(paymentsProvider.notifier).rebuildCache().timeout(rebuildTimeout);
+      await _ref.read(saleProvider.notifier).rebuildCache().timeout(rebuildTimeout);
+      
+      logger.info('Rebuild complete. Duration: ${rebuildStopwatch.elapsedMilliseconds}ms', category: 'RECOVERY');
       logger.info('Recovery process successful.', category: 'RECOVERY');
     } catch (e, stack) {
       logger.error('Recovery process failure', category: 'RECOVERY', error: e, stackTrace: stack);
@@ -183,10 +207,13 @@ class RecoveryService {
           .collection('snapshots')
           .doc('members')
           .collection('items')
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 20));
+
+      logger.info('Snapshot query returned ${snapshot.docs.length} items from cloud.', category: 'RECOVERY');
 
       if (snapshot.docs.isEmpty) {
-        logger.info('No cloud snapshots found.', category: 'RECOVERY');
+        logger.info('No cloud snapshots found for members. This is expected for new accounts.', category: 'RECOVERY');
         return;
       }
 
@@ -202,7 +229,10 @@ class RecoveryService {
           await memberRepo.upsertMember(member);
           count++;
         } else {
-          logger.warn('Snapshot integrity check failed for ${member.memberId}. Skipping.', category: 'RECOVERY');
+          logger.error('Snapshot integrity failure for member: ${member.memberId}. REJECTED.', 
+            category: 'RECOVERY',
+            error: 'HMAC mismatch. Potential data tampering or key loss.'
+          );
         }
       }
       

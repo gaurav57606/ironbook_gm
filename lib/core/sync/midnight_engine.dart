@@ -62,6 +62,15 @@ class MidnightEngine {
         );
         
         final logger = container.read(loggerProvider);
+
+        // Audit Check 5.0: Initialize HMAC and verify identity for the background isolate
+        try {
+          final hmac = container.read(hmacServiceProvider);
+          final installationId = await hmac.getInstallationId();
+          logger.info("[WORKER] Background isolate: HMAC identity verified ($installationId)", category: 'BOOT');
+        } catch (hmacError) {
+          logger.error("[WORKER] Background isolate: HMAC identity verification failed", category: 'BOOT', error: hmacError);
+        }
         if (firebaseReady) {
           logger.setFirebaseInitialized(true);
           final auth = container.read(firebaseAuthProvider);

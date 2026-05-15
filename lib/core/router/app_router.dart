@@ -74,6 +74,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       if (tier2Status == Tier2Status.pending && path == '/') return null;
 
       // 3. Auth loading (Stay on splash while loading)
+      // Hydrated Startup: We no longer block on isRecovering.
       if (authState.isLoading) return null;
 
       final isAuth = authState.isAuthenticated;

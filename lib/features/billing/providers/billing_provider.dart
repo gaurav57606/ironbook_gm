@@ -108,6 +108,7 @@ class BillingNotifier {
         'quantity': i.quantity,
       }).toList()),
       hmacSignature: '',
+      isSynced: false,
     );
     await _repository.recordSale(sale);
   }

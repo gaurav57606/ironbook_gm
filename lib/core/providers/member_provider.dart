@@ -179,6 +179,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   set debugState(List<MemberSnapshot> members) => state = members;
 
   Future<void> init() async {
+    final stopwatch = Stopwatch()..start();
     try {
       _deviceId = await _hmac.getInstallationId();
 
@@ -228,7 +229,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       if (mounted) {
         state = members;
         _logger.info(
-          'Loaded ${state.length} members', 
+          'Loaded ${state.length} members in ${stopwatch.elapsedMilliseconds}ms', 
           category: 'STATE'
         );
       }
@@ -291,6 +292,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   }
 
   Future<void> rebuildCache() async {
+    final stopwatch = Stopwatch()..start();
     _logger.warn(
       'Manual full cache rebuild triggered.', 
       category: 'DB'
@@ -311,7 +313,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     // Reload state
     state = await _memberRepo.getAllMembers();
     _logger.info(
-      'Rebuild complete. ${state.length} members.', 
+      'Rebuild complete. ${state.length} members in ${stopwatch.elapsedMilliseconds}ms', 
       category: 'DB'
     );
   }

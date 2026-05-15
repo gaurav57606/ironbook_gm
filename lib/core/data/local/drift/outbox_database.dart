@@ -33,6 +33,7 @@ class Members extends Table {
   TextColumn get checkInPin => text().nullable()();
   DateTimeColumn get lastCheckIn => dateTime().nullable()();
   TextColumn get hmacSignature => text().withDefault(const Constant(''))();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -54,6 +55,7 @@ class Payments extends Table {
   RealColumn get gstRate => real().withDefault(const Constant(0))();
   TextColumn get componentsJson => text().nullable()();
   TextColumn get hmacSignature => text().withDefault(const Constant(''))();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -67,6 +69,7 @@ class Plans extends Table {
   BoolColumn get active => boolean().withDefault(const Constant(true))();
   TextColumn get componentsJson => text().nullable()();
   TextColumn get hmacSignature => text().withDefault(const Constant(''))();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -81,6 +84,7 @@ class Sales extends Table {
   TextColumn get invoiceNumber => text()();
   TextColumn get itemsJson => text()();
   TextColumn get hmacSignature => text().withDefault(const Constant(''))();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -138,6 +142,7 @@ class OwnerProfiles extends Table {
   RealColumn get dexterity => real().withDefault(const Constant(0.5))();
   TextColumn get selectedCharacterId => text().withDefault(const Constant('warrior'))();
   TextColumn get hmacSignature => text().nullable()();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {gymName};
@@ -153,6 +158,7 @@ class AppSettingsTable extends Table {
   TextColumn get businessType => text().withDefault(const Constant('Gym'))();
   DateTimeColumn get lastBackupAt => dateTime().nullable()();
   TextColumn get hmacSignature => text().nullable()();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 }
 
 class Notifications extends Table {
@@ -188,7 +194,7 @@ class OutboxDatabase extends _$OutboxDatabase {
   OutboxDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -240,6 +246,14 @@ class OutboxDatabase extends _$OutboxDatabase {
       }
       if (from < 13) {
         await m.createTable(notifications);
+      }
+      if (from < 14) {
+        await m.addColumn(members, members.isSynced as GeneratedColumn<Object>);
+        await m.addColumn(payments, payments.isSynced as GeneratedColumn<Object>);
+        await m.addColumn(plans, plans.isSynced as GeneratedColumn<Object>);
+        await m.addColumn(sales, sales.isSynced as GeneratedColumn<Object>);
+        await m.addColumn(ownerProfiles, ownerProfiles.isSynced as GeneratedColumn<Object>);
+        await m.addColumn(appSettingsTable, appSettingsTable.isSynced as GeneratedColumn<Object>);
       }
     },
   );
