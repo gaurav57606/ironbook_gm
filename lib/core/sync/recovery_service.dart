@@ -15,6 +15,7 @@ import 'package:ironbook_gm/core/providers/sale_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/logger_service.dart';
 import '../data/local/models/member_snapshot_model.dart';
+import '../data/local/snapshot_builder.dart';
 
 /// Service responsible for recovering all domain events from Firestore
 /// and rebuilding the local database cache.
@@ -176,7 +177,7 @@ class RecoveryService {
       final rebuildStopwatch = Stopwatch()..start();
       logger.info('Triggering full state rebuild for $recoveredCount new events...', category: 'RECOVERY');
       
-      final rebuildTimeout = const Duration(seconds: 45);
+      const rebuildTimeout = Duration(seconds: 45);
       
       await _ref.read(membersProvider.notifier).rebuildCache().timeout(rebuildTimeout);
       await _ref.read(ownerProvider.notifier).rebuildCache().timeout(rebuildTimeout);
@@ -227,23 +228,35 @@ class RecoveryService {
       logger.info('Snapshot query returned ${snapshot.docs.length} items from cloud.', category: 'RECOVERY');
 
       if (snapshot.docs.isEmpty) {
-        logger.info('No cloud snapshots found for members. This is expected for new accounts.', category: 'RECOVERY');
+        logger.info('No cloud snapshots found for members. Trying event-based reconstruction...', category: 'RECOVERY');
         
-        // CHECK FOR EVENTS (Diagnostic fallback)
-        final eventCheck = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('events')
-            .limit(1)
-            .get()
-            .timeout(const Duration(seconds: 10));
-            
-        if (eventCheck.docs.isNotEmpty) {
-           logger.warn(
-             'CRITICAL: Events exist but snapshots are MISSING. Restoration will be slow (Event Replay required).', 
-             category: 'RECOVERY'
-           );
+        // If no snapshots exist, try reading the events collection directly
+        // and rebuild member state from the most recent MEMBER_CREATED /
+        // PAYMENT_RECORDED events per memberId
+        final eventsQuery = await _firestore
+            .collection('users').doc(user.uid).collection('events')
+            .orderBy('deviceTimestamp', descending: false)
+            .get().timeout(const Duration(seconds: 20));
+        
+        if (eventsQuery.docs.isNotEmpty) {
+          final memberRepo = _ref.read(memberRepositoryProvider);
+          final Map<String, List<DomainEvent>> byEntity = {};
+          for (final doc in eventsQuery.docs) {
+            final event = DomainEvent.fromFirestore(doc.data());
+            byEntity.putIfAbsent(event.entityId, () => []).add(event);
+          }
+          int count = 0;
+          for (final entry in byEntity.entries) {
+            final rebuilt = SnapshotBuilder.rebuild(entry.value);
+            if (rebuilt != null && !rebuilt.archived) {
+              await memberRepo.upsertMember(rebuilt);
+              count++;
+            }
+          }
+          await _ref.read(membersProvider.notifier).refreshFromDB();
+          return count;
         }
+        
         return 0;
       }
 

@@ -12,6 +12,7 @@ import '../services/logger_service.dart';
 import 'package:ironbook_gm/core/services/notification_service.dart';
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
+import 'local/models/domain_event_model.dart';
 
 enum SyncWorkerStatus { idle, syncing, failed }
 
@@ -133,6 +134,41 @@ class SyncWorker {
             }
             
             await _outboxRepo.markBatchSynced(chunk.map((e) => e.id).toList());
+            
+            // Post-Event Snapshot Sync: Immediately update cloud snapshots for member creations/payments
+            // to ensure recovery path is populated even if periodic snapshot sync hasn't run.
+            for (final event in chunk) {
+              if (event.eventType == EventType.memberCreated || event.eventType == EventType.paymentRecorded) {
+                try {
+                  final member = await memberRepo.getMember(event.entityId);
+                  if (member != null) {
+                    final hmac = _ref.read(hmacServiceProvider);
+                    String signature = member.hmacSignature ?? '';
+                    if (signature.isEmpty) {
+                      signature = await hmac.signSnapshot(member.memberId, member.toFirestore());
+                    }
+                    final signedMember = member.copyWith(hmacSignature: signature);
+                    
+                    if (!const bool.fromEnvironment('FLUTTER_TEST')) {
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(uid)
+                          .collection('snapshots')
+                          .doc('members')
+                          .collection('items')
+                          .doc(member.memberId)
+                          .set(signedMember.toFirestore(), SetOptions(merge: true));
+                    } else {
+                      await _recordPusher('users/$uid/snapshots/members/items', member.memberId, signedMember.toFirestore());
+                    }
+                    await memberRepo.markSynced(member.memberId);
+                  }
+                } catch (snapError) {
+                  _ref.read(loggerProvider).error('Immediate snapshot push failed for ${event.entityId}', category: 'SYNC', error: snapError);
+                }
+              }
+            }
+
             _ref.read(loggerProvider).debug('Successfully synced chunk of ${chunk.length} items', category: 'SYNC');
           } catch (chunkError) {
             _ref.read(loggerProvider).error(

@@ -13,6 +13,7 @@ import 'package:ironbook_gm/core/data/repositories/owner_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/settings_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
+import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/security/pin_service.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
@@ -198,6 +199,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         onTimeout: () => logger.error('Full recovery process timed out after 5 minutes.', category: 'AUTH'),
       );
       
+      // 3. Immediately trigger sync to push any local unsynced events back to cloud
+      // This ensures bidirectional consistency (Cloud -> Local then Local -> Cloud)
+      _ref.read(syncCoordinatorProvider).triggerSync();
+      
       // Update onboarding status if recovery succeeded and we have an owner
       final hasOwner = await _ownerRepo.getOwner().timeout(const Duration(seconds: 2));
       if (hasOwner != null) {
@@ -241,6 +246,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
+
+      // Force full recovery on login by clearing the checkpoint
+      final prefs = _ref.read(sharedPreferencesProvider);
+      await prefs.remove('last_recovery_at');
+
       state = state.copyWith(authAttempts: 0);
       await _preferencesRepo.setString('onboarding_done', 'true');
       // Invalidate entitlement cache so fresh check runs after each login

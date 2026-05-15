@@ -246,7 +246,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     }
   }
 
-  Future<void> _reconcileSnapshots() async {
+  Future<void> _reconcileSnapshots({bool updateCheckpoint = true}) async {
     const prefKey = 'member_reconcile_ts';
     final lastCheckMs = await _prefRepo.getInt(prefKey) ?? 0;
     final lastCheckTime = DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
@@ -254,7 +254,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     final recentEvents = await _eventRepo.getEventsSince(lastCheckTime);
 
     if (recentEvents.isEmpty) {
-      await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+      if (updateCheckpoint) {
+        await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+      }
       return;
     }
 
@@ -284,7 +286,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       }
     }
 
-    await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+    if (updateCheckpoint) {
+      await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+    }
 
     if (updatedAny) {
       state = await _memberRepo.getAllMembers();
@@ -307,13 +311,17 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     );
 
     try {
+      // Yield to let any concurrent init() complete its reconciliation first
+      await Future.delayed(Duration.zero);
+
       // Step 2: Reset checkpoint so _reconcileSnapshots processes ALL events from epoch
       await _prefRepo.setInt('member_reconcile_ts', 0);
 
       // Step 3: Replay all events FIRST — do NOT archive existing rows before
       // confirming events exist. _reconcileSnapshots upserts rebuilt snapshots
       // which correctly overwrites stale rows via InsertMode.insertOrReplace.
-      await _reconcileSnapshots();
+      // Pass updateCheckpoint: false to avoid race conditions with concurrent reconciliations
+      await _reconcileSnapshots(updateCheckpoint: false);
 
       // Step 4: Read what event replay produced
       final rebuilt = await _memberRepo.getAllMembers();
