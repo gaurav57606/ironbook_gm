@@ -291,31 +291,95 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     }
   }
 
+  /// Rebuilds the member cache from the full event history.
+  /// SAFE: Saves backup before any writes. Only replaces state if event replay
+  /// produces results. Falls back to backup if event replay returns empty,
+  /// preventing snapshot data loss when events haven't synced yet.
   Future<void> rebuildCache() async {
     final stopwatch = Stopwatch()..start();
-    _logger.warn(
-      'Manual full cache rebuild triggered.', 
-      category: 'DB'
-    );
+    _logger.warn('Manual full cache rebuild triggered.', category: 'DB');
 
-    // Reset checkpoint so _reconcileSnapshots processes ALL events
-    await _prefRepo.setInt('member_reconcile_ts', 0);
-
-    // Clear all existing Drift rows so we start from scratch
-    final members = await _memberRepo.getAllMembers();
-    for (final m in members) {
-      await _memberRepo.archiveMember(m.memberId); // archive, not hard-delete
-    }
-
-    // Rebuild from full event history
-    await _reconcileSnapshots();
-
-    // Reload state
-    state = await _memberRepo.getAllMembers();
+    // Step 1: Save current in-memory state as safety backup before any DB writes
+    final backup = List<MemberSnapshot>.from(state);
     _logger.info(
-      'Rebuild complete. ${state.length} members in ${stopwatch.elapsedMilliseconds}ms', 
-      category: 'DB'
+      'rebuildCache: Backup saved — ${backup.length} members.',
+      category: 'DB',
     );
+
+    try {
+      // Step 2: Reset checkpoint so _reconcileSnapshots processes ALL events from epoch
+      await _prefRepo.setInt('member_reconcile_ts', 0);
+
+      // Step 3: Replay all events FIRST — do NOT archive existing rows before
+      // confirming events exist. _reconcileSnapshots upserts rebuilt snapshots
+      // which correctly overwrites stale rows via InsertMode.insertOrReplace.
+      await _reconcileSnapshots();
+
+      // Step 4: Read what event replay produced
+      final rebuilt = await _memberRepo.getAllMembers();
+
+      if (rebuilt.isNotEmpty) {
+        // Event replay succeeded — use the rebuilt state
+        state = rebuilt;
+        _logger.info(
+          'rebuildCache: Rebuilt ${state.length} members from events in '
+          '${stopwatch.elapsedMilliseconds}ms.',
+          category: 'DB',
+        );
+      } else if (backup.isNotEmpty) {
+        // Event replay produced nothing but we had snapshot data.
+        // Re-persist the backup snapshots to Drift and restore in-memory state.
+        // This handles the case where snapshots were synced but events are still
+        // pending (e.g. account migration, first install with cloud snapshots only).
+        _logger.warn(
+          'rebuildCache: Event replay produced 0 members. '
+          'Restoring ${backup.length} snapshot members as fallback.',
+          category: 'DB',
+        );
+        for (final m in backup) {
+          await _memberRepo.upsertMember(m);
+        }
+        state = backup;
+      } else {
+        // Both event replay and backup are empty — new account
+        state = [];
+        _logger.info(
+          'rebuildCache: 0 members after rebuild — account appears new.',
+          category: 'DB',
+        );
+      }
+    } catch (e, stack) {
+      // On any unhandled exception, immediately restore backup
+      // so the UI never goes blank due to a rebuild crash
+      _logger.error(
+        'rebuildCache: FAILED. Restoring ${backup.length} backup members.',
+        category: 'DB',
+        error: e,
+        stackTrace: stack,
+      );
+      if (backup.isNotEmpty) {
+        for (final m in backup) {
+          await _memberRepo.upsertMember(m);
+        }
+        state = backup;
+      }
+      rethrow;
+    }
+  }
+
+  /// Safe UI refresh — reloads state from Drift without re-initializing streams.
+  /// Called by RecoveryService after snapshot restoration instead of init().
+  /// This avoids creating duplicate StreamSubscriptions on the event table
+  /// and prevents member_reconcile_ts from being stamped prematurely.
+  Future<void> refreshFromDB() async {
+    final members = await _memberRepo.getAllMembers();
+    if (mounted) {
+      state = members;
+      _logger.info(
+        'refreshFromDB: Loaded ${members.length} members from Drift.',
+        category: 'STATE',
+      );
+    }
   }
 
   Future<String> addMember({
@@ -335,8 +399,6 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         'Ignoring rapid duplicate member creation for $phone', 
         category: 'STATE'
       );
-      // Return existing memberId if possible, but here we just return a dummy or wait
-      // For now, throwing an error is safer for "Production Hardening" to notify the user/system
       throw Exception('Request already in progress. Please wait.');
     }
     _recentCreations[phone] = now;
@@ -359,14 +421,12 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     final plan = await _planRepo.getPlan(planId);
     if (plan == null) throw Exception('Plan not found');
 
-    // Calculate expiry using authoritative service
-      // Safety Validation (Audit Check 1.6)
-      _membership.validateMembership(
-        joinDate: joinDate,
-        durationMonths: plan.durationMonths,
-      );
+    _membership.validateMembership(
+      joinDate: joinDate,
+      durationMonths: plan.durationMonths,
+    );
 
-      final expiryDate = _membership.calculateExpiry(
+    final expiryDate = _membership.calculateExpiry(
       startDate: joinDate,
       durationMonths: plan.durationMonths,
     );
@@ -422,7 +482,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       return memberId;
     } catch (e) {
       // Event or snapshot write failed — clean up any partial state
-      await _memberRepo.deleteMember(memberId); // safe: member was never valid
+      await _memberRepo.deleteMember(memberId);
       _logger.error(
         'addMember failed for $memberId', 
         category: 'STATE', 
@@ -451,8 +511,6 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         category: 'TRANSACTION'
       );
       await _eventRepo.persist(archiveEvent);
-
-      // Archive in Drift — keep the row, mark as archived
       await _memberRepo.archiveMember(memberId);
       _logger.info(
         'deleteMember transaction complete', 
@@ -495,8 +553,6 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         category: 'TRANSACTION'
       );
       await _eventRepo.persist(updateEvent);
-
-      // Apply directly to Drift without waiting for watch stream
       await _memberRepo.applyEvent(updateEvent);
       _logger.info(
         'updateMember transaction complete', 

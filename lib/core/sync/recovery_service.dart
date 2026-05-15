@@ -176,8 +176,6 @@ class RecoveryService {
       final rebuildStopwatch = Stopwatch()..start();
       logger.info('Triggering full state rebuild for $recoveredCount new events...', category: 'RECOVERY');
       
-      // We rebuild sequentially to avoid database lock contention if many writes happen
-      // Added timeouts to each rebuild to prevent total lockup
       final rebuildTimeout = const Duration(seconds: 45);
       
       await _ref.read(membersProvider.notifier).rebuildCache().timeout(rebuildTimeout);
@@ -273,8 +271,12 @@ class RecoveryService {
         }
       }
       
-      // Notify UI that we have some data
-      await _ref.read(membersProvider.notifier).init();
+      // FIXED: Use refreshFromDB() instead of init() to avoid creating a
+      // duplicate StreamSubscription and to prevent checkpoint corruption.
+      // init() was causing: (1) double event stream listeners, (2) member_reconcile_ts
+      // being stamped to NOW which made the subsequent rebuildCache() find 0 events,
+      // which then archived all snapshots and returned an empty member list.
+      await _ref.read(membersProvider.notifier).refreshFromDB();
       
       logger.info('Snapshot restoration complete. Restored $count members.', category: 'RECOVERY');
       return count;
