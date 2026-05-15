@@ -205,7 +205,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                     _buildPaymentChips(isSaving),
                     AppSpacing.gapXL,
                     AppButton(
-                      key: const Key('btn-register'),
+                      key: const Key('register_button'),
                       text: isSaving ? 'Registering...' : 'Register & Generate Invoice',
                       onPressed: (isSaving || plans.isEmpty) ? null : _handleSave,
                     ),

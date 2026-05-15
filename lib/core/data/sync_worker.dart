@@ -96,61 +96,64 @@ class SyncWorker {
           rethrow; // This will trigger the catch block below and handle lock release
         }
       }
-      final unsynced = await _outboxRepo.getUnsyncedEvents();
-      if (unsynced.isEmpty) {
-         _ref.read(loggerProvider).info('Outbox empty, nothing to sync.', category: 'SYNC');
+      final unsyncedEvents = await _outboxRepo.getUnsyncedEvents();
+      final memberRepo = _ref.read(memberRepositoryProvider);
+      final unsyncedSnapshots = await memberRepo.getUnsyncedMembers();
+
+      if (unsyncedEvents.isEmpty && unsyncedSnapshots.isEmpty) {
+         _ref.read(loggerProvider).info('Nothing to sync (Events: 0, Snapshots: 0).', category: 'SYNC');
          _consecutiveFailures = 0; 
          await _prefs.setInt('sync_consecutive_failures', 0);
          return;
       }
 
-      _ref.read(loggerProvider).info('Starting batch sync for ${unsynced.length} events', category: 'SYNC');
+      if (unsyncedEvents.isNotEmpty) {
+        _ref.read(loggerProvider).info('Starting batch sync for ${unsyncedEvents.length} events', category: 'SYNC');
 
-      // Audit Check: Use Firestore WriteBatch for atomic, high-throughput sync
-      // Process in chunks of 50 (Firestore limit)
-      for (var i = 0; i < unsynced.length; i += 50) {
-        final chunk = unsynced.skip(i).take(50).toList();
-        _ref.read(loggerProvider).debug('Processing sync chunk: ${chunk.length} items', category: 'SYNC');
-        
-        try {
-          if (!const bool.fromEnvironment('FLUTTER_TEST')) {
-            final batch = FirebaseFirestore.instance.batch();
-            for (final event in chunk) {
-              final docRef = FirebaseFirestore.instance.collection('users/$uid/events').doc(event.id);
-              batch.set(docRef, event.toFirestore());
-            }
-            await batch.commit().timeout(const Duration(seconds: 30));
-          } else {
-            // In tests, we still use the recordPusher for compatibility with mocks
-            for (final event in chunk) {
-              await _recordPusher('users/$uid/events', event.id, event.toFirestore())
-                  .timeout(const Duration(seconds: 15));
-            }
-          }
+        // Audit Check: Use Firestore WriteBatch for atomic, high-throughput sync
+        // Process in chunks of 50 (Firestore limit)
+        for (var i = 0; i < unsyncedEvents.length; i += 50) {
+          final chunk = unsyncedEvents.skip(i).take(50).toList();
+          _ref.read(loggerProvider).debug('Processing sync chunk: ${chunk.length} items', category: 'SYNC');
           
-          await _outboxRepo.markBatchSynced(chunk.map((e) => e.id).toList());
-          _ref.read(loggerProvider).debug('Successfully synced chunk of ${chunk.length} items', category: 'SYNC');
-        } catch (chunkError) {
-          _ref.read(loggerProvider).error(
-            'Failed to sync chunk starting at index $i', 
-            category: 'SYNC', 
-            error: chunkError
-          );
-          
-          // Operational Resilience: Fallback to individual sync for this chunk to identify problematic items
-          // This prevents one bad document from blocking the entire batch.
-          _ref.read(loggerProvider).info('Falling back to individual sync for problematic chunk...', category: 'SYNC');
-          for (final event in chunk) {
-            try {
-              await _recordPusher('users/$uid/events', event.id, event.toFirestore())
-                  .timeout(const Duration(seconds: 15));
-              await _outboxRepo.markSynced(event.id);
-            } catch (itemError) {
-              _ref.read(loggerProvider).error('Individual sync failure for event ${event.id}', category: 'SYNC', error: itemError);
-              // If it's a network error, rethrow to trigger backoff
-              final errorStr = itemError.toString().toLowerCase();
-              if (errorStr.contains('network') || errorStr.contains('unavailable') || errorStr.contains('deadline')) {
-                rethrow;
+          try {
+            if (!const bool.fromEnvironment('FLUTTER_TEST')) {
+              final batch = FirebaseFirestore.instance.batch();
+              for (final event in chunk) {
+                final docRef = FirebaseFirestore.instance.collection('users/$uid/events').doc(event.id);
+                batch.set(docRef, event.toFirestore());
+              }
+              await batch.commit().timeout(const Duration(seconds: 30));
+            } else {
+              // In tests, we still use the recordPusher for compatibility with mocks
+              for (final event in chunk) {
+                await _recordPusher('users/$uid/events', event.id, event.toFirestore())
+                    .timeout(const Duration(seconds: 15));
+              }
+            }
+            
+            await _outboxRepo.markBatchSynced(chunk.map((e) => e.id).toList());
+            _ref.read(loggerProvider).debug('Successfully synced chunk of ${chunk.length} items', category: 'SYNC');
+          } catch (chunkError) {
+            _ref.read(loggerProvider).error(
+              'Failed to sync chunk starting at index $i', 
+              category: 'SYNC', 
+              error: chunkError
+            );
+            
+            // Operational Resilience: Fallback to individual sync for this chunk to identify problematic items
+            _ref.read(loggerProvider).info('Falling back to individual sync for problematic chunk...', category: 'SYNC');
+            for (final event in chunk) {
+              try {
+                await _recordPusher('users/$uid/events', event.id, event.toFirestore())
+                    .timeout(const Duration(seconds: 15));
+                await _outboxRepo.markSynced(event.id);
+              } catch (itemError) {
+                _ref.read(loggerProvider).error('Individual sync failure for event ${event.id}', category: 'SYNC', error: itemError);
+                final errorStr = itemError.toString().toLowerCase();
+                if (errorStr.contains('network') || errorStr.contains('unavailable') || errorStr.contains('deadline')) {
+                  rethrow;
+                }
               }
             }
           }
@@ -224,9 +227,12 @@ class SyncWorker {
     
     try {
       final unsynced = await memberRepo.getUnsyncedMembers();
-      if (unsynced.isEmpty) return;
+      if (unsynced.isEmpty) {
+        logger.debug('No unsynced snapshots found.', category: 'SYNC');
+        return;
+      }
 
-      logger.info('Queueing ${unsynced.length} snapshots for projection...', category: 'SYNC');
+      logger.info('SYNC: Snapshot push started for ${unsynced.length} members...', category: 'SYNC');
       
       final hmac = _ref.read(hmacServiceProvider);
       var batch = FirebaseFirestore.instance.batch();
@@ -234,38 +240,63 @@ class SyncWorker {
       final List<String> syncedIds = [];
 
       for (final member in unsynced) {
+        logger.debug('SYNC: Preparing snapshot for ${member.memberId} (${member.name})', category: 'SYNC');
+        
         // Ensure signed
         String signature = member.hmacSignature ?? '';
         if (signature.isEmpty) {
+          logger.debug('SYNC: Generating missing HMAC for ${member.memberId}', category: 'SYNC');
           signature = await hmac.signSnapshot(member.memberId, member.toFirestore());
         }
         final signedMember = member.copyWith(hmacSignature: signature);
 
-        final docRef = FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('snapshots')
-            .doc('members')
-            .collection('items')
-            .doc(member.memberId);
-        
-        batch.set(docRef, signedMember.toFirestore());
+        if (!const bool.fromEnvironment('FLUTTER_TEST')) {
+          final docRef = FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('snapshots')
+              .doc('members')
+              .collection('items')
+              .doc(member.memberId);
+          
+          final payload = signedMember.toFirestore();
+          logger.debug('SYNC: Adding to batch: users/$uid/snapshots/members/items/${member.memberId} (Size: ${payload.toString().length} chars)', category: 'SYNC');
+          
+          batch.set(docRef, payload);
+        } else {
+          // In tests, we use the recordPusher
+          await _recordPusher('users/$uid/snapshots/members/items', member.memberId, signedMember.toFirestore());
+        }
         syncedIds.add(member.memberId);
         count++;
         
-        // Process in chunks of 400
-        if (count >= 400) {
-          await batch.commit();
-          
-          // Post-Upload Verification (Sample check)
-          final verifyDoc = await docRef.get();
-          if (!verifyDoc.exists) {
-            logger.warn('Snapshot verification FAILED for ${member.memberId} after batch commit', category: 'SYNC');
+        // Process in chunks of 100 (more conservative than 500 for snapshots which are larger)
+        if (count >= 100) {
+          if (!const bool.fromEnvironment('FLUTTER_TEST')) {
+            logger.info('SYNC: Committing batch of $count snapshots...', category: 'SYNC');
+            await batch.commit();
+            logger.info('SYNC: Batch commit successful.', category: 'SYNC');
           }
-
+          
+          // Post-Upload Verification
           for (final id in syncedIds) {
             await memberRepo.markSynced(id);
           }
+          
+          if (!const bool.fromEnvironment('FLUTTER_TEST')) {
+            // Sample check for the last ID in this batch
+            final lastId = syncedIds.last;
+            final verifyDoc = await FirebaseFirestore.instance
+                .collection('users/$uid/snapshots/members/items')
+                .doc(lastId).get();
+            
+            if (verifyDoc.exists) {
+              logger.info('SYNC: Verification successful for $lastId', category: 'SYNC');
+            } else {
+              logger.error('SYNC: Verification FAILED for $lastId after commit!', category: 'SYNC');
+            }
+          }
+
           batch = FirebaseFirestore.instance.batch();
           syncedIds.clear();
           count = 0;
@@ -273,22 +304,26 @@ class SyncWorker {
       }
 
       if (count > 0) {
-        await batch.commit();
-        
-        // Post-Upload Verification (Sample check for the last ID)
-        final lastId = syncedIds.last;
-        final verifyDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('snapshots')
-            .doc('members')
-            .collection('items')
-            .doc(lastId).get();
-        
-        if (verifyDoc.exists) {
-          logger.info('Snapshot verification successful for $lastId', category: 'SYNC');
-        } else {
-          logger.warn('Snapshot verification FAILED for $lastId after commit', category: 'SYNC');
+        if (!const bool.fromEnvironment('FLUTTER_TEST')) {
+          logger.info('SYNC: Committing final batch of $count snapshots...', category: 'SYNC');
+          await batch.commit();
+          logger.info('SYNC: Final batch commit successful.', category: 'SYNC');
+          
+          // Sample check for the last ID
+          final lastId = syncedIds.last;
+          final verifyDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('snapshots')
+              .doc('members')
+              .collection('items')
+              .doc(lastId).get();
+          
+          if (verifyDoc.exists) {
+            logger.info('SYNC: Final verification successful for $lastId', category: 'SYNC');
+          } else {
+            logger.error('SYNC: Final verification FAILED for $lastId after commit!', category: 'SYNC');
+          }
         }
 
         for (final id in syncedIds) {

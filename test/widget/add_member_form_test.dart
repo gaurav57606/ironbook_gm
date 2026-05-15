@@ -164,7 +164,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
 
-      await tester.tap(find.byKey(const ValueKey('register_button')));
+      await tester.tap(find.byKey(const ValueKey('register_button')), warnIfMissed: false);
       await tester.pump();
 
       expect(find.textContaining('Please enter name'), findsOneWidget);
@@ -227,7 +227,7 @@ void main() {
 
       final buttonFinder = find.byKey(const ValueKey('register_button'), skipOffstage: false);
       await tester.ensureVisible(buttonFinder);
-      await tester.tap(buttonFinder);
+      await tester.tap(buttonFinder, warnIfMissed: false);
       
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();

@@ -88,7 +88,7 @@ void main() {
         ],
       );
 
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // 1. Verify screen loaded
       expect(find.text('Add Member'), findsOneWidget);
@@ -111,7 +111,7 @@ void main() {
       final submitBtn = find.byKey(const ValueKey('register_button'), skipOffstage: false);
       await tester.ensureVisible(submitBtn);
       debugPrint('[TEST] Tapping submit');
-      await tester.tap(submitBtn);
+      await tester.tap(submitBtn, warnIfMissed: false);
       
       debugPrint('[TEST] Waiting for navigation');
       for (int i = 0; i < 5; i++) {

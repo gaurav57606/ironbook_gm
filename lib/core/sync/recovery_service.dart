@@ -255,6 +255,11 @@ class RecoveryService {
         final data = doc.data();
         final member = MemberSnapshot.fromPayload(doc.id, data);
         
+        logger.debug(
+          'RECOVERY: Processed snapshot for ${member.name} (Last Updated: ${member.lastUpdated.toIso8601String()})',
+          category: 'RECOVERY'
+        );
+        
         // Security Check: Verify snapshot integrity before trusting it
         final isValid = await _hmac.verifySnapshot(member.memberId, data, member.hmacSignature ?? '');
         if (isValid) {
