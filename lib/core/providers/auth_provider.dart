@@ -179,67 +179,108 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> init() async {
     final logger = _ref.read(loggerProvider);
+    logger.info('[BOOT] AuthNotifier: Starting initialization...', category: 'AUTH');
 
-    // ── CRITICAL FIX ──────────────────────────────────────────────────────────
-    // FlutterSecureStorage.read() on Android calls into the Android Keystore
-    // which can deadlock indefinitely if the keystore is not yet initialized.
-    // FIX: Read only from PreferencesRepository (Drift) and SharedPreferences here.
-    // All FlutterSecureStorage reads are deferred to onFirebaseReady().
-    // ──────────────────────────────────────────────────────────────────────────
-
-    // 1. Check onboarding status from Drift (safe, no Keystore)
-    String? onboardingDone = await _preferencesRepo.getString('onboarding_done');
-
-    // 2. Check PIN from SharedPreferences flag (no Keystore).
-    final prefs = _ref.read(sharedPreferencesProvider);
-    final bool isPinSetup = prefs.getBool('pin_configured') ?? false;
-
-    // 3. Legacy migration: if old SecureStorage flag exists, read it ONCE
-    //    after a delay so it never blocks init.
-    unawaited(Future.delayed(const Duration(seconds: 3), () async {
-      try {
-        if (!prefs.containsKey('pin_configured')) {
-          final pinHash = await _storage.read(key: 'pin_hash').timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => null,
-          );
-          final hasPinInSecureStorage = pinHash != null;
-          await prefs.setBool('pin_configured', hasPinInSecureStorage);
-          if (hasPinInSecureStorage && mounted) {
-            state = state.copyWith(isPinSetup: true);
-            logger.info('Migrated PIN flag from SecureStorage to SharedPreferences.', category: 'AUTH');
-          }
-        }
-      } catch (e) {
-        logger.warn('PIN migration check failed (non-fatal): $e', category: 'AUTH');
-      }
-    }));
-
-    // 4. Load owner + settings from Drift (safe, no Keystore)
     try {
-      await _ownerRepo.getOwner().timeout(const Duration(seconds: 3));
-      await _settingsRepo.getSettings().timeout(const Duration(seconds: 3));
-    } catch (e) {
-      logger.error('Failed to load owner/settings: $e', category: 'AUTH');
-    }
+      // 1. Check onboarding status from Drift (safe, no Keystore)
+      logger.info('[BOOT] AuthNotifier: Checking onboarding status...', category: 'AUTH');
+      String? onboardingDone;
+      try {
+        onboardingDone = await _preferencesRepo.getString('onboarding_done').timeout(const Duration(seconds: 2));
+      } catch (e) {
+        logger.warn('[BOOT] AuthNotifier: Onboarding status check timed out/failed: $e', category: 'AUTH');
+      }
 
-    final hasOwner = await _ownerRepo.getOwner() != null;
+      // 2. Check PIN from SharedPreferences flag (no Keystore).
+      logger.info('[BOOT] AuthNotifier: Checking PIN status...', category: 'AUTH');
+      final prefs = _ref.read(sharedPreferencesProvider);
+      final bool isPinSetup = prefs.getBool('pin_configured') ?? false;
 
-    if (onboardingDone != 'true' && hasOwner) {
-      await _preferencesRepo.setString('onboarding_done', 'true');
-      onboardingDone = 'true';
-    }
+      // 3. Legacy migration: if old SecureStorage flag exists, read it ONCE
+      //    after a delay so it never blocks init.
+      unawaited(Future.delayed(const Duration(seconds: 3), () async {
+        try {
+          if (!prefs.containsKey('pin_configured')) {
+            logger.info('[BOOT] AuthNotifier: Running delayed PIN migration check...', category: 'AUTH');
+            final pinHash = await _storage.read(key: 'pin_hash').timeout(
+              const Duration(seconds: 5),
+              onTimeout: () => null,
+            );
+            final hasPinInSecureStorage = pinHash != null;
+            await prefs.setBool('pin_configured', hasPinInSecureStorage);
+            if (hasPinInSecureStorage && mounted) {
+              state = state.copyWith(isPinSetup: true);
+              logger.info('[BOOT] AuthNotifier: Migrated PIN flag from SecureStorage.', category: 'AUTH');
+            }
+          }
+        } catch (e) {
+          logger.warn('[BOOT] AuthNotifier: PIN migration check failed (non-fatal): $e', category: 'AUTH');
+        }
+      }));
 
-    if (mounted) {
-      logger.info(
-        'AuthNotifier init complete. PIN: $isPinSetup, FirstLaunch: ${onboardingDone != 'true' && !hasOwner}',
-        category: 'AUTH',
-      );
-      state = state.copyWith(
-        isPinSetup: isPinSetup,
-        isFirstLaunch: onboardingDone != 'true' && !hasOwner,
-        isLoading: false,
-      );
+      // 4. Load owner + settings from Drift (safe, no Keystore)
+      logger.info('[BOOT] AuthNotifier: Loading owner/settings...', category: 'AUTH');
+      try {
+        await _ownerRepo.getOwner().timeout(const Duration(seconds: 2));
+        await _settingsRepo.getSettings().timeout(const Duration(seconds: 2));
+      } catch (e) {
+        logger.error('[BOOT] AuthNotifier: Failed to load owner/settings: $e', category: 'AUTH');
+      }
+
+      final hasOwner = (await _ownerRepo.getOwner().timeout(const Duration(seconds: 1), onTimeout: () => null)) != null;
+
+      if (onboardingDone != 'true' && hasOwner) {
+        await _preferencesRepo.setString('onboarding_done', 'true').timeout(const Duration(seconds: 1));
+        onboardingDone = 'true';
+      }
+
+      if (mounted) {
+        final isFirstLaunch = onboardingDone != 'true' && !hasOwner;
+        logger.info(
+          '[BOOT] AuthNotifier: Init milestones reached. PIN: $isPinSetup, FirstLaunch: $isFirstLaunch',
+          category: 'AUTH',
+        );
+        state = state.copyWith(
+          isPinSetup: isPinSetup,
+          isFirstLaunch: isFirstLaunch,
+        );
+      }
+    } catch (e, stack) {
+      logger.critical('[BOOT] AuthNotifier: Fatal error in init(): $e', category: 'AUTH', error: e, stackTrace: stack);
+    } finally {
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+        logger.info('[BOOT] AuthNotifier: isLoading set to FALSE. UI unblocked.', category: 'AUTH');
+
+        // If Firebase is already initialized (app resume, not first launch),
+        // immediately wire up the auth listener. This handles the case where
+        // Tier 2 already ran but init() hadn't started the auth subscription.
+        try {
+          if (_firebaseAuth != null) {
+            final currentUser = _firebaseAuth.currentUser;
+            if (currentUser != null && mounted) {
+              state = state.copyWith(
+                user: currentUser,
+                isAuthenticated: true,
+                isFirstLaunch: false,
+              );
+            }
+            // Start the auth subscription regardless so future sign-in/out events work
+            _authSubscription?.cancel();
+            _authSubscription = _firebaseAuth.authStateChanges().listen((user) {
+              if (mounted) {
+                state = state.copyWith(
+                  user: user,
+                  isAuthenticated: user != null,
+                  isFirstLaunch: user != null ? false : state.isFirstLaunch,
+                );
+              }
+            });
+          }
+        } catch (e) {
+          // Firebase not yet initialized — onFirebaseReady() will handle it
+        }
+      }
     }
   }
 

@@ -15,6 +15,7 @@ import 'package:ironbook_gm/core/data/repositories/preferences_repository.dart';
 import 'local/models/domain_event_model.dart';
 
 enum SyncWorkerStatus { idle, syncing, failed }
+enum SyncHealthStatus { healthy, warning, critical, neverSynced }
 
 class SyncWorkerState {
   final SyncWorkerStatus status;
@@ -445,14 +446,9 @@ final syncWorkerProvider = Provider<SyncWorker>((ref) {
         return;
       }
       logger.debug('Pushing to $coll/$id', category: 'FIREBASE');
-      final dbRef = FirebaseFirestore.instance.collection(coll).doc(id);
-      final existing = await dbRef.get();
-      if (!existing.exists) {
-        await dbRef.set(data);
-        logger.debug('Successfully pushed $id', category: 'FIREBASE');
-      } else {
-        logger.debug('Document $id already exists, skipping.', category: 'FIREBASE');
-      }
+      await FirebaseFirestore.instance.collection(coll).doc(id)
+          .set(data, SetOptions(merge: true));
+      logger.debug('Successfully pushed $id', category: 'FIREBASE');
     },
     () {
       if (!ref.read(firebaseInitializedProvider)) return null;
@@ -471,18 +467,25 @@ final unsyncedCountProvider = StreamProvider<int>((ref) {
   return outboxRepo.watchUnsyncedCount();
 });
 
-final syncHealthProvider = FutureProvider<bool>((ref) async {
+final syncHealthStatusProvider = FutureProvider<SyncHealthStatus>((ref) async {
   final prefs = ref.watch(preferencesRepositoryProvider);
   final lastSyncStr = await prefs.getString('last_successful_sync_at');
-  if (lastSyncStr == null) return true; // Never synced yet, assume okay or pending
-
+  if (lastSyncStr == null) return SyncHealthStatus.neverSynced;
   try {
     final lastSync = DateTime.parse(lastSyncStr);
     final diff = DateTime.now().difference(lastSync);
-    return diff.inDays < 7;
+    if (diff.inDays >= 7) return SyncHealthStatus.critical;
+    if (diff.inDays >= 5) return SyncHealthStatus.warning;
+    return SyncHealthStatus.healthy;
   } catch (_) {
-    return true;
+    return SyncHealthStatus.neverSynced;
   }
+});
+
+@Deprecated('Use syncHealthStatusProvider instead')
+final syncHealthProvider = FutureProvider<bool>((ref) async {
+  final status = await ref.watch(syncHealthStatusProvider.future);
+  return status == SyncHealthStatus.healthy;
 });
 
 

@@ -175,6 +175,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   final SyncCoordinator _coordinator;
   final LoggerService _logger;
   String _deviceId = 'device-unknown';
+  bool _isRebuilding = false;
   StreamSubscription? _eventSubscription;
 
   // Duplicate Prevention: Track recent creations to avoid rapid double-taps
@@ -207,7 +208,16 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   Future<void> init() async {
     final stopwatch = Stopwatch()..start();
     try {
-      _deviceId = await _hmac.getInstallationId();
+      unawaited(Future.microtask(() async {
+        try {
+          _deviceId = await _hmac.getInstallationId().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => 'device-fallback',
+          );
+        } catch (_) {
+          _deviceId = 'device-fallback';
+        }
+      }));
 
       // 1. Real-time updates via Event Bus (Single Source of Truth)
       _eventSubscription = _eventRepo.watch().listen((event) async {
@@ -326,6 +336,12 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   /// produces results. Falls back to backup if event replay returns empty,
   /// preventing snapshot data loss when events haven't synced yet.
   Future<void> rebuildCache() async {
+    if (_isRebuilding) {
+      _logger.warn('rebuildCache: Already in progress, skipping.', category: 'DB');
+      return;
+    }
+    _isRebuilding = true;
+
     final stopwatch = Stopwatch()..start();
     _logger.warn('Manual full cache rebuild triggered.', category: 'DB');
 
@@ -337,19 +353,27 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     );
 
     try {
-      // Yield to let any concurrent init() complete its reconciliation first
+      // Yield to let any concurrent operations breathe
       await Future.delayed(Duration.zero);
 
-      // Step 2: Reset checkpoint so _reconcileSnapshots processes ALL events from epoch
-      await _prefRepo.setInt('member_reconcile_ts', 0);
+      // Step 2: Directly replay ALL events from the event log
+      // This ensures we ignore any potentially corrupted snapshots in Drift
+      // and rebuild everything from the source of truth (events).
+      final allEvents = await _eventRepo.getAllEvents(); 
+      final Map<String, List<DomainEvent>> byEntity = {};
+      
+      for (final e in allEvents) {
+        byEntity.putIfAbsent(e.entityId, () => []).add(e);
+      }
 
-      // Step 3: Replay all events FIRST — do NOT archive existing rows before
-      // confirming events exist. _reconcileSnapshots upserts rebuilt snapshots
-      // which correctly overwrites stale rows via InsertMode.insertOrReplace.
-      // Pass updateCheckpoint: false to avoid race conditions with concurrent reconciliations
-      await _reconcileSnapshots(updateCheckpoint: false);
+      for (final entry in byEntity.entries) {
+        final rebuilt = SnapshotBuilder.rebuild(entry.value);
+        if (rebuilt != null) {
+          await _memberRepo.upsertMember(rebuilt);
+        }
+      }
 
-      // Step 4: Read what event replay produced
+      // Step 3: Read what event replay produced
       final rebuilt = await _memberRepo.getAllMembers();
 
       if (rebuilt.isNotEmpty) {
@@ -363,8 +387,6 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       } else if (backup.isNotEmpty) {
         // Event replay produced nothing but we had snapshot data.
         // Re-persist the backup snapshots to Drift and restore in-memory state.
-        // This handles the case where snapshots were synced but events are still
-        // pending (e.g. account migration, first install with cloud snapshots only).
         _logger.warn(
           'rebuildCache: Event replay produced 0 members. '
           'Restoring ${backup.length} snapshot members as fallback.',
@@ -384,7 +406,6 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       }
     } catch (e, stack) {
       // On any unhandled exception, immediately restore backup
-      // so the UI never goes blank due to a rebuild crash
       _logger.error(
         'rebuildCache: FAILED. Restoring ${backup.length} backup members.',
         category: 'DB',
@@ -398,6 +419,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         state = backup;
       }
       rethrow;
+    } finally {
+      _isRebuilding = false;
     }
   }
 

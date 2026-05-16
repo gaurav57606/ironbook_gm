@@ -45,6 +45,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
   ref.onDispose(() => refreshListenable.dispose());
   ref.listen(authProvider.select((s) => s.isAuthenticated), (_, __) => refreshListenable.value++);
   ref.listen(authProvider.select((s) => s.isFirstLaunch), (_, __) => refreshListenable.value++);
+  ref.listen(authProvider.select((s) => s.isLoading), (_, __) => refreshListenable.value++);
   ref.listen(authProvider.select((s) => s.isPinSetup), (_, __) => refreshListenable.value++);
   ref.listen(authProvider.select((s) => s.unlocked), (_, __) => refreshListenable.value++);
   ref.listen(tier2StatusProvider, (_, __) => refreshListenable.value++);

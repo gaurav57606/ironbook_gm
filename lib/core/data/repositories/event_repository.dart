@@ -12,7 +12,7 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 abstract class IEventRepository {
   Future<void> persist(DomainEvent event);
   Future<List<DomainEvent>> getAllUnsynced();
-  Future<List<DomainEvent>> getAll(); 
+  Future<List<DomainEvent>> getAllEvents(); 
   Future<DomainEvent?> getById(String id);
   Future<List<DomainEvent>> getByEntityId(String entityId);
   Future<Map<String, List<DomainEvent>>> getByEntityIds(List<String> entityIds);
@@ -64,7 +64,7 @@ class DriftEventRepository implements IEventRepository {
   }
 
   @override
-  Future<List<DomainEvent>> getAll() async {
+  Future<List<DomainEvent>> getAllEvents() async {
     final docs = await _db.select(_db.outboxEvents).get();
     final List<DomainEvent> validEvents = [];
     final List<String> toMarkVerified = [];

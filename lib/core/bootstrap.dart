@@ -192,22 +192,19 @@ class AppBootstrap {
         await container.read(authProvider.notifier).onFirebaseReady(auth).timeout(const Duration(seconds: 10));
         logger.info('Auth session restored.', category: 'BOOT');
 
-        // Seed purge: after auth, fully non-blocking
-        if (kDebugMode) {
-          unawaited(Future(() async {
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
-                logger.info('Starting one-time seed purge...', category: 'BOOT');
-                await SeedData.purgeSeedMembers(container).timeout(const Duration(seconds: 30));
-                await prefs.setBool('seed_purge_done_v1', true);
-                logger.info('Seed purge complete.', category: 'BOOT');
-              }
-            } catch (e) {
-              logger.warn('Seed purge failed (non-fatal): $e', category: 'BOOT');
+        // Seed purge: after auth, fully non-blocking. Runs once per install.
+        unawaited(Future(() async {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
+              await SeedData.purgeSeedMembers(container);
+              await prefs.setBool('seed_purge_done_v1', true);
+              logger.info('Seed purge complete.', category: 'BOOT');
             }
-          }));
-        }
+          } catch (e) {
+            logger.warn('Seed purge failed (non-fatal): $e', category: 'BOOT');
+          }
+        }));
 
       } catch (e, stack) {
         // Firebase failed — continue to degraded, do NOT rethrow
