@@ -199,7 +199,7 @@ class MembersListScreen extends ConsumerWidget {
                             const Divider(height: 1),
                             ...MemberSortOption.values.map((opt) => ListTile(
                               tileColor: AppColors.elevation1,
-                              title: Text(labels[opt]!, style: AppTextStyles.bodyMedium),
+                              title: Text(labels[opt]!, style: AppTextStyles.body),
                               trailing: sort == opt
                                 ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 18)
                                 : null,

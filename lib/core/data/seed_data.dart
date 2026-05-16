@@ -5,6 +5,7 @@ import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
 import 'package:ironbook_gm/core/data/repositories/product_repository.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'local/models/product_model.dart';
 import 'local/models/domain_event_model.dart';
 import 'local/models/member_snapshot_model.dart';
@@ -36,9 +37,11 @@ class SeedData {
     final pinService = container.read(pinServiceProvider);
     final storage = container.read(appSecureStorageProvider);
 
-    final events = await eventRepo.getAll();
-    if (events.isNotEmpty) {
-      debugPrint('SeedData: Database not empty. Skipping seeding.');
+    // NEW - survives logout and app reinstall:
+    final prefs = await SharedPreferences.getInstance();
+    final alreadySeeded = prefs.getBool('seed_data_injected_v1') ?? false;
+    if (alreadySeeded) {
+      debugPrint('SeedData: Already seeded on this device. Skipping.');
       return;
     }
 
@@ -160,7 +163,22 @@ class SeedData {
       final signed = m.copyWith(hmacSignature: signature);
       await memberRepo.upsertMember(signed);
     }
-    debugPrint('SeedData: Seeding complete.');
+
+    await prefs.setBool('seed_data_injected_v1', true);
+    debugPrint('SeedData: Seeding complete. Flag written.');
+  }
+
+  static Future<void> purgeSeedMembers(ProviderContainer container) async {
+    final memberRepo = container.read(memberRepositoryProvider);
+    final allMembers = await memberRepo.getAllMembers();
+    final seedPhones = ['9876543210','9876543211','9876543212',
+                        '9876543213','9876543214','9876543215','9876543216'];
+    for (final m in allMembers) {
+      if (seedPhones.contains(m.phone)) {
+        await memberRepo.deleteMember(m.memberId);
+        debugPrint('SeedData: Purged dummy member ${m.name}');
+      }
+    }
   }
 
   static MemberSnapshot _makeMember(String name, String phone, String planId, String planName,

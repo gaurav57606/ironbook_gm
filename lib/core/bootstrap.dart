@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../firebase_options.dart';
 
@@ -104,7 +105,11 @@ class AppBootstrap {
       try {
         await container.read(syncCoordinatorProvider).clearAllLocks().timeout(const Duration(seconds: 2));
         if (kDebugMode) {
-          await SeedData.seedIfEmpty(container).timeout(const Duration(seconds: 5));
+          final prefs = await SharedPreferences.getInstance();
+          if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
+            await SeedData.purgeSeedMembers(container);
+            await prefs.setBool('seed_purge_done_v1', true);
+          }
         }
       } catch (e) {
         logger.warn('Non-essential native initialization failed: $e', category: 'BOOT');

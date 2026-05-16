@@ -12,17 +12,17 @@ import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
-import 'package:collection/collection.dart';
-
-enum MemberSortOption { expiryAsc, expiryDesc, nameAz, nameZa, joinNewest }
-
-final memberSortProvider = StateProvider<MemberSortOption>((ref) => MemberSortOption.expiryAsc);
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/services/notification_service.dart';
 import 'dart:async';
+import 'package:collection/collection.dart';
+
+enum MemberSortOption { expiryAsc, expiryDesc, nameAz, nameZa, joinNewest }
+
+final memberSortProvider = StateProvider<MemberSortOption>((ref) => MemberSortOption.expiryAsc);
 
 final membersProvider =
     StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
