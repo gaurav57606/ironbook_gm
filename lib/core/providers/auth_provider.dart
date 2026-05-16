@@ -102,29 +102,58 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> init() async {
-    _deviceId = await _hmacService.getInstallationId();
-
     final logger = _ref.read(loggerProvider);
-    
-    final pinHash = await _storage.read(key: 'pin_hash');
-    final pinSalt = await _storage.read(key: 'pin_salt');
-    
-    // MIGRATION: onboarding_done moved to PreferencesRepository (Drift)
+
+    // ── CRITICAL FIX ──────────────────────────────────────────────────────────
+    // FlutterSecureStorage.read() on Android calls into the Android Keystore
+    // which can deadlock indefinitely if the keystore is not yet initialized
+    // (fresh install, post-wipe, emulator without hardware keystore).
+    //
+    // The router redirect watches authState.isLoading. If isLoading stays true
+    // forever (because init() never completes), the splash screen is permanent.
+    //
+    // FIX: Read only from PreferencesRepository (Drift/SQLite) and
+    // SharedPreferences here. All FlutterSecureStorage reads are deferred to
+    // onFirebaseReady() where they are actually needed and Firebase is alive.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // _deviceId is only needed for event signing — defer to onFirebaseReady
+    // where HmacService is fully initialized with auth + firestore context.
+    // Default value 'device-unknown' is safe for the init phase.
+
+    // 1. Check onboarding status from Drift (safe, no Keystore)
     String? onboardingDone = await _preferencesRepo.getString('onboarding_done');
-    final legacyOnboarding = await _storage.read(key: 'onboarding_done');
-    
-    if (onboardingDone == null && legacyOnboarding == 'true') {
-      await _preferencesRepo.setString('onboarding_done', 'true');
-      onboardingDone = 'true';
-    }
 
-    bool isPinSetup = pinHash != null && pinSalt != null;
-    if (pinHash != null && pinSalt == null) {
-      await _storage.delete(key: 'pin_hash');
-      isPinSetup = false;
-    }
+    // 2. Check PIN from SharedPreferences flag (no Keystore).
+    //    We store a lightweight boolean flag in prefs to avoid the Keystore
+    //    during startup. The actual pin_hash/salt are only read during
+    //    authentication where the user is already on the PIN screen.
+    final prefs = _ref.read(sharedPreferencesProvider);
+    final bool isPinSetup = prefs.getBool('pin_configured') ?? false;
 
-    // Trigger repo loading
+    // 3. Legacy migration: if old SecureStorage flag exists, read it ONCE
+    //    in a fire-and-forget manner after a small delay so it never blocks init.
+    unawaited(Future.delayed(const Duration(seconds: 3), () async {
+      try {
+        if (!prefs.containsKey('pin_configured')) {
+          // Safe to call now — app is already rendered, keystore is warmed up
+          final pinHash = await _storage.read(key: 'pin_hash').timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => null,
+          );
+          final hasPinInSecureStorage = pinHash != null;
+          await prefs.setBool('pin_configured', hasPinInSecureStorage);
+          if (hasPinInSecureStorage && mounted) {
+            state = state.copyWith(isPinSetup: true);
+            logger.info('Migrated PIN flag from SecureStorage to SharedPreferences.', category: 'AUTH');
+          }
+        }
+      } catch (e) {
+        logger.warn('PIN migration check failed (non-fatal): $e', category: 'AUTH');
+      }
+    }));
+
+    // 4. Load owner + settings from Drift (safe, no Keystore)
     try {
       await _ownerRepo.getOwner();
       await _settingsRepo.getSettings();
@@ -133,15 +162,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     final hasOwner = await _ownerRepo.getOwner() != null;
-    
-    // Recovery Logic: If Preferences is cleared but DB has owner, restore flag
+
+    // 5. Recovery: If prefs cleared but DB has owner, restore flag
     if (onboardingDone != 'true' && hasOwner) {
       await _preferencesRepo.setString('onboarding_done', 'true');
       onboardingDone = 'true';
     }
 
     if (mounted) {
-      logger.info('Initializing AuthNotifier. PIN set: $isPinSetup, First launch: ${onboardingDone != 'true' && !hasOwner}', category: 'AUTH');
+      logger.info(
+        'AuthNotifier init complete. PIN: $isPinSetup, FirstLaunch: ${onboardingDone != 'true' && !hasOwner}',
+        category: 'AUTH',
+      );
+      // ✅ This sets isLoading=false, which unblocks the router redirect
       state = state.copyWith(
         isPinSetup: isPinSetup,
         isFirstLaunch: onboardingDone != 'true' && !hasOwner,
@@ -151,19 +184,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> onFirebaseReady(fb.FirebaseAuth auth) async {
+    // Safe to read SecureStorage now — Firebase is initialized, keystore is warmed up
+    try {
+      _deviceId = await _hmacService.getInstallationId().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => 'device-timeout-fallback',
+      );
+    } catch (e) {
+      _ref.read(loggerProvider).warn('getInstallationId failed in onFirebaseReady: $e', category: 'AUTH');
+    }
+
     _authSubscription?.cancel();
-    
-    // Initial sync if user already logged in (BACKGROUND)
+
     if (auth.currentUser != null) {
-      _syncAndRecover(); 
+      _syncAndRecover();
     }
 
     _authSubscription = auth.authStateChanges().listen((user) async {
       final logger = _ref.read(loggerProvider);
       logger.info('Firebase auth state change: ${user?.email ?? 'signed-out'}', category: 'AUTH');
-      
+
       final wasNull = state.user == null;
-      
+
       if (mounted) {
         state = state.copyWith(
           user: user,
@@ -182,45 +224,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _syncAndRecover() async {
     final logger = _ref.read(loggerProvider);
     if (mounted) state = state.copyWith(isRecovering: true);
-    
+
     try {
       logger.info('Starting identity sync and recovery...', category: 'AUTH');
 
-      // FIX: Clear the recovery checkpoint HERE — at the top of _syncAndRecover()
-      // — not in login(). The previous placement in login() lost the race against
-      // authStateChanges(), which fires during signInWithEmailAndPassword() and
-      // triggers _syncAndRecover() BEFORE prefs.remove() could execute.
-      // By clearing it here, every recovery path (login, app-resume, auth callback)
-      // is guaranteed to fetch ALL events from Firestore from epoch.
       final prefs = _ref.read(sharedPreferencesProvider);
       await prefs.remove('last_recovery_at');
-      logger.info('Recovery checkpoint cleared — full event fetch from epoch.', category: 'AUTH');
-      
-      // 1. Ensure key is synced before recovery begins (with strict timeout)
+      logger.info('Recovery checkpoint cleared.', category: 'AUTH');
+
       await _hmacService.syncCurrentKeyToCloud().timeout(
         const Duration(seconds: 10),
-        onTimeout: () => logger.warn('Key sync timed out, continuing recovery in degraded mode.', category: 'AUTH'),
+        onTimeout: () => logger.warn('Key sync timed out, continuing in degraded mode.', category: 'AUTH'),
       );
-      
-      // 2. Trigger Recovery (This still rebuilds caches, so it's heavy)
-      // Added 5 minute total timeout for recovery process
+
       await _ref.read(recoveryServiceProvider).recoverAll().timeout(
         const Duration(minutes: 5),
-        onTimeout: () => logger.error('Full recovery process timed out after 5 minutes.', category: 'AUTH'),
+        onTimeout: () => logger.error('Full recovery timed out after 5 minutes.', category: 'AUTH'),
       );
-      
-      // 3. Immediately trigger sync to push any local unsynced events back to cloud
-      // This ensures bidirectional consistency (Cloud -> Local then Local -> Cloud)
+
       _ref.read(syncCoordinatorProvider).triggerSync();
-      
-      // Update onboarding status if recovery succeeded and we have an owner
+
       final hasOwner = await _ownerRepo.getOwner().timeout(const Duration(seconds: 2));
       if (hasOwner != null) {
         await _preferencesRepo.setString('onboarding_done', 'true');
         if (mounted) state = state.copyWith(isFirstLaunch: false);
       }
     } catch (e) {
-      logger.error('Sync/Recovery failed during bootstrap: $e', category: 'AUTH', error: e);
+      logger.error('Sync/Recovery failed: $e', category: 'AUTH', error: e);
     } finally {
       if (mounted) state = state.copyWith(isRecovering: false);
     }
@@ -232,6 +262,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> authenticate({String? pin}) async {
+    // FlutterSecureStorage is safe here — user is on PIN screen, app is fully rendered
     final result = await _pinService.authenticate(pinFallback: pin);
     if (result == AuthResult.success) {
       _ref.read(loggerProvider).info('PIN Authentication successful', category: 'AUTH');
@@ -249,22 +280,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       if (_firebaseAuth == null) {
-         throw Exception('Firebase not initialized');
+        throw Exception('Firebase not initialized');
       }
-      
+
       await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // NOTE: DO NOT clear 'last_recovery_at' here. It is now cleared at the
-      // top of _syncAndRecover() to avoid the race condition where
-      // authStateChanges() fires DURING signInWithEmailAndPassword and
-      // triggers _syncAndRecover() before this line could execute.
-
       state = state.copyWith(authAttempts: 0);
       await _preferencesRepo.setString('onboarding_done', 'true');
-      // Invalidate entitlement cache so fresh check runs after each login
       _ref.invalidate(entitlementStatusProvider);
       return true;
     } catch (e) {
@@ -275,6 +300,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> setPin(String pin) async {
+    await _pinService.setPin(pin);
+    // Mirror to SharedPreferences so init() can read it without Keystore
+    final prefs = _ref.read(sharedPreferencesProvider);
+    await prefs.setBool('pin_configured', true);
+    state = state.copyWith(isPinSetup: true, unlocked: true);
+    _ref.invalidate(entitlementStatusProvider);
+  }
+
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true);
     await _performFullLogout();
@@ -283,11 +317,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void lock() {
     if (state.unlocked && state.isPinSetup) {
-      _ref.read(loggerProvider).info('Application locked due to lifecycle event', category: 'AUTH');
+      _ref.read(loggerProvider).info('Application locked.', category: 'AUTH');
       state = state.copyWith(unlocked: false);
     }
   }
-
 
   Future<void> _performFullLogout() async {
     _ref.read(loggerProvider).info('Starting full logout and data purge', category: 'AUTH');
@@ -296,17 +329,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await _firebaseAuth.signOut();
       }
 
-      // Preserve installation identity to allow cryptographic recovery after re-login
       final installationId = await _storage.read(key: 'installation_id');
-
       await _storage.deleteAll();
-      
       if (installationId != null) {
         await _storage.write(key: 'installation_id', value: installationId);
-        _ref.read(loggerProvider).info('Preserved installation_id during logout', category: 'AUTH');
+        _ref.read(loggerProvider).info('Preserved installation_id during logout.', category: 'AUTH');
       }
 
-      // OPTIMIZED: Parallel Hive clearing + Batched Drift clearing
+      // Clear PIN flag from SharedPreferences too
+      final prefs = _ref.read(sharedPreferencesProvider);
+      await prefs.remove('pin_configured');
+
       final boxes = ['members', 'payments', 'plans', 'settings', 'events', 'snapshots'];
       await Future.wait(boxes.map((name) async {
         try {
@@ -316,7 +349,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
             final box = await Hive.openBox(name);
             await box.clear();
           }
-          debugPrint('[CACHE] AuthNotifier: Cleared Hive box: $name');
         } catch (e) {
           debugPrint('Error clearing box $name: $e');
         }
@@ -324,7 +356,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       try {
         await _ref.read(outboxRepositoryProvider).clearAll();
-        debugPrint('[DB] AuthNotifier: Cleared Drift Outbox');
       } catch (e) {
         debugPrint('Error clearing Drift Outbox: $e');
       }
@@ -336,11 +367,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isFirstLaunch: true,
         isLoading: false,
       );
-      debugPrint('[AUTH] AuthNotifier: Logout complete');
     } catch (e) {
       _ref.read(loggerProvider).error('Logout Error: $e', category: 'AUTH', error: e);
     }
   }
+
   Future<bool> signUp(String email, String password,
       {String? gymName, String? ownerName, String? phone}) async {
     state = state.copyWith(isLoading: true);
@@ -348,7 +379,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _storage.delete(key: 'pin_salt');
     try {
       if (_firebaseAuth == null) {
-         throw Exception('Firebase not initialized');
+        throw Exception('Firebase not initialized');
       }
       await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
@@ -369,16 +400,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
           deviceId: _deviceId,
           deviceTimestamp: DateTime.now(),
           payload: {
-            EventPayloadKeys.name: gymName, 
+            EventPayloadKeys.name: gymName,
             'ownerName': ownerName ?? '',
             EventPayloadKeys.phone: phone ?? '',
           },
         );
-        
+
         await _eventRepo.persist(event);
         await _ownerRepo.upsertOwner(owner);
         await _preferencesRepo.setString('onboarding_done', 'true');
-        
+
         _ref.read(syncWorkerProvider).performSync();
 
         state = state.copyWith(
@@ -398,21 +429,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-
   Future<void> logout() => _performFullLogout();
-
-  Future<void> setPin(String pin) async {
-    await _pinService.setPin(pin);
-    state = state.copyWith(isPinSetup: true, unlocked: true);
-    // Invalidate entitlement cache so fresh check runs after PIN setup
-    _ref.invalidate(entitlementStatusProvider);
-  }
 
   Future<void> setBiometricOptIn(bool enabled) async {
     final settings = await _settingsRepo.getSettings();
     await _settingsRepo.updateSettings(settings.copyWith(useBiometrics: enabled));
   }
-
 
   Future<void> sendPasswordReset(String email) async {
     if (_firebaseAuth == null) throw Exception('Firebase not initialized');
@@ -420,14 +442,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-
-
 final entitlementProvider = Provider<EntitlementGuard>((ref) {
   final storage = ref.watch(appSecureStorageProvider);
   final auth = ref.watch(firebaseAuthProvider);
   final firestore = ref.watch(firestoreProvider);
   final clock = ref.watch(clockProvider);
-
   return EntitlementGuard(storage, auth, firestore, clock);
 });
 
@@ -445,16 +464,16 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final firebaseAuth = ref.watch(firebaseAuthProvider);
   final hmac = ref.watch(hmacServiceProvider);
   final preferences = ref.watch(preferencesRepositoryProvider);
-  
+
   return AuthNotifier(
-    storage, 
-    pinService, 
-    firebaseAuth, 
-    eventRepo, 
-    ownerRepo, 
-    settingsRepo, 
-    hmac, 
+    storage,
+    pinService,
+    firebaseAuth,
+    eventRepo,
+    ownerRepo,
+    settingsRepo,
+    hmac,
     preferences,
-    ref
+    ref,
   );
 });
