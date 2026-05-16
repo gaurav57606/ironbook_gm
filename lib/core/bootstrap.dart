@@ -188,7 +188,9 @@ class AppBootstrap {
 
         // Auth ready — safe to use HMAC / SecureStorage from here onward
         final auth = FirebaseAuth.instance;
-        await container.read(authProvider.notifier).onFirebaseReady(auth);
+        logger.info('Firebase Auth ready. Restoring session...', category: 'BOOT');
+        await container.read(authProvider.notifier).onFirebaseReady(auth).timeout(const Duration(seconds: 10));
+        logger.info('Auth session restored.', category: 'BOOT');
 
         // Seed purge: after auth, fully non-blocking
         if (kDebugMode) {
@@ -196,7 +198,8 @@ class AppBootstrap {
             try {
               final prefs = await SharedPreferences.getInstance();
               if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
-                await SeedData.purgeSeedMembers(container);
+                logger.info('Starting one-time seed purge...', category: 'BOOT');
+                await SeedData.purgeSeedMembers(container).timeout(const Duration(seconds: 30));
                 await prefs.setBool('seed_purge_done_v1', true);
                 logger.info('Seed purge complete.', category: 'BOOT');
               }
@@ -242,7 +245,7 @@ class AppBootstrap {
         }
       }
 
-      // 3. Sync Worker
+      // 3. Finalize Bootstrap & Unblock UI
       if (container.read(firebaseInitializedProvider)) {
         if (!isTestEnvironment) {
           container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
@@ -254,15 +257,20 @@ class AppBootstrap {
           });
         });
 
+        logger.info('Tier 2 unblocking UI...', category: 'BOOT');
         container.read(tier2StatusProvider.notifier).state = Tier2Status.ready;
         container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Ready;
+        
+        // 4. DECOUPLED: Trigger recovery AFTER navigation is unblocked
+        logger.info('Triggering background data recovery...', category: 'BOOT');
+        container.read(authProvider.notifier).triggerBackgroundRecovery();
       } else {
         logger.warn('Degraded Mode: No Firebase.', category: 'BOOT');
         container.read(tier2StatusProvider.notifier).state = Tier2Status.degraded;
         container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Degraded;
       }
 
-      logger.info('Tier 2 complete (${stopwatch.elapsedMilliseconds}ms).', category: 'BOOT');
+      logger.info('Tier 2 Initialization Complete (${stopwatch.elapsedMilliseconds}ms).', category: 'BOOT');
 
     } catch (e, stack) {
       // Last-resort — always unblock router

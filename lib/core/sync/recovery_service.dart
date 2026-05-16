@@ -134,11 +134,11 @@ class RecoveryService {
           bool isValid = false;
           final deviceKey = keyMap[event.deviceId];
           if (deviceKey != null) {
-            final expectedSignature = await HmacService.signStatic(event, deviceKey);
+            final expectedSignature = await HmacService.signStatic(event, deviceKey).timeout(const Duration(seconds: 5));
             isValid = expectedSignature == event.hmacSignature;
           } else {
             // Fallback to current device key
-            isValid = await _hmac.verifyInstance(event);
+            isValid = await _hmac.verifyInstance(event).timeout(const Duration(seconds: 5));
           }
 
           if (!isValid) {
@@ -179,9 +179,14 @@ class RecoveryService {
       
       const rebuildTimeout = Duration(seconds: 45);
       
+      logger.info('Rebuilding members cache...', category: 'RECOVERY');
       await _ref.read(membersProvider.notifier).rebuildCache().timeout(rebuildTimeout);
+      
+      logger.info('Rebuilding owner/settings cache...', category: 'RECOVERY');
       await _ref.read(ownerProvider.notifier).rebuildCache().timeout(rebuildTimeout);
       await _ref.read(settingsProvider.notifier).rebuildCache().timeout(rebuildTimeout);
+      
+      logger.info('Rebuilding billing/sales cache...', category: 'RECOVERY');
       await _ref.read(planProvider.notifier).rebuildCache().timeout(rebuildTimeout);
       await _ref.read(paymentsProvider.notifier).rebuildCache().timeout(rebuildTimeout);
       await _ref.read(saleProvider.notifier).rebuildCache().timeout(rebuildTimeout);
