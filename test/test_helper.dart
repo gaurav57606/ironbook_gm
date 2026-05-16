@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:ironbook_gm/app.dart';
@@ -305,10 +306,12 @@ typedef FakeRepo = FakeDriftEventRepository;
 
 class FakeDriftEventRepository implements IEventRepository {
   final List<DomainEvent> _events = [];
+  final _controller = StreamController<DomainEvent>.broadcast();
 
   @override
   Future<void> persist(DomainEvent event) async {
     _events.add(event);
+    _controller.add(event);
   }
 
   @override
@@ -336,7 +339,7 @@ class FakeDriftEventRepository implements IEventRepository {
     return result;
   }
   @override
-  Future<List<DomainEvent>> getAll() async => List.unmodifiable(_events);
+  Future<List<DomainEvent>> getAllEvents() async => List.unmodifiable(_events);
   @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async =>
       _events.where((e) => e.deviceTimestamp.isAfter(since)).toList();
@@ -354,7 +357,7 @@ class FakeDriftEventRepository implements IEventRepository {
   }
 
   @override
-  Stream<DomainEvent> watch() => const Stream.empty();
+  Stream<DomainEvent> watch() => _controller.stream;
 }
 
 class MockRef extends Mock implements Ref {}
@@ -569,6 +572,10 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>
   Future<void> deleteMember(String memberId) async {}
   @override
   Future<void> recordAttendance(String memberId) async {}
+  @override
+  Future<void> refreshFromDB() async {}
+  @override
+  Future<void> reconcile() async {}
 }
 
 class FakeLoggerService extends Fake implements LoggerService {

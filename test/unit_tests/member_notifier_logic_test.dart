@@ -1,4 +1,5 @@
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide Plan, Member, Payment;
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/core/data/local/models/plan_component_model.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
@@ -35,7 +36,7 @@ class TrackingSyncCoordinator extends Fake implements SyncCoordinator {
 }
 
 void main() {
-  late OutboxDatabase db;
+  late db.OutboxDatabase database;
   late DriftMemberRepository memberRepo;
   late FakeDriftEventRepository eventRepo;
   late MockPlanRepo planRepo;
@@ -48,9 +49,9 @@ void main() {
   late MemberNotifier notifier;
 
   setUp(() async {
-    db = OutboxDatabase(NativeDatabase.memory());
+    database = db.OutboxDatabase(NativeDatabase.memory());
     hmac = FakeHmacService();
-    memberRepo = DriftMemberRepository(db, hmac);
+    memberRepo = DriftMemberRepository(database, hmac);
     eventRepo = FakeDriftEventRepository();
     planRepo = MockPlanRepo();
     prefRepo = FakePreferences();
@@ -60,7 +61,7 @@ void main() {
     logger = FakeLoggerService();
 
     notifier = MemberNotifier(
-      db,
+      database,
       eventRepo,
       memberRepo,
       planRepo,
@@ -71,10 +72,12 @@ void main() {
       coordinator,
       logger,
     );
+    await notifier.init();
   });
 
   tearDown(() async {
-    await db.close();
+    notifier.dispose();
+    await database.close();
   });
 
   group('MemberNotifier.addMember', () {
@@ -146,7 +149,7 @@ void main() {
   });
 
   group('MemberNotifier.deleteMember', () {
-    test('archives member — does NOT hard-delete Drift row', () async {
+    test('archives member — DOES physically remove from Drift storage', () async {
       // Setup member
       const memberId = 'm-1';
       final snap = MemberSnapshot(
@@ -162,13 +165,11 @@ void main() {
       // Verify: member is NOT in state
       expect(notifier.state.any((m) => m.memberId == memberId), false);
 
-      // Verify: member IS in Drift with archived=true
-      // Note: getMember by default might not filter, but getAllMembers does.
-      // DriftMemberRepository.getMember returns single row.
-      final row = await (db.select(db.members)..where((t) => t.id.equals(memberId))).getSingle();
-      expect(row.archived, true);
+      // Verify: member is physically GONE from Drift
+      final row = await (database.select(database.members)..where((t) => t.id.equals(memberId))).getSingleOrNull();
+      expect(row, isNull);
 
-      // Verify: a memberArchived event exists in _eventRepo
+      // Verify: a memberArchived event exists in _eventRepo (Source of Truth remains)
       final events = await eventRepo.getByEntityId(memberId);
       expect(events.any((e) => e.eventType == EventType.memberArchived), true);
       
@@ -248,6 +249,64 @@ void main() {
       await notifier.rebuildCache();
 
       expect(notifier.state.isEmpty, true);
+      expect(await memberRepo.getMember(memberId), isNull);
+    });
+
+    test('reconciliation repairs tampered snapshots', () async {
+      const memberId = 'm-1';
+      final now = clock.now;
+      
+      // 1. Create valid member
+      final event = DomainEvent(
+        entityId: memberId,
+        eventType: EventType.memberCreated,
+        deviceId: 'dev',
+        deviceTimestamp: now,
+        payload: {
+          EventPayloadKeys.memberId: memberId,
+          EventPayloadKeys.name: 'John', 
+          EventPayloadKeys.joinDate: now.toIso8601String()
+        },
+      );
+      await eventRepo.persist(event);
+      final snap = MemberSnapshot.fromPayload(memberId, event.payload);
+      
+      // Sign correctly
+      final sig = await hmac.signSnapshot(memberId, snap.toFirestore());
+      final signedSnap = snap.copyWith(hmacSignature: sig);
+      await memberRepo.upsertMember(signedSnap);
+      
+      // 2. Tamper with Drift data manually (change name without updating signature)
+      await (database.update(database.members)..where((t) => t.id.equals(memberId))).write(
+        db.MembersCompanion(name: Value('TAMPERED'))
+      );
+      
+      // 3. Reconcile (init calls reconcile)
+      // We must reset the notifier to trigger init or call reconcile directly
+      await notifier.reconcile();
+      
+      // 4. Verify repaired
+      final repaired = notifier.state.firstWhere((m) => m.memberId == memberId);
+      expect(repaired.name, 'John');
+    });
+
+    test('reconciliation cleans up dummy users (no events)', () async {
+      const memberId = 'dummy-1';
+      final snap = MemberSnapshot(
+        memberId: memberId,
+        name: 'Dummy',
+        joinDate: clock.now,
+      );
+      await memberRepo.upsertMember(snap);
+      
+      // Verify in DB before reconcile
+      expect(await memberRepo.getMember(memberId), isNotNull);
+      
+      await notifier.reconcile();
+      
+      // Verify gone from state and DB
+      expect(notifier.state.any((m) => m.memberId == memberId), false);
+      expect(await memberRepo.getMember(memberId), isNull);
     });
   });
 

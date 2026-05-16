@@ -109,9 +109,11 @@ class DriftMemberRepository implements IMemberRepository {
       final current = await getMember(event.entityId);
       final updated = SnapshotBuilder.apply(current, event);
       if (updated != null) {
-        await upsertMember(updated);
-      } else if (event.eventType == EventType.memberArchived) {
-        await archiveMember(event.entityId);
+        if (updated.archived) {
+          await deleteMember(event.entityId);
+        } else {
+          await upsertMember(updated);
+        }
       }
     });
   }

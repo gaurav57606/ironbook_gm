@@ -30,7 +30,7 @@ service cloud.firestore {
     // Snapshots represent the current computed state of a member or entity.
     // The app can create or update them, but NEVER delete them.
     // An archived member's snapshot stays in cloud with archived: true.
-    match /users/{userId}/snapshots/{entityId} {
+    match /users/{userId}/snapshots/{document=**} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId;
       allow delete: if false; // PERMANENT — archived members stay in cloud

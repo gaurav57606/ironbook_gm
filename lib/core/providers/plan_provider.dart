@@ -64,7 +64,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   }
 
   Future<void> _reconcilePlans() async {
-    final allEvents = await _eventRepo.getAll();
+    final allEvents = await _eventRepo.getAllEvents();
     final planEvents = allEvents.where((e) => e.eventType == EventType.plansUpdated).toList();
     
     if (planEvents.isEmpty) return;

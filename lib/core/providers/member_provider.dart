@@ -181,6 +181,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   // Duplicate Prevention: Track recent creations to avoid rapid double-taps
   final Map<String, DateTime> _recentCreations = {};
 
+  Completer<void>? _initCompleter;
+
   MemberNotifier(
     db.OutboxDatabase db,
     this._eventRepo,
@@ -206,6 +208,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   set debugState(List<MemberSnapshot> members) => state = members;
 
   Future<void> init() async {
+    if (_initCompleter != null) return _initCompleter!.future;
+    _initCompleter = Completer<void>();
+
     final stopwatch = Stopwatch()..start();
     try {
       unawaited(Future.microtask(() async {
@@ -237,48 +242,66 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
           'Processing event ${event.eventType} for ${event.entityId}', 
           category: 'STATE'
         );
+        
+        // Critical: Apply event to repository
         await _memberRepo.applyEvent(event);
 
         if (!mounted) return;
 
-        final updatedMember = await _memberRepo.getMember(event.entityId);
-        if (mounted) {
-          if (updatedMember != null) {
-            final index = state.indexWhere((m) => m.memberId == event.entityId);
-            if (index != -1) {
-              state = [...state]..[index] = updatedMember;
-            } else {
-              state = [...state, updatedMember];
-            }
-          } else if (event.eventType == EventType.memberArchived) {
+        // Archive Branch: If member archived, remove from repository physically
+        // This ensures Hive/Drift snapshots don't diverge from Event Log
+        if (event.eventType == EventType.memberArchived) {
+          await _memberRepo.deleteMember(event.entityId);
+          if (mounted) {
             state = state.where((m) => m.memberId != event.entityId).toList();
+          }
+          return;
+        }
+
+        final updatedMember = await _memberRepo.getMember(event.entityId);
+        if (mounted && updatedMember != null) {
+          final index = state.indexWhere((m) => m.memberId == event.entityId);
+          if (index != -1) {
+            state = [...state]..[index] = updatedMember;
+          } else {
+            state = [...state, updatedMember];
           }
         }
       });
 
-      // 2. Load all members from Drift
-      _logger.info(
-        'Loading initial members from repository', 
-        category: 'DB'
-      );
-      final members = await _memberRepo.getAllMembers();
-      if (mounted) {
-        state = members;
-        _logger.info(
-          'Loaded ${state.length} members in ${stopwatch.elapsedMilliseconds}ms', 
-          category: 'STATE'
-        );
-      }
+      // 2. Load all members from storage
+      await _loadAllSnapshots();
 
-      // 3. Reconcile
+      // 3. Reconcile with event log
       if (mounted) {
         await _reconcileSnapshots();
       }
-    } catch (e) {
-      _logger.warn(
-        'Init failed (likely due to disposal/teardown): $e', 
+
+      _initCompleter!.complete();
+      _logger.info(
+        'Init complete in ${stopwatch.elapsedMilliseconds}ms', 
         category: 'STATE'
       );
+    } catch (e, stack) {
+      _initCompleter?.completeError(e, stack);
+      _initCompleter = null; // Allow retry
+      _logger.error(
+        'Init failed: $e', 
+        category: 'STATE',
+        error: e,
+        stackTrace: stack,
+      );
+    }
+  }
+
+  /// Trigger deep reconciliation manually. Useful for testing and recovery.
+  Future<void> reconcile() => _reconcileSnapshots();
+
+  Future<void> _loadAllSnapshots() async {
+    _logger.info('Loading initial members from repository', category: 'DB');
+    final members = await _memberRepo.getAllMembers();
+    if (mounted) {
+      state = members;
     }
   }
 
@@ -289,44 +312,88 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     final recentEvents = await _eventRepo.getEventsSince(lastCheckTime);
 
-    if (recentEvents.isEmpty) {
-      if (updateCheckpoint) {
-        await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
-      }
-      return;
-    }
-
     final Map<String, List<DomainEvent>> eventsByEntity = {};
     for (final e in recentEvents) {
       eventsByEntity.putIfAbsent(e.entityId, () => []).add(e);
     }
 
-    bool updatedAny = false;
-    for (final entityId in eventsByEntity.keys) {
-      final snap = await _memberRepo.getMember(entityId);
-      final latestEventTime = eventsByEntity[entityId]!
-          .map((e) => e.deviceTimestamp)
-          .reduce((a, b) => a.isAfter(b) ? a : b);
+    final Map<String, MemberSnapshot> updates = {};
+    final List<String> deletes = [];
 
-      if (snap == null || snap.lastUpdated.isBefore(latestEventTime)) {
-        _logger.warn(
-          'Lagging Drift state for $entityId. Rebuilding from event log...', 
-          category: 'DB'
-        );
-        final fullHistory = await _eventRepo.getByEntityId(entityId);
-        final rebuilt = SnapshotBuilder.rebuild(fullHistory);
-        if (rebuilt != null) {
-          await _memberRepo.upsertMember(rebuilt);
-          if (!rebuilt.archived) updatedAny = true;
+    // 1. Identify lagging or tampered snapshots
+    if (eventsByEntity.isNotEmpty) {
+      await Future.wait(eventsByEntity.keys.map((entityId) async {
+        final snap = await _memberRepo.getMember(entityId);
+        final events = eventsByEntity[entityId]!;
+        final latestEventTime = events
+            .map((e) => e.deviceTimestamp)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+
+        bool needsRebuild = snap == null || snap.lastUpdated.isBefore(latestEventTime);
+        
+        // Tampered Repair: Verify HMAC integrity seal
+        if (!needsRebuild && snap != null) {
+          final isValid = await _hmac.verifySnapshot(
+            snap.memberId, 
+            snap.toFirestore(), 
+            snap.hmacSignature ?? ''
+          );
+          if (!isValid) {
+            _logger.error('Tampered snapshot detected for $entityId! Repairing...', category: 'SECURITY');
+            needsRebuild = true;
+          }
+        }
+
+        if (needsRebuild) {
+          final fullHistory = await _eventRepo.getByEntityId(entityId);
+          final rebuilt = SnapshotBuilder.rebuild(fullHistory);
+          
+          if (rebuilt != null) {
+            if (rebuilt.archived) {
+              deletes.add(entityId);
+            } else {
+              updates[entityId] = rebuilt;
+            }
+          } else if (snap != null) {
+            // Dummy User Cleanup: Snapshot exists but no events found
+            _logger.warn('Dummy user detected for $entityId. Cleaning up...', category: 'DB');
+            deletes.add(entityId);
+          }
+        }
+      }));
+    }
+
+    // 2. Efficient Dummy Cleanup: Detect members in storage with NO event history
+    // Only run if we found no events recently or periodically
+    if (recentEvents.isEmpty || lastCheckMs % 5 == 0) { // Simple heuristic or just always for safety in this task
+      final allStorageMembers = await _memberRepo.getAllMembers();
+      final allEventEvents = await _eventRepo.getAllEvents();
+      final allEventIds = allEventEvents.map((e) => e.entityId).toSet();
+      
+      for (final m in allStorageMembers) {
+        if (!allEventIds.contains(m.memberId)) {
+          if (!deletes.contains(m.memberId)) {
+            _logger.warn('Orphan snapshot found: ${m.memberId}. Purging...', category: 'DB');
+            deletes.add(m.memberId);
+          }
         }
       }
+    }
+
+    // 3. Batch apply changes
+    if (updates.isNotEmpty) {
+      await _memberRepo.upsertMembers(updates.values.toList());
+    }
+    
+    if (deletes.isNotEmpty) {
+      await Future.wait(deletes.map((id) => _memberRepo.deleteMember(id)));
     }
 
     if (updateCheckpoint) {
       await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
     }
 
-    if (updatedAny) {
+    if (updates.isNotEmpty || deletes.isNotEmpty) {
       state = await _memberRepo.getAllMembers();
     }
   }
@@ -345,20 +412,11 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     final stopwatch = Stopwatch()..start();
     _logger.warn('Manual full cache rebuild triggered.', category: 'DB');
 
-    // Step 1: Save current in-memory state as safety backup before any DB writes
     final backup = List<MemberSnapshot>.from(state);
-    _logger.info(
-      'rebuildCache: Backup saved — ${backup.length} members.',
-      category: 'DB',
-    );
 
     try {
-      // Yield to let any concurrent operations breathe
       await Future.delayed(Duration.zero);
 
-      // Step 2: Directly replay ALL events from the event log
-      // This ensures we ignore any potentially corrupted snapshots in Drift
-      // and rebuild everything from the source of truth (events).
       final allEvents = await _eventRepo.getAllEvents(); 
       final Map<String, List<DomainEvent>> byEntity = {};
       
@@ -366,43 +424,54 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         byEntity.putIfAbsent(e.entityId, () => []).add(e);
       }
 
+      final List<MemberSnapshot> updates = [];
+      final List<String> deletes = [];
+
       for (final entry in byEntity.entries) {
         final rebuilt = SnapshotBuilder.rebuild(entry.value);
         if (rebuilt != null) {
-          await _memberRepo.upsertMember(rebuilt);
+          if (rebuilt.archived) {
+            deletes.add(entry.key);
+          } else {
+            updates.add(rebuilt);
+          }
         }
       }
 
-      // Step 3: Read what event replay produced
-      final rebuilt = await _memberRepo.getAllMembers();
+      // Dummy Cleanup: Remove entries in DB that have no events
+      final existingIds = (await _memberRepo.getAllMembers()).map((m) => m.memberId).toSet();
+      final eventIds = byEntity.keys.toSet();
+      final dummyIds = existingIds.difference(eventIds);
+      deletes.addAll(dummyIds);
 
-      if (rebuilt.isNotEmpty) {
-        // Event replay succeeded — use the rebuilt state
-        state = rebuilt;
+      // Batch updates
+      if (updates.isNotEmpty) {
+        await _memberRepo.upsertMembers(updates);
+      }
+      
+      // Batch deletes (parallelized)
+      if (deletes.isNotEmpty) {
+        await Future.wait(deletes.map((id) => _memberRepo.deleteMember(id)));
+      }
+
+      final rebuiltResult = await _memberRepo.getAllMembers();
+
+      if (rebuiltResult.isNotEmpty) {
+        state = rebuiltResult;
         _logger.info(
           'rebuildCache: Rebuilt ${state.length} members from events in '
           '${stopwatch.elapsedMilliseconds}ms.',
           category: 'DB',
         );
       } else if (backup.isNotEmpty) {
-        // Event replay produced nothing but we had snapshot data.
-        // Re-persist the backup snapshots to Drift and restore in-memory state.
         _logger.warn(
-          'rebuildCache: Event replay produced 0 members. '
-          'Restoring ${backup.length} snapshot members as fallback.',
+          'rebuildCache: Event replay produced 0 members. Fallback to backup.',
           category: 'DB',
         );
-        for (final m in backup) {
-          await _memberRepo.upsertMember(m);
-        }
+        await _memberRepo.upsertMembers(backup);
         state = backup;
       } else {
-        // Both event replay and backup are empty — new account
         state = [];
-        _logger.info(
-          'rebuildCache: 0 members after rebuild — account appears new.',
-          category: 'DB',
-        );
       }
     } catch (e, stack) {
       // On any unhandled exception, immediately restore backup
@@ -520,13 +589,16 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
         // 3. THEN store snapshot in Drift
         await _memberRepo.upsertMember(snapshot);
-        _logger.info(
-          'addMember transaction complete', 
-          category: 'TRANSACTION'
-        );
       });
 
-      // 4. Trigger immediate sync
+      // Immediate state update for UI responsiveness
+      if (mounted) {
+        final snap = await _memberRepo.getMember(memberId);
+        if (snap != null) {
+          state = [...state, snap];
+        }
+      }
+
       _coordinator.triggerSync();
 
       // 5. Trigger live notification
@@ -568,12 +640,18 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         category: 'TRANSACTION'
       );
       await _eventRepo.persist(archiveEvent);
-      await _memberRepo.archiveMember(memberId);
+      // Critical: Use applyEvent to ensure physical deletion for Drift
+      await _memberRepo.applyEvent(archiveEvent);
       _logger.info(
         'deleteMember transaction complete', 
         category: 'TRANSACTION'
       );
     });
+
+    // Immediate state update for UI responsiveness
+    if (mounted) {
+      state = state.where((m) => m.memberId != memberId).toList();
+    }
 
     _logger.debug(
       'Triggering sync after archive', 
@@ -611,16 +689,17 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       );
       await _eventRepo.persist(updateEvent);
       await _memberRepo.applyEvent(updateEvent);
-      _logger.info(
-        'updateMember transaction complete', 
-        category: 'TRANSACTION'
-      );
     });
 
-    _logger.debug(
-      'Triggering sync after update', 
-      category: 'SYNC'
-    );
+    // Immediate state update for UI responsiveness
+    final updated = await _memberRepo.getMember(memberId);
+    if (mounted && updated != null) {
+      final index = state.indexWhere((m) => m.memberId == memberId);
+      if (index != -1) {
+        state = [...state]..[index] = updated;
+      }
+    }
+
     _coordinator.triggerSync();
   }
 
@@ -644,11 +723,16 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       );
       await _eventRepo.persist(checkInEvent);
       await _memberRepo.applyEvent(checkInEvent);
-      _logger.info(
-        'recordAttendance transaction complete', 
-        category: 'TRANSACTION'
-      );
     });
+
+    // Immediate state update for UI responsiveness
+    final updated = await _memberRepo.getMember(memberId);
+    if (mounted && updated != null) {
+      final index = state.indexWhere((m) => m.memberId == memberId);
+      if (index != -1) {
+        state = [...state]..[index] = updated;
+      }
+    }
 
     _coordinator.triggerSync();
   }

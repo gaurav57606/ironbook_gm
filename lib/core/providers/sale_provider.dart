@@ -82,7 +82,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
   }
 
   Future<void> _reconcileSales() async {
-    final recentEvents = await _eventRepo.getAll();
+    final recentEvents = await _eventRepo.getAllEvents();
     final saleEvents = recentEvents.where((e) => e.eventType == EventType.saleRecorded && e.payload.containsKey('saleId')).toList();
     
     bool updatedAny = false;

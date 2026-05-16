@@ -109,7 +109,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   }
 
   Future<void> _reconcilePayments() async {
-    final recentEvents = await _eventRepo.getAll();
+    final recentEvents = await _eventRepo.getAllEvents();
     final paymentEvents = recentEvents.where((e) => e.eventType == EventType.paymentRecorded).toList();
     
     if (paymentEvents.isEmpty) return;

@@ -20,7 +20,7 @@ class SyncHealthBanner extends ConsumerWidget {
           _showCriticalSyncDialog(context, ref);
         }
       });
-    }, fireImmediately: true);
+    });
 
     return statusAsync.when(
       data: (status) {
