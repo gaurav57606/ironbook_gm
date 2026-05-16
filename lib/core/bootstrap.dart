@@ -36,7 +36,6 @@ class AppBootstrap {
     logger.info('Starting Tier 1 (Native/Local) Initialization...', category: 'BOOT');
 
     try {
-      // 1. Safety Timeout: If Tier 1 takes > 5s, it's a likely ANR candidate
       final result = await _runTier1(container).timeout(
         const Duration(seconds: 5),
         onTimeout: () {
@@ -57,27 +56,20 @@ class AppBootstrap {
   static Future<BootstrapResult> _runTier1(ProviderContainer container) async {
     final logger = container.read(loggerProvider);
     
-    // 1. Core Config
     logger.info('Initializing ConfigService...', category: 'BOOT');
     await container.read(configServiceProvider).init().timeout(const Duration(seconds: 2));
     
-    // 2. System UI Setup
     _setupSystemUI();
     
-    // 3. Security Essentials (Secure Storage)
     logger.info('Initializing HMAC Service...', category: 'BOOT');
     await container.read(hmacServiceProvider).getInstallationId().timeout(const Duration(seconds: 3));
     
-    // 4. Primary Database (Drift)
     logger.info('Opening Drift Outbox Database...', category: 'DB');
-    // Accessing the database triggers initialization
     container.read(outboxDatabaseProvider);
     
-    // 5. Tier 1 Success
     container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier1Ready;
     logger.info('Tier 1 Initialization Complete.', category: 'BOOT');
     
-    // Schedule TIER 2 (Post-Frame: Cloud/Background)
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _runTier2(container);
     });
@@ -101,16 +93,9 @@ class AppBootstrap {
     container.read(tier2StatusProvider.notifier).state = Tier2Status.pending;
     
     try {
-      // 0. Delayed Non-Essential Native Tasks (Moved from Tier 1)
+      // 0. Non-essential pre-auth tasks (NO provider reads that need auth here)
       try {
         await container.read(syncCoordinatorProvider).clearAllLocks().timeout(const Duration(seconds: 2));
-        if (kDebugMode) {
-          final prefs = await SharedPreferences.getInstance();
-          if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
-            await SeedData.purgeSeedMembers(container);
-            await prefs.setBool('seed_purge_done_v1', true);
-          }
-        }
       } catch (e) {
         logger.warn('Non-essential native initialization failed: $e', category: 'BOOT');
       }
@@ -123,29 +108,24 @@ class AppBootstrap {
           options: DefaultFirebaseOptions.currentPlatform,
         ).timeout(const Duration(seconds: 15));
 
-        // Mark Firebase as initialized for providers and logger
         container.read(firebaseInitializedProvider.notifier).state = true;
         logger.setFirebaseInitialized(true);
         logger.info('Firebase Initialized Successfully (${stopwatch.elapsedMilliseconds}ms).', category: 'FIREBASE');
 
-          // 1.1 Configure Monitoring (Connecting to early handlers from main.dart)
           if (!kIsWeb) {
             await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
             
-            // Re-hook Flutter error handler to Crashlytics
             final originalFlutterError = FlutterError.onError;
             FlutterError.onError = (errorDetails) {
               FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
               originalFlutterError?.call(errorDetails);
             };
 
-            // Re-hook Platform error handler to Crashlytics
             PlatformDispatcher.instance.onError = (error, stack) {
               FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
               return true;
             };
 
-            // Capture errors from the main isolate
             Isolate.current.addErrorListener(RawReceivePort((pair) async {
               final List<dynamic> errorAndStacktrace = pair;
               await FirebaseCrashlytics.instance.recordError(
@@ -155,14 +135,12 @@ class AppBootstrap {
               );
             }).sendPort);
 
-            // Set initial health signals
             await logger.setHealthSignal('app_version', container.read(configServiceProvider).appVersion);
             await logger.setHealthSignal('is_debug', kDebugMode);
             
             logger.info('Crashlytics & Analytics hooked into global handlers (including Isolates).', category: 'FIREBASE');
           }
 
-        // 1.2 Notifications
         if (!kIsWeb) {
           logger.info('Initializing Notifications...', category: 'NOTIFICATION');
           try {
@@ -173,16 +151,32 @@ class AppBootstrap {
           }
         }
 
-        // 1.3 Notify AuthNotifier that Firebase is ready and AWAIT readiness
+        // Auth is ready AFTER this call — safe to use member/auth providers below
         final auth = FirebaseAuth.instance;
         await container.read(authProvider.notifier).onFirebaseReady(auth);
+
+        // ✅ SAFE: Purge dummy seed members AFTER auth is fully ready
+        // Runs only once per device install (guarded by prefs flag), fully non-blocking
+        if (kDebugMode) {
+          unawaited(Future(() async {
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
+                await SeedData.purgeSeedMembers(container);
+                await prefs.setBool('seed_purge_done_v1', true);
+                logger.info('Seed member purge complete.', category: 'BOOT');
+              }
+            } catch (e) {
+              logger.warn('Seed purge failed (non-fatal): $e', category: 'BOOT');
+            }
+          }));
+        }
         
       } catch (e, stack) {
         logger.warn('Cloud services initialization failed or timed out: $e', category: 'FIREBASE', error: e, stackTrace: stack);
-        // We continue in degraded mode
       }
 
-      // 2. Background Tasks (Native Only)
+      // 2. Background Tasks
       if (!kIsWeb && !isTestEnvironment) {
         logger.info('Initializing Workmanager...', category: 'WORKER');
         try {
@@ -190,7 +184,6 @@ class AppBootstrap {
             MidnightEngine.callbackDispatcher,
           ).timeout(const Duration(seconds: 5));
           
-          // Idempotent registration: Clear existing before setting production frequency
           await Workmanager().cancelAll(); 
           
           await Workmanager().registerPeriodicTask(
@@ -211,7 +204,7 @@ class AppBootstrap {
         logger.info('Skipping Workmanager in test environment.', category: 'WORKER');
       }
 
-      // 3. Start Sync Worker (Only if Firebase initialized)
+      // 3. Start Sync Worker
       if (container.read(firebaseInitializedProvider)) {
         logger.info('Starting Periodic Sync...', category: 'SYNC');
         if (!isTestEnvironment) {
@@ -220,7 +213,6 @@ class AppBootstrap {
           logger.info('Skipping Periodic Sync start in test environment.', category: 'SYNC');
         }
         
-        // Connect health signals for outbox
         container.listen(unsyncedCountProvider, (previous, next) {
           next.whenData((count) {
             logger.setHealthSignal('outbox_size', count);
