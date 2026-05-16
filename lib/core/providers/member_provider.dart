@@ -13,6 +13,10 @@ import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:collection/collection.dart';
+
+enum MemberSortOption { expiryAsc, expiryDesc, nameAz, nameZa, joinNewest }
+
+final memberSortProvider = StateProvider<MemberSortOption>((ref) => MemberSortOption.expiryAsc);
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/services/logger_service.dart';
@@ -108,27 +112,49 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final query = ref.watch(memberSearchQueryProvider).toLowerCase();
   final tabIndex = ref.watch(memberTabProvider);
   final now = ref.watch(clockProvider).now;
+  final sort = ref.watch(memberSortProvider);
 
-  final searched = query.isEmpty
-      ? members
+  // Apply search filter
+  List<MemberSnapshot> filtered = query.isEmpty
+      ? List<MemberSnapshot>.from(members)
       : members.where((m) => m.name.toLowerCase().contains(query)).toList();
 
+  // Apply tab filter
   switch (tabIndex) {
     case 1: // Active
-      return searched
-          .where((m) => m.getStatus(now) == MemberStatus.active)
-          .toList();
+      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.active).toList();
+      break;
     case 2: // Expiring (next 7 days)
-      return searched
-          .where((m) => m.getStatus(now) == MemberStatus.expiring)
-          .toList();
+      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.expiring).toList();
+      break;
     case 3: // Expired
-      return searched
-          .where((m) => m.getStatus(now) == MemberStatus.expired)
-          .toList();
+      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.expired).toList();
+      break;
     default:
-      return searched;
+      // No additional filtering
+      break;
   }
+
+  // Apply sorting
+  switch (sort) {
+    case MemberSortOption.expiryAsc:
+      filtered.sort((a, b) => (a.expiryDate ?? DateTime(2099)).compareTo(b.expiryDate ?? DateTime(2099)));
+      break;
+    case MemberSortOption.expiryDesc:
+      filtered.sort((a, b) => (b.expiryDate ?? DateTime(2000)).compareTo(a.expiryDate ?? DateTime(2000)));
+      break;
+    case MemberSortOption.nameAz:
+      filtered.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      break;
+    case MemberSortOption.nameZa:
+      filtered.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+      break;
+    case MemberSortOption.joinNewest:
+      filtered.sort((a, b) => (b.joinDate ?? DateTime(2000)).compareTo(a.joinDate ?? DateTime(2000)));
+      break;
+  }
+
+  return filtered;
 });
 
 final memberProvider = Provider.family<MemberSnapshot?, String>((ref, id) {

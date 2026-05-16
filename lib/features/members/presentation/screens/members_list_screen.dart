@@ -169,22 +169,80 @@ class MembersListScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.m),
           child: Row(
             children: [
-              Text('SORT BY', style: AppTextStyles.sectionTitle.copyWith(letterSpacing: 1.0)),
-              AppSpacing.gapS,
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.elevation2,
-                  borderRadius: AppRadius.radiusM,
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Text('Expiry (Soonest)', style: AppTextStyles.bodySmall.copyWith(fontSize: 10, color: AppColors.text, fontWeight: FontWeight.w700)),
-                    AppSpacing.gapXS,
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textMuted),
-                  ],
-                ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final sort = ref.watch(memberSortProvider);
+                  final labels = {
+                    MemberSortOption.expiryAsc: 'Expiry (Soonest)',
+                    MemberSortOption.expiryDesc: 'Expiry (Latest)',
+                    MemberSortOption.nameAz: 'Name (A–Z)',
+                    MemberSortOption.nameZa: 'Name (Z–A)',
+                    MemberSortOption.joinNewest: 'Joined (Newest)',
+                  };
+                  return GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: AppColors.elevation1,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (_) => Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              child: Text('SORT BY',
+                                style: AppTextStyles.sectionTitle.copyWith(
+                                  color: AppColors.textMuted, letterSpacing: 1.2)),
+                            ),
+                            const Divider(height: 1),
+                            ...MemberSortOption.values.map((opt) => ListTile(
+                              tileColor: AppColors.elevation1,
+                              title: Text(labels[opt]!, style: AppTextStyles.bodyMedium),
+                              trailing: sort == opt
+                                ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 18)
+                                : null,
+                              onTap: () {
+                                ref.read(memberSortProvider.notifier).state = opt;
+                                Navigator.pop(context);
+                              },
+                            )),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Text('SORT BY', style: AppTextStyles.sectionTitle.copyWith(letterSpacing: 1.0)),
+                        AppSpacing.gapS,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.elevation2,
+                            borderRadius: AppRadius.radiusM,
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                labels[sort]!,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  fontSize: 10,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              AppSpacing.gapXS,
+                              const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.primary),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           ),

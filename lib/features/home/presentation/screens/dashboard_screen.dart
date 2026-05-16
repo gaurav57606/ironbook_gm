@@ -166,7 +166,7 @@ class DashboardScreen extends ConsumerWidget {
                                     ),
                                   ),
                                 ),
-                                _buildDueList(memberStats.dueMembers),
+                                _buildDueList(context, memberStats.dueMembers),
                               ],
                             );
                           },
@@ -323,7 +323,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
 
-  Widget _buildDueList(List<MemberSnapshot> due) {
+  Widget _buildDueList(BuildContext context, List<MemberSnapshot> due) {
     if (due.isEmpty) {
       return Container(
         height: 100,
@@ -363,13 +363,23 @@ class DashboardScreen extends ConsumerWidget {
                   ? AppColors.expiring
                   : AppColors.active);
 
-          return MemberRow(
-            name: m.name,
-            initials:
-                m.name.isNotEmpty ? m.name.substring(0, 1).toUpperCase() : '?',
-            subtitle: '${m.planName ?? "N/A"} · ₹${m.totalPaid.toInt()}',
-            daysLeft: days.toString(),
-            statusColor: color,
+          return Column(
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => context.push('/members/member-details/${m.memberId}'),
+                child: MemberRow(
+                  name: m.name,
+                  initials:
+                      m.name.isNotEmpty ? m.name.substring(0, 1).toUpperCase() : '?',
+                  subtitle: '${m.planName ?? "N/A"} · ₹${m.totalPaid.toInt()}',
+                  daysLeft: days.toString(),
+                  statusColor: color,
+                ),
+              ),
+              if (index < due.length - 1)
+                const Divider(height: 1, color: AppColors.border),
+            ],
           );
         }),
       ),
