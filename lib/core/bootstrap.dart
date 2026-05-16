@@ -104,9 +104,10 @@ class AppBootstrap {
       logger.info('Initializing Firebase...', category: 'FIREBASE');
       
       try {
+        debugPrint('[BOOT] Initializing Firebase...');
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 10));
 
         container.read(firebaseInitializedProvider.notifier).state = true;
         logger.setFirebaseInitialized(true);
@@ -152,25 +153,10 @@ class AppBootstrap {
         }
 
         // Auth is ready AFTER this call — safe to use member/auth providers below
+        debugPrint('[BOOT] Firebase initialized. Setting up Auth...');
         final auth = FirebaseAuth.instance;
         await container.read(authProvider.notifier).onFirebaseReady(auth);
-
-        // ✅ SAFE: Purge dummy seed members AFTER auth is fully ready
-        // Runs only once per device install (guarded by prefs flag), fully non-blocking
-        if (kDebugMode) {
-          unawaited(Future(() async {
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
-                await SeedData.purgeSeedMembers(container);
-                await prefs.setBool('seed_purge_done_v1', true);
-                logger.info('Seed member purge complete.', category: 'BOOT');
-              }
-            } catch (e) {
-              logger.warn('Seed purge failed (non-fatal): $e', category: 'BOOT');
-            }
-          }));
-        }
+        debugPrint('[BOOT] Auth notifier ready.');
         
       } catch (e, stack) {
         logger.warn('Cloud services initialization failed or timed out: $e', category: 'FIREBASE', error: e, stackTrace: stack);
@@ -206,21 +192,31 @@ class AppBootstrap {
 
       // 3. Start Sync Worker
       if (container.read(firebaseInitializedProvider)) {
-        logger.info('Starting Periodic Sync...', category: 'SYNC');
+        debugPrint('[BOOT] Starting Periodic Sync and Health listeners...');
         if (!isTestEnvironment) {
-          container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
+          try {
+            container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));
+          } catch (e) {
+            debugPrint('[BOOT] Sync worker start failed: $e');
+          }
         } else {
           logger.info('Skipping Periodic Sync start in test environment.', category: 'SYNC');
         }
         
-        container.listen(unsyncedCountProvider, (previous, next) {
-          next.whenData((count) {
-            logger.setHealthSignal('outbox_size', count);
+        // Connect health signals for outbox
+        try {
+          container.listen(unsyncedCountProvider, (previous, next) {
+            next.whenData((count) {
+              logger.setHealthSignal('outbox_size', count);
+            });
           });
-        });
+        } catch (e) {
+          debugPrint('[BOOT] Health listener setup failed: $e');
+        }
 
         container.read(tier2StatusProvider.notifier).state = Tier2Status.ready;
         container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Ready;
+        debugPrint('[BOOT] Tier 2 Ready (Cloud Active)');
       } else {
         logger.warn('Entering Degraded Mode (No Cloud Sync).', category: 'BOOT');
         container.read(tier2StatusProvider.notifier).state = Tier2Status.degraded;
@@ -228,6 +224,26 @@ class AppBootstrap {
       }
 
       logger.info('Tier 2 Initialization Complete.', category: 'BOOT');
+
+      // 4. One-time Post-Bootstrap Tasks (Detached & Non-Blocking)
+      unawaited(Future(() async {
+        if (kDebugMode) {
+          try {
+            // Wait for UI to settle before heavy DB work
+            await Future.delayed(const Duration(seconds: 1));
+            
+            final prefs = container.read(sharedPreferencesProvider);
+            if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
+              debugPrint('[BOOT] Starting background seed purge...');
+              await SeedData.purgeSeedMembers(container);
+              await prefs.setBool('seed_purge_done_v1', true);
+              debugPrint('[BOOT] Seed member purge complete.');
+            }
+          } catch (e) {
+            debugPrint('[BOOT] Background seed purge failed (non-fatal): $e');
+          }
+        }
+      }));
       
     } catch (e, stack) {
       logger.critical('CRITICAL TIER 2 FAILURE: $e', category: 'BOOT', error: e, stackTrace: stack);
