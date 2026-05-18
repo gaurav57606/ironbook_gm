@@ -37,7 +37,8 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     this._clock,
     this._hmac,
     this._coordinator,
-  ) : _db = db, super([]) {
+  ) : _db = db,
+      super([]) {
     _init();
     _seedProductsIfEmpty();
   }
@@ -53,8 +54,11 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
 
     // 1. Listen for events (Single Source of Truth)
     _eventSubscription = _eventRepo.watch().listen((event) async {
-      if (event.eventType == EventType.saleRecorded && event.payload.containsKey('saleId')) {
-        debugPrint('[STATE] SaleNotifier: Processing sale event for ${event.entityId}');
+      if (event.eventType == EventType.saleRecorded &&
+          event.payload.containsKey('saleId')) {
+        debugPrint(
+          '[STATE] SaleNotifier: Processing sale event for ${event.entityId}',
+        );
         await _saleRepo.applyEvent(event);
         final saleId = event.payload['saleId'] as String?;
         if (saleId != null) {
@@ -83,21 +87,30 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
 
   Future<void> _reconcileSales() async {
     final recentEvents = await _eventRepo.getAllEvents();
-    final saleEvents = recentEvents.where((e) => e.eventType == EventType.saleRecorded && e.payload.containsKey('saleId')).toList();
-    
-    bool updatedAny = false;
+    final saleEvents = recentEvents
+        .where(
+          (e) =>
+              e.eventType == EventType.saleRecorded &&
+              e.payload.containsKey('saleId'),
+        )
+        .toList();
+
+    final existingSaleIds = await _saleRepo.getAllSaleIds();
+    final missingSales = <Sale>[];
+
     for (final event in saleEvents) {
       final saleId = event.payload['saleId'] as String?;
       if (saleId == null) continue;
 
-      final existing = await _saleRepo.getSale(saleId);
-      if (existing == null) {
-        await _saleRepo.applyEvent(event);
-        updatedAny = true;
+      if (!existingSaleIds.contains(saleId)) {
+        missingSales.add(
+          Sale.fromPayload(saleId, event.payload, event.deviceTimestamp),
+        );
       }
     }
 
-    if (updatedAny) {
+    if (missingSales.isNotEmpty) {
+      await _saleRepo.upsertSales(missingSales);
       state = (await _saleRepo.getAllSales()).reversed.toList();
     }
   }
@@ -109,12 +122,48 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
     final existing = await _productRepo.getAllProducts();
     if (existing.isEmpty) {
       final initialProducts = [
-        Product(id: 'p1', name: 'Whey Protein', price: 120, category: 'Supplements', iconCodePoint: 0xe293),
-        Product(id: 'p2', name: 'BCAA Powder', price: 80, category: 'Supplements', iconCodePoint: 0xe2e3),
-        Product(id: 'p3', name: 'Pre-Workout', price: 95, category: 'Supplements', iconCodePoint: 0xe113),
-        Product(id: 'p4', name: 'Creatine', price: 70, category: 'Supplements', iconCodePoint: 0xe54d),
-        Product(id: 'p5', name: 'IronBook Tee', price: 45, category: 'Merch', iconCodePoint: 0xe170),
-        Product(id: 'p6', name: 'Steel Shaker', price: 25, category: 'Merch', iconCodePoint: 0xe3ab),
+        Product(
+          id: 'p1',
+          name: 'Whey Protein',
+          price: 120,
+          category: 'Supplements',
+          iconCodePoint: 0xe293,
+        ),
+        Product(
+          id: 'p2',
+          name: 'BCAA Powder',
+          price: 80,
+          category: 'Supplements',
+          iconCodePoint: 0xe2e3,
+        ),
+        Product(
+          id: 'p3',
+          name: 'Pre-Workout',
+          price: 95,
+          category: 'Supplements',
+          iconCodePoint: 0xe113,
+        ),
+        Product(
+          id: 'p4',
+          name: 'Creatine',
+          price: 70,
+          category: 'Supplements',
+          iconCodePoint: 0xe54d,
+        ),
+        Product(
+          id: 'p5',
+          name: 'IronBook Tee',
+          price: 45,
+          category: 'Merch',
+          iconCodePoint: 0xe170,
+        ),
+        Product(
+          id: 'p6',
+          name: 'Steel Shaker',
+          price: 25,
+          category: 'Merch',
+          iconCodePoint: 0xe3ab,
+        ),
       ];
       for (var p in initialProducts) {
         await _productRepo.upsertProduct(p);
@@ -130,7 +179,7 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
   }) async {
     final saleId = const Uuid().v4();
     final now = _clock.now;
-    
+
     // Generate Invoice Number for Sale via Drift
     final prefix = 'SAL-${now.year}-';
     final invoiceNumber = await _sequenceRepo.getNextInvoiceNumber(prefix);
@@ -156,16 +205,20 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
         'memberId': memberId,
         'total': total,
         'method': method,
-        'items': items.map((i) => {
-          'productId': i.productId,
-          'productName': i.productName,
-          'qty': i.quantity,
-          'price': i.price,
-        }).toList(),
+        'items': items
+            .map(
+              (i) => {
+                'productId': i.productId,
+                'productName': i.productName,
+                'qty': i.quantity,
+                'price': i.price,
+              },
+            )
+            .toList(),
         'invoiceNumber': invoiceNumber,
       },
     );
-    
+
     await _db.transaction(() async {
       debugPrint('[TRANSACTION] SaleNotifier: Starting recordSale for $saleId');
       await _eventRepo.persist(event);
@@ -193,17 +246,15 @@ final saleProvider = StateNotifierProvider<SaleNotifier, List<Sale>>((ref) {
   final db = ref.watch(outboxDatabaseProvider);
   final hmac = ref.watch(hmacServiceProvider);
   final coordinator = ref.watch(syncCoordinatorProvider);
-  
-  return SaleNotifier(db, productRepo, sequenceRepo, eventRepo, saleRepo, clock, hmac, coordinator);
+
+  return SaleNotifier(
+    db,
+    productRepo,
+    sequenceRepo,
+    eventRepo,
+    saleRepo,
+    clock,
+    hmac,
+    coordinator,
+  );
 });
-
-
-
-
-
-
-
-
-
-
-
