@@ -53,15 +53,24 @@ class _TaxBillingScreenState extends ConsumerState<TaxBillingScreen> {
     final settings = ref.read(settingsProvider);
     if (owner == null) return;
 
-    final updatedOwner = owner;
-    updatedOwner.gstin = _gstinController.text;
-    updatedOwner.bankName = _bankNameController.text;
-    updatedOwner.accountNumber = _accNoController.text;
-    updatedOwner.ifsc = _ifscController.text;
-    updatedOwner.upiId = _upiController.text;
+    final parsedGst = double.tryParse(_gstRateController.text.trim());
+    if (parsedGst == null || parsedGst < 0 || parsedGst > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid GST rate between 0 and 100')),
+      );
+      return;
+    }
+
+    final updatedOwner = owner.copyWith(
+      gstin: _gstinController.text.trim(),
+      bankName: _bankNameController.text.trim(),
+      accountNumber: _accNoController.text.trim(),
+      ifsc: _ifscController.text.trim(),
+      upiId: _upiController.text.trim(),
+    );
 
     final updatedSettings = settings.copyWith(
-      gstRate: double.tryParse(_gstRateController.text) ?? 18.0,
+      gstRate: parsedGst,
     );
 
     await ref.read(ownerProvider.notifier).updateOwner(updatedOwner);

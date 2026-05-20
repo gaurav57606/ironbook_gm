@@ -5,6 +5,7 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
+import '../../../../core/providers/base_providers.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/settings_toggle_tile.dart';
@@ -55,13 +56,56 @@ class SecuritySettingsScreen extends ConsumerWidget {
                     subtitle: auth.isPinSetup ? 'Configured' : 'Not setup',
                     value: auth.isPinSetup,
                     onChanged: (val) {
-                      if (!auth.isPinSetup) {
+                      if (val) {
+                        // Enable PIN: navigate to setup flow
                         context.push('/setup-pin');
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'PIN can be changed from the setup flow')),
+                        // Disable PIN: show confirmation dialog
+                        showDialog(
+                          context: context,
+                          builder: (dialogContext) => AlertDialog(
+                            backgroundColor: AppColors.elevation2,
+                            title: Text(
+                              'Disable PIN?',
+                              style: AppTextStyles.cardTitle,
+                            ),
+                            content: Text(
+                              'This will remove PIN protection from the app. '
+                              'Anyone with access to this device can open the app.',
+                              style: AppTextStyles.bodySmall,
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(dialogContext).pop(),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  Navigator.of(dialogContext).pop();
+                                  // Clear PIN flag from SharedPreferences
+                                  final prefs = ref.read(sharedPreferencesProvider);
+                                  await prefs.setBool('pin_configured', false);
+                                  // Also disable biometrics in settings
+                                  await ref
+                                      .read(settingsProvider.notifier)
+                                      .updateSettings(
+                                        settings.copyWith(useBiometrics: false),
+                                      );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('PIN security disabled'),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Text(
+                                  'Disable',
+                                  style: TextStyle(color: Colors.redAccent),
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       }
                     },
@@ -91,7 +135,8 @@ class SecuritySettingsScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  'Ensure your app is protected by a secure PIN or biometric authentication to prevent unauthorized access to your gym data.',
+                  'Ensure your app is protected by a secure PIN or biometric '
+                  'authentication to prevent unauthorized access to your gym data.',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textMuted,

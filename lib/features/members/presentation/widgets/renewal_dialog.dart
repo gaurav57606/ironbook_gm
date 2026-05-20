@@ -13,6 +13,8 @@ import '../../../billing/providers/billing_provider.dart';
 import '../../../../core/data/local/drift/outbox_database.dart' as db;
 import '../../../../core/data/local/models/plan_model.dart' as model;
 import '../../../../core/providers/base_providers.dart';
+import '../../../../core/monitoring/monitoring_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class RenewalDialog extends ConsumerStatefulWidget {
   final MemberSnapshot member;
@@ -243,6 +245,24 @@ class _RenewalDialogState extends ConsumerState<RenewalDialog> {
         method: _paymentMethods[_selectedPayment],
       );
       
+      // Monitoring Sidecar: Passive Archival
+      final ownerUid = FirebaseAuth.instance.currentUser?.uid;
+      MonitoringService.logMembershipRenewed(
+        widget.member.memberId, 
+        plan.name, 
+        plan.totalPrice,
+        ownerUid: ownerUid,
+      );
+      MonitoringService.logPaymentSuccess(
+        'renew_${widget.member.memberId}', 
+        plan.totalPrice.toDouble(), 
+        _paymentMethods[_selectedPayment],
+        ownerUid: ownerUid,
+        memberId: widget.member.memberId,
+        memberName: widget.member.name,
+        planName: plan.name,
+      );
+      
       if (mounted) {
         context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -250,6 +270,9 @@ class _RenewalDialogState extends ConsumerState<RenewalDialog> {
         );
       }
     } catch (e) {
+      // Monitoring Sidecar: Passive Archival
+      MonitoringService.logPaymentFailure('renew_fail_${widget.member.memberId}', plan.totalPrice.toDouble(), e.toString());
+      
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(

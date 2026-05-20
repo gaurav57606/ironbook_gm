@@ -71,7 +71,7 @@ void main() {
       when(() => hmacService.getInstallationId()).thenAnswer((_) async => 'test-device');
       when(() => eventRepo.watch()).thenAnswer((_) => const Stream.empty());
       when(() => paymentRepo.getAllPayments()).thenAnswer((_) async => []);
-      when(() => eventRepo.getAll()).thenAnswer((_) async => []);
+      when(() => eventRepo.getAllEvents()).thenAnswer((_) async => []);
       when(() => syncCoordinator.triggerSync()).thenReturn(null);
       when(() => membershipService.validateMembership(
         joinDate: any(named: 'joinDate'),

@@ -16,6 +16,7 @@ dependencies:
   lucide_icons: ^0.257.0
   collection: ^1.18.0
   connectivity_plus: ^6.0.0
+  supabase_flutter: ^2.0.0
 
   # Local storage — device is the authority
   hive: ^2.2.3

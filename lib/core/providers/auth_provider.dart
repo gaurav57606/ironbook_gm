@@ -21,6 +21,7 @@ import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
 import '../services/logger_service.dart';
+import '../monitoring/monitoring_service.dart';
 import 'base_providers.dart';
 
 class AuthState {
@@ -396,7 +397,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _storage.delete(key: 'pin_salt');
     try {
       if (_firebaseAuth == null) throw Exception('Firebase not initialized');
-      await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
+      final credential = await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
+      
+      // Monitoring Sidecar: Passive Archival
+      MonitoringService.logUserRegistration(
+        credential.user?.uid ?? '', 
+        email,
+        gymName: gymName,
+        ownerName: ownerName,
+        phone: phone,
+      );
 
       if (gymName != null) {
         final owner = OwnerProfile(

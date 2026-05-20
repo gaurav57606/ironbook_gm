@@ -5,7 +5,6 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/providers/owner_provider.dart';
-import '../../../../core/providers/settings_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -36,17 +35,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _save() async {
     final owner = ref.read(ownerProvider);
-    final settings = ref.read(settingsProvider);
     if (owner == null) return;
 
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Owner name cannot be empty')),
+      );
+      return;
+    }
+
     final updatedOwner = owner.copyWith(
-      ownerName: _nameController.text,
-      phone: _phoneController.text,
+      ownerName: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
     );
-    final updatedSettings = settings;
 
     await ref.read(ownerProvider.notifier).updateOwner(updatedOwner);
-    await ref.read(settingsProvider.notifier).updateSettings(updatedSettings);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

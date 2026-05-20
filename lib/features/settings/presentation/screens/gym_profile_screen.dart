@@ -24,6 +24,7 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
     final owner = ref.read(ownerProvider);
     _gymNameController = TextEditingController(text: owner?.gymName ?? '');
     _addressController = TextEditingController(text: owner?.address ?? '');
+    _gymNameController.addListener(() => setState(() {}));
   }
 
   @override
@@ -37,9 +38,17 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
     final owner = ref.read(ownerProvider);
     if (owner == null) return;
 
-    final updated = owner;
-    updated.gymName = _gymNameController.text;
-    updated.address = _addressController.text;
+    if (_gymNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gym name cannot be empty')),
+      );
+      return;
+    }
+
+    final updated = owner.copyWith(
+      gymName: _gymNameController.text.trim(),
+      address: _addressController.text.trim(),
+    );
 
     await ref.read(ownerProvider.notifier).updateOwner(updated);
     if (mounted) {

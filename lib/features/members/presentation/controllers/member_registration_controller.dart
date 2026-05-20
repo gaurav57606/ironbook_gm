@@ -5,6 +5,9 @@ import 'package:ironbook_gm/core/providers/payment_provider.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as model;
 import 'package:ironbook_gm/core/services/logger_service.dart';
+import 'package:ironbook_gm/core/monitoring/monitoring_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
 
 class RegistrationState {
   final bool isSaving;
@@ -66,6 +69,20 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
         gender: gender,
         age: age,
       );
+      
+      // Monitoring Sidecar: Passive Archival
+      final ownerUid = FirebaseAuth.instance.currentUser?.uid;
+      MonitoringService.logMembershipCreated(
+        memberId, 
+        selectedPlan.name, 
+        selectedPlan.totalPrice,
+        ownerUid: ownerUid,
+        name: name,
+        phone: phone,
+        gender: gender,
+        age: age,
+        joinDate: joiningDate,
+      );
 
       // 2. Record Initial Payment
       await _paymentNotifier.recordMemberPayment(
@@ -73,6 +90,18 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
         plan: model.Plan.fromDrift(selectedPlan),
         method: paymentMethod,
         date: joiningDate,
+      );
+      
+      // Monitoring Sidecar: Passive Archival
+      MonitoringService.logPaymentSuccess(
+        'reg_$memberId', 
+        selectedPlan.totalPrice.toDouble(), 
+        paymentMethod,
+        ownerUid: ownerUid,
+        memberId: memberId,
+        memberName: name,
+        planName: selectedPlan.name,
+        joinDate: joiningDate,
       );
       
       // Production Observability: Structured Log
@@ -100,6 +129,9 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
       _logger.logAnalyticsEvent('member_registration_failed', {
         'error': e.toString(),
       });
+      
+      // Monitoring Sidecar: Passive Archival
+      MonitoringService.logPaymentFailure('reg_fail_${DateTime.now().millisecondsSinceEpoch}', selectedPlan.totalPrice.toDouble(), e.toString());
 
       state = state.copyWith(
         isSaving: false,

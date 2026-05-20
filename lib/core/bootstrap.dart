@@ -24,6 +24,7 @@ import 'services/fcm_service.dart';
 import 'services/config_service.dart';
 import 'services/logger_service.dart';
 import 'package:ironbook_gm/core/sync/midnight_engine.dart';
+import 'package:ironbook_gm/core/monitoring/monitoring_service.dart';
 
 const bool isTestEnvironment = bool.fromEnvironment('FLUTTER_TEST');
 
@@ -242,7 +243,17 @@ class AppBootstrap {
         }
       }
 
-      // 3. Finalize Bootstrap & Unblock UI
+      // 3. Monitoring Service
+      logger.info('Initializing Monitoring Service (Supabase)...', category: 'MONITOR');
+      try {
+        // Instantiate the singleton to start the batch timer
+        MonitoringService();
+        logger.info('Monitoring Service active.', category: 'MONITOR');
+      } catch (e) {
+        logger.warn('Monitoring Service failed to start (non-fatal): $e', category: 'MONITOR');
+      }
+
+      // 4. Finalize Bootstrap & Unblock UI
       if (container.read(firebaseInitializedProvider)) {
         if (!isTestEnvironment) {
           container.read(syncWorkerProvider).startPeriodicSync(const Duration(seconds: 30));

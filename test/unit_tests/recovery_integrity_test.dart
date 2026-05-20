@@ -103,7 +103,7 @@ void main() {
       );
 
       // Simulate existing events in repo
-      when(() => mockRepo.getAll()).thenAnswer((_) async => [event]);
+      when(() => mockRepo.getAllEvents()).thenAnswer((_) async => [event]);
       when(() => mockRepo.getByEntityId('M1')).thenAnswer((_) async => [event]);
       when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => [event]);
       
@@ -133,7 +133,7 @@ void main() {
     });
 
     test('Atomic Write: Notifier updates snapshot box immediately', () async {
-       when(() => mockRepo.getAll()).thenAnswer((_) async => []);
+       when(() => mockRepo.getAllEvents()).thenAnswer((_) async => []);
        when(() => mockRepo.persist(any())).thenAnswer((_) async {});
        
        final notifier = MemberNotifier(MockOutboxDatabase(), mockRepo, mockMemberRepo, mockPlanRepo, mockPrefRepo, mockClock, mockHmac, mockMembership, mockCoordinator, mockLogger);

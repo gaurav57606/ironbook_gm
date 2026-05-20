@@ -109,7 +109,7 @@ void main() {
       ));
     }
 
-    when(() => mockRepo.getAll()).thenAnswer((_) async => allEvents);
+    when(() => mockRepo.getAllEvents()).thenAnswer((_) async => allEvents);
     when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => allEvents);
     for (int i = 0; i < membersCount; i++) {
       final id = 'M$i';

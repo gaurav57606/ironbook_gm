@@ -40,6 +40,13 @@ import 'package:ironbook_gm/core/providers/auth_provider.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
 import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> _dashboardNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'dashboard');
+final GlobalKey<NavigatorState> _membersNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'members');
+final GlobalKey<NavigatorState> _posNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'pos');
+final GlobalKey<NavigatorState> _settingsNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
+final GlobalKey<NavigatorState> _analyticsNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'analytics');
+
 final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
   final refreshListenable = ValueNotifier<int>(0);
   ref.onDispose(() => refreshListenable.dispose());
@@ -53,6 +60,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
   ref.listen(entitlementStatusProvider, (_, __) => refreshListenable.value++);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: refreshListenable,
     errorBuilder: (context, state) => Scaffold(
@@ -195,6 +203,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
         },
         branches: [
           StatefulShellBranch(
+            navigatorKey: _dashboardNavigatorKey,
             routes: [
               GoRoute(
                 path: '/dashboard',
@@ -203,6 +212,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: _membersNavigatorKey,
             routes: [
               GoRoute(
                 path: '/members',
@@ -237,6 +247,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: _posNavigatorKey,
             routes: [
               GoRoute(
                 path: '/invoices',
@@ -245,6 +256,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: _settingsNavigatorKey,
             routes: [
               GoRoute(
                 path: '/settings',
@@ -325,6 +337,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: _analyticsNavigatorKey,
             routes: [
               GoRoute(
                 path: '/analytics',
