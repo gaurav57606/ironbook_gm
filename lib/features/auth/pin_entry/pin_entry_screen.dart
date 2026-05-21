@@ -136,7 +136,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
             alignment: Alignment.center,
             child: item == 'delete'
                 ? const Icon(Icons.backspace_outlined, color: AppColors.textPrimary)
-                : Text(item, style: AppTextStyles.heroNumber.copyWith(fontSize: 28, color: AppColors.textPrimary)),
+                : Text(item, style: AppTextStyles.heroNumber().copyWith(fontSize: 28, color: AppColors.textPrimary)),
           ),
         );
       }).toList(),

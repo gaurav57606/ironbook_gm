@@ -45,7 +45,7 @@ class MemberHealthDonut extends StatelessWidget {
                   children: [
                     Text(
                       '$activePct%',
-                      style: AppTextStyles.heroNumber.copyWith(
+                      style: AppTextStyles.heroNumber().copyWith(
                         fontSize: 16,
                         color: AppColors.textPrimary,
                       ),

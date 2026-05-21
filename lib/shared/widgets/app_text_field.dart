@@ -15,6 +15,7 @@ class AppTextField extends StatelessWidget {
   final bool enabled;
   final int maxLines;
   final String? Function(String?)? validator;
+  final TextCapitalization textCapitalization;
 
   const AppTextField({
     super.key,
@@ -28,6 +29,7 @@ class AppTextField extends StatelessWidget {
     this.enabled = true,
     this.maxLines = 1,
     this.validator,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -51,6 +53,7 @@ class AppTextField extends StatelessWidget {
             enabled: enabled,
             obscureText: isPassword,
             keyboardType: keyboardType,
+            textCapitalization: textCapitalization,
             maxLines: maxLines,
             validator: validator,
             style: AppTextStyles.body.copyWith(fontSize: 14),

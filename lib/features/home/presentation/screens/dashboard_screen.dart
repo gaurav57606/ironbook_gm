@@ -185,6 +185,52 @@ class DashboardScreen extends ConsumerWidget {
                             );
                           },
                         ),
+                        // Quick Actions
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.screenPadding),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AppSpacing.gapL,
+                              Text(
+                                'QUICK ACTIONS',
+                                style: AppTextStyles.sectionTitle.copyWith(
+                                  color: AppColors.textMuted,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              AppSpacing.gapS,
+                              GestureDetector(
+                                onTap: () => context.go('/invoices'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.elevation2,
+                                    borderRadius: AppRadius.radiusL,
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.storefront_outlined,
+                                          size: 18, color: AppColors.primary),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Shop & POS',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.text,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 100),
                       ],
                     ),
@@ -273,51 +319,56 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildStatsGrid(BuildContext context, WidgetRef ref, int total, int active, int expiring, int expired) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        mainAxisSpacing: AppSpacing.s,
-        crossAxisSpacing: AppSpacing.s,
-        childAspectRatio: 1.8,
-        children: [
-          StatsCard(
-            value: total.toString(),
-            label: 'Total Members',
-            isPrimary: true,
-            onTap: () {
-              ref.read(memberTabProvider.notifier).state = 0;
-              context.go('/members');
-            },
-          ),
-          StatsCard(
-            value: active.toString(),
-            label: 'Active',
-            valueColor: AppColors.green,
-            onTap: () {
-              ref.read(memberTabProvider.notifier).state = 1;
-              context.go('/members');
-            },
-          ),
-          StatsCard(
-            value: expiring.toString(),
-            label: 'Expiring Soon',
-            valueColor: AppColors.amber,
-            onTap: () {
-              ref.read(memberTabProvider.notifier).state = 2;
-              context.go('/members');
-            },
-          ),
-          StatsCard(
-            value: expired.toString(),
-            label: 'Expired',
-            valueColor: AppColors.red,
-            onTap: () {
-              ref.read(memberTabProvider.notifier).state = 3;
-              context.go('/members');
-            },
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 600;
+          return GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: isWide ? 4 : 2,
+            mainAxisSpacing: AppSpacing.s,
+            crossAxisSpacing: AppSpacing.s,
+            childAspectRatio: isWide ? 1.6 : 1.8,
+            children: [
+              StatsCard(
+                value: total.toString(),
+                label: 'Total Members',
+                isPrimary: true,
+                onTap: () {
+                  ref.read(memberTabProvider.notifier).state = 0;
+                  context.go('/members');
+                },
+              ),
+              StatsCard(
+                value: active.toString(),
+                label: 'Active',
+                valueColor: AppColors.green,
+                onTap: () {
+                  ref.read(memberTabProvider.notifier).state = 1;
+                  context.go('/members');
+                },
+              ),
+              StatsCard(
+                value: expiring.toString(),
+                label: 'Expiring Soon',
+                valueColor: AppColors.amber,
+                onTap: () {
+                  ref.read(memberTabProvider.notifier).state = 2;
+                  context.go('/members');
+                },
+              ),
+              StatsCard(
+                value: expired.toString(),
+                label: 'Expired',
+                valueColor: AppColors.red,
+                onTap: () {
+                  ref.read(memberTabProvider.notifier).state = 3;
+                  context.go('/members');
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }

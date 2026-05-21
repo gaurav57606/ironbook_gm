@@ -13,11 +13,31 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/sync_status_indicator.dart';
 import '../widgets/member_list_item.dart';
 
-class MembersListScreen extends ConsumerWidget {
+class MembersListScreen extends ConsumerStatefulWidget {
   const MembersListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MembersListScreen> createState() =>
+      _MembersListScreenState();
+}
+
+class _MembersListScreenState extends ConsumerState<MembersListScreen> {
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
@@ -147,20 +167,30 @@ class MembersListScreen extends ConsumerWidget {
               borderRadius: AppRadius.radiusL,
               border: Border.all(color: AppColors.border),
             ),
-            child: Consumer(
-              builder: (context, ref, _) {
-                return TextField(
-                  onChanged: (value) => ref.read(memberSearchQueryProvider.notifier).state = value,
-                  style: AppTextStyles.body,
-                  decoration: InputDecoration(
-                    hintText: 'Search by name or phone...',
-                    hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textMuted),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                );
-              },
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => ref.read(memberSearchQueryProvider.notifier).state = value,
+              style: AppTextStyles.body,
+              decoration: InputDecoration(
+                hintText: 'Search by name or phone...',
+                hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textMuted),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? GestureDetector(
+                        onTap: () {
+                          _searchController.clear();
+                          ref.read(memberSearchQueryProvider.notifier).state = '';
+                        },
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: AppColors.textMuted,
+                        ),
+                      )
+                    : null,
+              ),
             ),
           ),
         ),

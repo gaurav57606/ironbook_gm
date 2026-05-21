@@ -21,6 +21,8 @@ class PosScreen extends ConsumerStatefulWidget {
 
 class _PosScreenState extends ConsumerState<PosScreen> {
   final Map<String, int> _cart = {};
+  int get _cartItemCount =>
+      _cart.values.fold(0, (sum, qty) => sum + qty);
   String _selectedCategory = 'All';
 
   double _calculateTotal(List<Product> products) {
@@ -52,11 +54,74 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 _buildAppBar(),
                 _buildCategoryFilter(),
                 Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(child: _buildProductGrid(products)),
-                      _buildCartSidebar(products, total),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth >= 600;
+                      if (isWide) {
+                        final sidebarWidth = (constraints.maxWidth * 0.22)
+                            .clamp(160.0, 280.0);
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: _buildProductGrid(
+                                products,
+                                crossAxisCount: 3,
+                              ),
+                            ),
+                            _buildCartSidebar(
+                              products,
+                              total,
+                              overrideWidth: sidebarWidth,
+                            ),
+                          ],
+                        );
+                      }
+                      // Mobile: full-width grid + floating cart button
+                      return Stack(
+                        children: [
+                          _buildProductGrid(products),
+                          if (_cartItemCount > 0)
+                            Positioned(
+                              bottom: 16,
+                              right: 16,
+                              child: GestureDetector(
+                                onTap: () => _showCartSheet(products, total),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.orange,
+                                    borderRadius: AppRadius.radiusL,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.orange.withValues(alpha: 0.35),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.shopping_cart_outlined,
+                                        size: 16, color: Colors.white),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '$_cartItemCount items · ₹$total',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
@@ -70,17 +135,13 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   Widget _buildAppBar() {
     return Padding(
       padding: const EdgeInsets.only(
-        left: AppSpacing.s,
+        left: AppSpacing.screenPadding,
         right: AppSpacing.screenPadding,
         top: AppSpacing.xl,
         bottom: AppSpacing.s,
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => context.pop(),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.text, size: 20),
-          ),
           const Expanded(
             child: Text(
               'Supplements & Merch',
@@ -152,18 +213,18 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     );
   }
 
-  Widget _buildProductGrid(List<Product> products) {
+  Widget _buildProductGrid(List<Product> products, {int crossAxisCount = 2}) {
     final filtered = _selectedCategory == 'All' 
       ? products 
       : products.where((p) => p.category == _selectedCategory).toList();
 
     return GridView.builder(
       padding: const EdgeInsets.all(AppSpacing.screenPadding),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: AppSpacing.s,
         crossAxisSpacing: AppSpacing.s,
-        childAspectRatio: 0.85,
+        childAspectRatio: crossAxisCount >= 3 ? 0.78 : 0.85,
       ),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
@@ -213,9 +274,13 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   bool _isCharging = false;
 
-  Widget _buildCartSidebar(List<Product> products, double total) {
+  Widget _buildCartSidebar(
+    List<Product> products,
+    double total, {
+    double? overrideWidth,
+  }) {
     return Container(
-      width: 140,
+      width: overrideWidth ?? 140,
       decoration: const BoxDecoration(
         color: AppColors.elevation1,
         border: Border(left: BorderSide(color: AppColors.border)),
@@ -319,6 +384,119 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         );
       }
     }
+  }
+
+  void _showCartSheet(List<Product> products, double total) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.elevation1,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(top: BorderSide(color: AppColors.border)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: AppRadius.radiusS,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Cart',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  )),
+              ),
+              const Divider(color: AppColors.border, height: 1),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(12),
+                  children: _cart.entries.map((entry) {
+                    final product = products
+                        .firstWhereOrNull((p) => p.id == entry.key);
+                    if (product == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(product.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.text2,
+                              )),
+                          ),
+                          Text('x${entry.value}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.text3,
+                            )),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const Divider(color: AppColors.border, height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.text3,
+                          )),
+                        Text('₹$total',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.orange,
+                          )),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    AppButton(
+                      text: 'Charge',
+                      isLoading: _isCharging,
+                      onPressed: (_cart.isEmpty || _isCharging)
+                          ? null
+                          : () {
+                              Navigator.pop(context);
+                              _handleCheckout(products, total);
+                            },
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: MediaQuery.of(context).viewPadding.bottom,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

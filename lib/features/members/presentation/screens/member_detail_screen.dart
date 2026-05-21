@@ -188,7 +188,7 @@ class MemberDetailScreen extends ConsumerWidget {
             alignment: Alignment.center,
             child: Text(
               member.name.isNotEmpty ? member.name.substring(0, 1).toUpperCase() : '?',
-              style: AppTextStyles.heroNumber.copyWith(fontSize: 40, color: statusColor),
+              style: AppTextStyles.heroNumber().copyWith(fontSize: 40, color: statusColor),
             ),
           ),
           const SizedBox(height: 16),
@@ -297,35 +297,78 @@ class MemberDetailScreen extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: AppButton(
-                  text: 'Check In',
-                  style: AppButtonStyle.secondary,
-                  onPressed: () {
+                child: _buildIconAction(
+                  icon: Icons.how_to_reg_outlined,
+                  label: 'Check In',
+                  color: AppColors.textPrimary,
+                  onTap: () {
                     // Logic for attendance
                   },
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: AppButton(
-                  text: 'WhatsApp',
-                  style: AppButtonStyle.secondary,
-                  onPressed: () {
-                     // Open WhatsApp
+                child: _buildIconAction(
+                  icon: Icons.chat_outlined,
+                  label: 'WhatsApp',
+                  color: AppColors.textPrimary,
+                  onTap: () {
+                    // Open WhatsApp
                   },
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: AppButton(
-                  text: 'Delete',
-                  style: AppButtonStyle.outline,
-                  onPressed: () => _showDeleteConfirmation(context, member, ref),
+                child: _buildIconAction(
+                  icon: Icons.delete_outline_rounded,
+                  label: 'Delete',
+                  color: AppColors.error,
+                  onTap: () => _showDeleteConfirmation(context, member, ref),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIconAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.elevation2,
+            borderRadius: AppRadius.radiusM,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

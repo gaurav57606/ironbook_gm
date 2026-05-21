@@ -17,8 +17,11 @@ class AppBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final systemBottom = MediaQuery.of(context).viewPadding.bottom;
+    final bottomPad = systemBottom > 0 ? systemBottom : 20.0;
+
     return Container(
-      padding: const EdgeInsets.only(top: 8, bottom: 20),
+      padding: EdgeInsets.only(top: 8, bottom: bottomPad),
       decoration: BoxDecoration(
         color: AppColors.bg.withValues(alpha: 0.95),
         border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
@@ -36,7 +39,7 @@ class AppBottomNavBar extends StatelessWidget {
           _buildNavItem(0, Icons.grid_view_rounded, 'Home'),
           _buildNavItem(1, Icons.people_outline, 'Members'),
           _buildFab(context),
-          _buildNavItem(2, Icons.description_outlined, 'Invoices'),
+          _buildNavItem(2, Icons.analytics_outlined, 'Analytics'),
           _buildNavItem(3, Icons.settings_outlined, 'Settings'),
         ],
       ),

@@ -7,29 +7,29 @@ class SupabaseMonitoringClient {
   bool _initAttempted = false;
 
   Future<void> _ensureInitialized() async {
-    // If already initialized, return immediately.
+    // Already connected — nothing to do.
     if (_client != null) return;
 
-    // Try to reuse an existing Supabase instance first 
-    // (safe if another package initialized it, or if we already ran once).
+    // Try to reuse an existing Supabase instance (safest path).
+    // This succeeds if Supabase.initialize() was already called anywhere.
     try {
       _client = Supabase.instance.client;
       return;
     } catch (_) {
-      // Instance not yet initialized — continue below.
+      // Not yet initialized — fall through.
     }
 
-    // Guard against concurrent initialization calls.
+    // Prevent concurrent initialization (two timer ticks overlapping).
     if (_initAttempted) return;
     _initAttempted = true;
 
     try {
-      final url = MonitoringConstants.supabaseUrl;
+      final url     = MonitoringConstants.supabaseUrl;
       final anonKey = MonitoringConstants.supabaseAnonKey;
 
+      // If .env keys are missing, reset flag so next tick retries.
+      // This handles the case where dotenv loads slowly or .env is missing.
       if (url.isEmpty || anonKey.isEmpty) {
-        // Config missing — reset flag so future attempts can retry
-        // (e.g. if config loads dynamically after first boot).
         _initAttempted = false;
         return;
       }
@@ -40,13 +40,13 @@ class SupabaseMonitoringClient {
         debug: false,
       );
       _client = Supabase.instance.client;
-      // Leave _initAttempted = true on success — 
-      // double-calling Supabase.initialize() would throw.
+      // Success: leave _initAttempted = true to prevent double-init crashes.
+
     } catch (_) {
-      // Network failure or bad config. Reset flag so the next 
-      // 25-second flush cycle will attempt initialization again.
+      // Network failure, bad credentials, or timeout.
+      // RESET the flag so the next 25-second flush cycle retries.
+      // _client stays null — batchInsert will safely return false.
       _initAttempted = false;
-      // _client remains null — batchInsert will return false safely.
     }
   }
 

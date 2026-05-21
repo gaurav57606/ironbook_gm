@@ -247,11 +247,11 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
             ],
           ),
           StatefulShellBranch(
-            navigatorKey: _posNavigatorKey,
+            navigatorKey: _analyticsNavigatorKey,
             routes: [
               GoRoute(
-                path: '/invoices',
-                builder: (context, state) => const PosScreen(),
+                path: '/analytics',
+                builder: (context, state) => const AnalyticsScreen(),
               ),
             ],
           ),
@@ -337,11 +337,11 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
             ],
           ),
           StatefulShellBranch(
-            navigatorKey: _analyticsNavigatorKey,
+            navigatorKey: _posNavigatorKey,
             routes: [
               GoRoute(
-                path: '/analytics',
-                builder: (context, state) => const AnalyticsScreen(),
+                path: '/invoices',
+                builder: (context, state) => const PosScreen(),
               ),
             ],
           ),

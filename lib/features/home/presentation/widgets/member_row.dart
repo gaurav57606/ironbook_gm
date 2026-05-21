@@ -72,7 +72,7 @@ class MemberRow extends StatelessWidget {
             children: [
               Text(
                 daysLeft,
-                style: AppTextStyles.heroNumber.copyWith(
+                style: AppTextStyles.heroNumber().copyWith(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
                   color: statusColor,

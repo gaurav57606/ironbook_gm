@@ -42,7 +42,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             children: [
               Image.asset('assets/images/logo.png', width: 52, height: 52),
               const SizedBox(height: 24),
-              Text('Set up your gym', style: AppTextStyles.heroNumber.copyWith(fontSize: 32)),
+              Text('Set up your gym', style: AppTextStyles.heroNumber().copyWith(fontSize: 32)),
               const SizedBox(height: 8),
               Text('Set up your gym profile to get started.', style: AppTextStyles.bodySmall),
               const SizedBox(height: 32),

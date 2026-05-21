@@ -99,7 +99,7 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
             alignment: Alignment.center,
             child: d == 'delete'
                 ? const Icon(Icons.backspace_outlined, color: AppColors.textPrimary)
-                : Text(d, style: AppTextStyles.heroNumber.copyWith(fontSize: 28, color: AppColors.textPrimary)),
+                : Text(d, style: AppTextStyles.heroNumber().copyWith(fontSize: 28, color: AppColors.textPrimary)),
           ),
         );
       }).toList(),

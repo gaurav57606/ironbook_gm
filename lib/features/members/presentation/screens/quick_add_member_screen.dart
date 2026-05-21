@@ -161,30 +161,53 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
                       controller: _phoneController, 
                       enabled: !isSaving,
                     ),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Column(
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 400;
+                        if (isNarrow) {
+                          return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const AppSectionHeader(title: 'Gender'),
                               _buildGenderChips(isSaving),
+                              AppSpacing.gapM,
+                              AppTextField(
+                                key: const Key('input-member-age'),
+                                label: 'Age',
+                                hint: 'Years',
+                                keyboardType: TextInputType.number,
+                                controller: _ageController,
+                                enabled: !isSaving,
+                              ),
                             ],
-                          ),
-                        ),
-                        AppSpacing.gapM,
-                        Expanded(
-                          child: AppTextField(
-                            key: const Key('input-member-age'),
-                            label: 'Age', 
-                            hint: 'Years', 
-                            keyboardType: TextInputType.number, 
-                            controller: _ageController, 
-                            enabled: !isSaving,
-                          ),
-                        ),
-                      ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const AppSectionHeader(title: 'Gender'),
+                                  _buildGenderChips(isSaving),
+                                ],
+                              ),
+                            ),
+                            AppSpacing.gapM,
+                            Expanded(
+                              child: AppTextField(
+                                key: const Key('input-member-age'),
+                                label: 'Age',
+                                hint: 'Years',
+                                keyboardType: TextInputType.number,
+                                controller: _ageController,
+                                enabled: !isSaving,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     _buildDateField(),
                     const AppSectionHeader(title: 'Membership Plan'),

@@ -279,7 +279,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
           alignment: Alignment.center,
           child: Text(
             key,
-            style: AppTextStyles.heroNumber.copyWith(
+            style: AppTextStyles.heroNumber().copyWith(
               fontSize: key == '⌫' ? 20 : 24,
               color: AppColors.textPrimary,
             ),
