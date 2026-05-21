@@ -35,12 +35,12 @@ class AppTextStyles {
   static const double bodySize = 14.0;
   static const double smallSize = 12.0;
   static const double tinySize = 10.0;
-  static const double microSize = 8.0;
+  static const double microSize = 10.0;
 
-  static TextStyle get heroNumber => _font(fontSize: 48, fontWeight: FontWeight.w900, color: AppColors.primary);
+  static TextStyle heroNumber({Color? color}) => _font(fontSize: 48, fontWeight: FontWeight.w900, color: color ?? AppColors.primary);
 
   static TextStyle get sectionTitle => _font(
-    fontSize: microSize,
+    fontSize: 12.0,
     fontWeight: FontWeight.w800,
     color: AppColors.textSecondary,
     letterSpacing: 2.0,

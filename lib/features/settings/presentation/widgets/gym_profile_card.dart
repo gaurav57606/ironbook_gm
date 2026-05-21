@@ -13,80 +13,89 @@ class GymProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String initial = (gymName ?? 'R').substring(0, 1).toUpperCase();
-    return GestureDetector(
-      onTap: () => context.push('/settings/gym-profile'),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 8),
-        padding: const EdgeInsets.all(AppSpacing.l),
-        decoration: BoxDecoration(
-          gradient: AppColors.glassGradient,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: AppRadius.radiusXXL,
+        child: InkWell(
+          onTap: () => context.push('/settings/gym-profile'),
           borderRadius: AppRadius.radiusXXL,
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: AppRadius.radiusXL,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
+          splashColor: AppColors.primary.withValues(alpha: 0.06),
+          highlightColor: AppColors.primary.withValues(alpha: 0.03),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.l),
+            decoration: BoxDecoration(
+              gradient: AppColors.glassGradient,
+              borderRadius: AppRadius.radiusXXL,
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    gymName ?? 'Raj\'s Fitness',
-                    style: AppTextStyles.h3.copyWith(fontSize: 18, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: AppRadius.radiusS,
-                    ),
-                    child: Text(
-                      'PRO EDITION • PREMIUM',
-                      style: AppTextStyles.sectionTitle.copyWith(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                        letterSpacing: 0.5,
+            child: Row(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: AppRadius.radiusXL,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                        blurRadius: 15,
+                        offset: const Offset(0, 6),
                       ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        gymName ?? 'Raj\'s Fitness',
+                        style: AppTextStyles.h3.copyWith(fontSize: 18, fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: AppRadius.radiusS,
+                        ),
+                        child: Text(
+                          'PRO EDITION • PREMIUM',
+                          style: AppTextStyles.sectionTitle.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, size: 24, color: AppColors.textMuted),
+              ],
             ),
-            const Icon(Icons.chevron_right_rounded, size: 24, color: AppColors.textMuted),
-          ],
+          ),
         ),
       ),
     );

@@ -24,8 +24,6 @@ class SettingsGroup extends StatelessWidget {
           child: Text(
             title.toUpperCase(),
             style: AppTextStyles.sectionTitle.copyWith(
-              fontSize: 10,
-              letterSpacing: 2.0,
               fontWeight: FontWeight.w900,
               color: AppColors.primary,
             ),
@@ -54,6 +52,7 @@ class SettingsRow extends StatelessWidget {
   final String? value;
   final VoidCallback? onTap;
   final bool showDivider;
+  final Color? iconColor;
 
   const SettingsRow({
     super.key,
@@ -62,57 +61,65 @@ class SettingsRow extends StatelessWidget {
     this.value,
     this.onTap,
     this.showDivider = true,
+    this.iconColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: 16),
-        decoration: BoxDecoration(
-          border: showDivider
-              ? Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5)))
-              : null,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: AppRadius.radiusM,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: AppColors.primary.withValues(alpha: 0.08),
+        highlightColor: AppColors.primary.withValues(alpha: 0.04),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: 16),
+          decoration: BoxDecoration(
+            border: showDivider
+                ? Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5)))
+                : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: (iconColor ?? AppColors.primary).withValues(alpha: 0.08),
+                  borderRadius: AppRadius.radiusM,
+                ),
+                child: Icon(icon, size: 20, color: iconColor ?? AppColors.primary),
               ),
-              child: Icon(icon, size: 20, color: AppColors.primary),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  if (value != null) ...[
-                    const SizedBox(height: 2),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      value!,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
+                      label,
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
                       ),
                     ),
+                    if (value != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        value!,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
-          ],
+              const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+            ],
+          ),
         ),
       ),
     );

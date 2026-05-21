@@ -7,14 +7,32 @@ class SupabaseMonitoringClient {
   bool _initAttempted = false;
 
   Future<void> _ensureInitialized() async {
-    if (_client != null || _initAttempted) return;
-    
+    // If already initialized, return immediately.
+    if (_client != null) return;
+
+    // Try to reuse an existing Supabase instance first 
+    // (safe if another package initialized it, or if we already ran once).
+    try {
+      _client = Supabase.instance.client;
+      return;
+    } catch (_) {
+      // Instance not yet initialized — continue below.
+    }
+
+    // Guard against concurrent initialization calls.
+    if (_initAttempted) return;
     _initAttempted = true;
+
     try {
       final url = MonitoringConstants.supabaseUrl;
       final anonKey = MonitoringConstants.supabaseAnonKey;
 
-      if (url.isEmpty || anonKey.isEmpty) return;
+      if (url.isEmpty || anonKey.isEmpty) {
+        // Config missing — reset flag so future attempts can retry
+        // (e.g. if config loads dynamically after first boot).
+        _initAttempted = false;
+        return;
+      }
 
       await Supabase.initialize(
         url: url,
@@ -22,8 +40,13 @@ class SupabaseMonitoringClient {
         debug: false,
       );
       _client = Supabase.instance.client;
+      // Leave _initAttempted = true on success — 
+      // double-calling Supabase.initialize() would throw.
     } catch (_) {
-      // Fail silently
+      // Network failure or bad config. Reset flag so the next 
+      // 25-second flush cycle will attempt initialization again.
+      _initAttempted = false;
+      // _client remains null — batchInsert will return false safely.
     }
   }
 
@@ -52,13 +75,32 @@ class SupabaseMonitoringClient {
         }
       }
       
-      // Send batches
+      // Deduplicate rows within identity tables before sending.
+      // Prevents "ON CONFLICT DO UPDATE command cannot affect row a second time"
+      // which occurs when paymentSuccess logs two gym_members writes in one batch.
       final List<Future> futures = [];
       for (final entry in tableBatches.entries) {
+        final String tableName = entry.key;
+        final List<Map<String, dynamic>> rows = entry.value;
+
+        final List<Map<String, dynamic>> dedupedRows;
+        if (tableName == MonitoringConstants.membersTable) {
+          // Composite PK: (member_id, owner_uid) — deduplicate on member_id
+          // keeping the last write (most up-to-date state) for each member_id.
+          dedupedRows = _deduplicateByKey(rows, 'member_id');
+        } else if (tableName == MonitoringConstants.ownersTable) {
+          dedupedRows = _deduplicateByKey(rows, 'uid');
+        } else if (tableName == MonitoringConstants.paymentEventsTable) {
+          dedupedRows = _deduplicateByKey(rows, 'event_id');
+        } else {
+          // Append-only tables (archive, activity, audit) — no dedup needed.
+          dedupedRows = rows;
+        }
+
         futures.add(
           client
-              .from(entry.key)
-              .upsert(entry.value) // Use upsert for identity tables (owners/members)
+              .from(tableName)
+              .upsert(dedupedRows)
               .timeout(MonitoringConstants.sendTimeout)
         );
       }
@@ -212,6 +254,29 @@ class SupabaseMonitoringClient {
     }
 
     return routings;
+  }
+
+  /// Merges duplicate rows that share the same [keyField] value within a single 
+  /// batch list, keeping the last occurrence's values (most recent state).
+  /// This prevents PostgreSQL's "cannot affect row a second time" upsert error.
+  List<Map<String, dynamic>> _deduplicateByKey(
+    List<Map<String, dynamic>> rows,
+    String keyField,
+  ) {
+    final Map<dynamic, Map<String, dynamic>> merged = {};
+    for (final row in rows) {
+      final key = row[keyField];
+      if (key == null) continue;
+      if (!merged.containsKey(key)) {
+        merged[key] = Map<String, dynamic>.from(row);
+      } else {
+        // Later row overwrites earlier row's values — last write wins.
+        merged[key]!.addAll(row);
+      }
+    }
+    // Re-add any rows without a key field as-is (should not normally occur).
+    final orphans = rows.where((r) => r[keyField] == null).toList();
+    return [...merged.values, ...orphans];
   }
 }
 

@@ -6,6 +6,7 @@ import 'monitoring_retry_manager.dart';
 
 class MonitoringService {
   static final MonitoringService _instance = MonitoringService._internal();
+  static int _counter = 0;
   factory MonitoringService() => _instance;
 
   final MonitoringQueue _queue = MonitoringQueue();
@@ -21,14 +22,12 @@ class MonitoringService {
   static void _enqueue(MonitoringEventType type, Map<String, dynamic> payload) {
     try {
       final event = MonitoringEvent(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: '${DateTime.now().millisecondsSinceEpoch}_${_counter++}',
         eventType: type,
         createdAt: DateTime.now(),
         payload: payload,
       );
       _instance._queue.add(event);
-      // We don't trigger() here usually as the Timer handles it, 
-      // but if the queue gets large we could.
     } catch (_) {
       // Never propagate exceptions
     }

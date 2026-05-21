@@ -25,6 +25,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _isSyncing = false;
+  bool _isRecovering = false;
+
   @override
   Widget build(BuildContext context) {
     final ownerName = ref.watch(ownerProvider.select((o) => o?.ownerName ?? 'Owner'));
@@ -40,7 +43,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: SafeArea(
           child: Column(
             children: [
-            _buildAppBar(),
+            _buildAppBar(unsyncedCount),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
@@ -64,7 +67,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   );
 }
 
-  Widget _buildAppBar() {
+  Widget _buildAppBar(int unsyncedCount) {
     return Padding(
       padding: const EdgeInsets.only(
         left: AppSpacing.screenPadding,
@@ -98,19 +101,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Stack(
               children: [
                 const Icon(Icons.notifications_none_rounded, color: AppColors.text, size: 22),
-                Positioned(
-                  right: 2,
-                  top: 2,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.bg, width: 2),
+                if (unsyncedCount > 0)
+                  Positioned(
+                    right: 2,
+                    top: 2,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.bg, width: 2),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -187,25 +191,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsRow(
           icon: Icons.backup_outlined,
           label: 'Cloud Synchronization',
-          value: 'Push local changes',
-          onTap: () async {
+          value: _isSyncing ? 'Syncing...' : 'Push local changes',
+          onTap: _isSyncing ? null : () async {
+            setState(() => _isSyncing = true);
             final messenger = ScaffoldMessenger.of(context);
-            messenger.showSnackBar(const SnackBar(content: Text('Starting cloud sync...')));
-            await ref.read(syncWorkerProvider).performSync();
-            if (context.mounted) {
-              messenger.showSnackBar(const SnackBar(content: Text('Sync completed.')));
+            try {
+              await ref.read(syncWorkerProvider).performSync();
+              if (context.mounted) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Sync completed successfully.')),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Sync failed: ${e.toString()}')),
+                );
+              }
+            } finally {
+              if (mounted) setState(() => _isSyncing = false);
             }
           },
         ),
         SettingsRow(
           icon: Icons.restore_outlined,
           label: 'Global Data Restore',
-          value: 'Re-fetch cloud database',
-          onTap: () async {
+          value: _isRecovering ? 'Recovering...' : 'Re-fetch cloud database',
+          onTap: _isRecovering ? null : () async {
+            setState(() => _isRecovering = true);
             final messenger = ScaffoldMessenger.of(context);
-            messenger.showSnackBar(const SnackBar(content: Text('Recovering data...')));
-            await ref.read(recoveryServiceProvider).recoverAll();
-            messenger.showSnackBar(const SnackBar(content: Text('Recovery completed.')));
+            try {
+              await ref.read(recoveryServiceProvider).recoverAll();
+              if (context.mounted) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Recovery completed successfully.')),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Recovery failed: ${e.toString()}')),
+                );
+              }
+            } finally {
+              if (mounted) setState(() => _isRecovering = false);
+            }
           },
         ),
         SettingsRow(
@@ -240,6 +270,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
             Text('EXPORT DATA', style: AppTextStyles.sectionTitle.copyWith(color: AppColors.primary)),
             const SizedBox(height: 20),
             ListTile(
@@ -357,7 +398,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           backgroundColor: AppColors.elevation2,
           title: Text('Unsynced Changes', style: AppTextStyles.cardTitle),
           content: Text(
-            'You have $unsyncedCount unsynced changes. Loging out will WIPE all local data that hasn\'t been pushed to the cloud.\n\nAre you absolutely sure?',
+            'You have $unsyncedCount unsynced changes. Logging out will permanently WIPE all local data that hasn\'t been pushed to the cloud.\n\nAre you absolutely sure?',
             style: AppTextStyles.bodySmall,
           ),
           actions: [

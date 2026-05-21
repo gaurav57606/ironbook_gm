@@ -126,7 +126,7 @@ class AboutScreen extends StatelessWidget {
     return Column(
       children: [
         Text(
-          'MADE WITH ❤️ BY ANTIGRAVITY',
+          'MADE WITH ❤️ ',
           style: AppTextStyles.sectionTitle.copyWith(
             fontSize: 10,
             letterSpacing: 2,
@@ -145,12 +145,3 @@ class AboutScreen extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-

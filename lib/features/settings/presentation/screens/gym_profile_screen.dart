@@ -6,6 +6,10 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/providers/owner_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 class GymProfileScreen extends ConsumerStatefulWidget {
   const GymProfileScreen({super.key});
@@ -17,6 +21,7 @@ class GymProfileScreen extends ConsumerStatefulWidget {
 class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
   late TextEditingController _gymNameController;
   late TextEditingController _addressController;
+  String? _logoPath;
 
   @override
   void initState() {
@@ -25,6 +30,7 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
     _gymNameController = TextEditingController(text: owner?.gymName ?? '');
     _addressController = TextEditingController(text: owner?.address ?? '');
     _gymNameController.addListener(() => setState(() {}));
+    _logoPath = ref.read(ownerProvider)?.logoPath;
   }
 
   @override
@@ -32,6 +38,37 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
     _gymNameController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLogo() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    final sourcePath = result.files.single.path;
+    if (sourcePath == null) return;
+
+    // Copy to permanent app documents directory so path stays valid
+    final docsDir = await getApplicationDocumentsDirectory();
+    final fileName = 'gym_logo_${DateTime.now().millisecondsSinceEpoch}${p.extension(sourcePath)}';
+    final destPath = p.join(docsDir.path, fileName);
+    await File(sourcePath).copy(destPath);
+
+    // Persist immediately so _save() picks it up
+    final owner = ref.read(ownerProvider);
+    if (owner != null) {
+      await ref.read(ownerProvider.notifier).updateOwner(
+        owner.copyWith(logoPath: destPath),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _logoPath = destPath;
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -116,7 +153,7 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
+                  gradient: _logoPath == null ? AppColors.primaryGradient : null,
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
@@ -126,31 +163,53 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
                     ),
                   ],
                 ),
+                clipBehavior: Clip.antiAlias,
                 alignment: Alignment.center,
-                child: Text(
-                  (_gymNameController.text.isNotEmpty
-                          ? _gymNameController.text.substring(0, 1)
-                          : 'G')
-                      .toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _logoPath != null
+                    ? Image.file(
+                        File(_logoPath!),
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Text(
+                          (_gymNameController.text.isNotEmpty
+                                  ? _gymNameController.text.substring(0, 1)
+                                  : 'G')
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    : Text(
+                        (_gymNameController.text.isNotEmpty
+                                ? _gymNameController.text.substring(0, 1)
+                                : 'G')
+                            .toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
               Positioned(
                 bottom: -4,
                 right: -4,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.elevation2,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.border, width: 2),
+                child: GestureDetector(
+                  onTap: _pickLogo,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.elevation2,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.border, width: 2),
+                    ),
+                    child: const Icon(Icons.camera_alt_rounded,
+                        size: 18, color: AppColors.primary),
                   ),
-                  child: const Icon(Icons.camera_alt_rounded,
-                      size: 18, color: AppColors.primary),
                 ),
               ),
             ],
@@ -193,6 +252,8 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
           controller: _addressController,
           prefixIcon: const Icon(Icons.location_on_outlined),
           maxLines: 3,
+          keyboardType: TextInputType.streetAddress,
+          textCapitalization: TextCapitalization.words,
         ),
       ],
     );
