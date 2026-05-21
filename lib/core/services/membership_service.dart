@@ -19,10 +19,10 @@ class MembershipService {
     if (durationMonths <= 0) {
       throw ArgumentError('Duration must be greater than zero.');
     }
-    
+
     // Use the canonical addMonths utility to handle month-overflow (e.g., Jan 31 -> Feb 28)
     final calculated = AppDateUtils.addMonths(startDate, durationMonths);
-    
+
     // Set to end of day (23:59:59.999) for a full day of access
     return DateTime(
       calculated.year,
@@ -68,14 +68,17 @@ class MembershipService {
   }) {
     if (isArchived) return MemberStatus.archived;
     if (expiryDate == null) return MemberStatus.pending;
-    
-    final today = DateTime(now.year, now.month, now.day);
-    final expiry = DateTime(expiryDate.year, expiryDate.month, expiryDate.day);
-    final diff = expiry.difference(today).inDays;
+
+    final todayUtc =
+        DateTime.utc(now.year, now.month, now.day).millisecondsSinceEpoch;
+    final expiryUtc =
+        DateTime.utc(expiryDate.year, expiryDate.month, expiryDate.day)
+            .millisecondsSinceEpoch;
+    final diff = (expiryUtc - todayUtc) ~/ 86400000;
 
     if (diff < 0) return MemberStatus.expired;
     if (diff <= 7) return MemberStatus.expiring;
-    
+
     return MemberStatus.active;
   }
 
