@@ -193,6 +193,44 @@ class PlanManagementScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
         ),
+        const SizedBox(width: 4),
+        TextButton.icon(
+          onPressed: () async {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: AppColors.elevation2,
+                title: Text('Delete Plan?', style: AppTextStyles.cardTitle),
+                content: Text(
+                  'Delete "${plan.name}"? Members already on this plan are unaffected.',
+                  style: AppTextStyles.bodySmall,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text(
+                      'Delete',
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                  ),
+                ],
+              ),
+            );
+            if (confirm == true) {
+              ref.read(planProvider.notifier).deletePlan(plan.id);
+            }
+          },
+          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+          label: Text("Delete", style: AppTextStyles.buttonSmall),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.redAccent,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+        ),
       ],
     );
   }
@@ -269,7 +307,10 @@ class PlanManagementScreen extends ConsumerWidget {
                   style: AppTextStyles.sectionTitle.copyWith(fontSize: 10),
                 ),
                 const SizedBox(height: 12),
-                ...components.map((c) => _buildDialogComponentItem(c)),
+                ...components.asMap().entries.map(
+                  (e) => _buildDialogComponentItem(
+                      e.value, e.key, components, setDialogState),
+                ).toList(),
                 const SizedBox(height: 12),
                 _buildAddComponentButton(() {
                   setDialogState(() {
@@ -296,11 +337,16 @@ class PlanManagementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDialogComponentItem(PlanComponent component) {
+  Widget _buildDialogComponentItem(
+    PlanComponent component,
+    int index,
+    List<PlanComponent> components,
+    StateSetter setDialogState,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: AppColors.elevation2,
           borderRadius: BorderRadius.circular(16),
@@ -309,17 +355,39 @@ class PlanManagementScreen extends ConsumerWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                component.name,
+              child: TextFormField(
+                initialValue: component.name,
                 style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                decoration: const InputDecoration.collapsed(hintText: 'Component name'),
+                onChanged: (val) => setDialogState(() {
+                  components[index] = PlanComponent(
+                      id: component.id, name: val, price: component.price);
+                }),
               ),
             ),
-            Text(
-              "₹${component.price.toInt()}",
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w800,
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 72,
+              child: TextFormField(
+                initialValue: component.price.toInt().toString(),
+                keyboardType: TextInputType.number,
+                style: AppTextStyles.body.copyWith(
+                    color: AppColors.primary, fontWeight: FontWeight.w800),
+                decoration: const InputDecoration.collapsed(hintText: '₹0'),
+                textAlign: TextAlign.right,
+                onChanged: (val) => setDialogState(() {
+                  components[index] = PlanComponent(
+                      id: component.id,
+                      name: component.name,
+                      price: double.tryParse(val) ?? 0);
+                }),
               ),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: () => setDialogState(() => components.removeAt(index)),
+              child: const Icon(Icons.close_rounded,
+                  size: 18, color: AppColors.textMuted),
             ),
           ],
         ),

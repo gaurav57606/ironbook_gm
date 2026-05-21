@@ -5,6 +5,7 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/providers/owner_provider.dart';
+import '../../../../core/data/local/models/owner_profile_model.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -57,12 +58,15 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
     await File(sourcePath).copy(destPath);
 
     // Persist immediately so _save() picks it up
-    final owner = ref.read(ownerProvider);
-    if (owner != null) {
-      await ref.read(ownerProvider.notifier).updateOwner(
-        owner.copyWith(logoPath: destPath),
-      );
-    }
+    final owner = ref.read(ownerProvider) ?? OwnerProfile(
+      gymName: '',
+      ownerName: '',
+      phone: '',
+      address: '',
+    );
+    await ref.read(ownerProvider.notifier).updateOwner(
+      owner.copyWith(logoPath: destPath),
+    );
 
     if (mounted) {
       setState(() {
@@ -72,8 +76,12 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
   }
 
   Future<void> _save() async {
-    final owner = ref.read(ownerProvider);
-    if (owner == null) return;
+    final owner = ref.read(ownerProvider) ?? OwnerProfile(
+      gymName: '',
+      ownerName: '',
+      phone: '',
+      address: '',
+    );
 
     if (_gymNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

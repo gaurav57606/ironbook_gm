@@ -13,7 +13,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db_drift;
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/plan_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
@@ -139,7 +139,7 @@ class MockFactory {
         components: [],
       ));
       // Drift Payment Fallback
-      registerFallbackValue(Payment(
+      registerFallbackValue(db_drift.Payment(
         id: 'fallback',
         memberId: 'fallback',
         date: DateTime.now(),
@@ -154,6 +154,15 @@ class MockFactory {
         planName: 'fallback',
         hmacSignature: 'fallback',
         isSynced: true,
+      ));
+      registerFallbackValue(db_drift.Notification(
+        id: 'fallback',
+        title: 'fallback',
+        body: 'fallback',
+        timestamp: DateTime.now(),
+        category: 'fallback',
+        isRead: false,
+        payload: null,
       ));
     } catch (_) {}
   }
@@ -207,6 +216,11 @@ class MockFactory {
     when(() => mock.updatePinAttempts(count: any(named: 'count'), lockoutUntil: any(named: 'lockoutUntil'))).thenAnswer((_) async {});
     when(() => mock.resetPinAttempts()).thenAnswer((_) async {});
     when(() => mock.clearAll()).thenAnswer((_) async {});
+    when(() => mock.watchNotifications()).thenAnswer((_) => Stream<List<db_drift.Notification>>.value(<db_drift.Notification>[]));
+    when(() => mock.insertNotification(any())).thenAnswer((_) async {});
+    when(() => mock.markNotificationAsRead(any())).thenAnswer((_) async {});
+    when(() => mock.markAllNotificationsAsRead()).thenAnswer((_) async {});
+    when(() => mock.deleteNotification(any())).thenAnswer((_) async {});
     return mock;
   }
 

@@ -57,7 +57,6 @@ class OwnerNotifier extends StateNotifier<OwnerProfile?> {
   }
 
   Future<void> updateOwner(OwnerProfile profile) async {
-    // Emit event
     final event = DomainEvent(
       entityId: 'owner',
       eventType: EventType.ownerProfileUpdated,
@@ -68,6 +67,9 @@ class OwnerNotifier extends StateNotifier<OwnerProfile?> {
 
     await _eventRepo.persist(event);
     await _repo.upsertOwner(profile);
+
+    // Refresh state so all UI listeners rebuild immediately
+    if (mounted) state = await _repo.getOwner();
   }
 
   Future<void> rebuildCache() async {

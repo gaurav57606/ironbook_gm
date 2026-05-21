@@ -99,7 +99,7 @@ class _OwnershipTransferScreenState extends ConsumerState<OwnershipTransferScree
         deviceId: 'manual-handover',
         deviceTimestamp: DateTime.now(),
         payload: {
-          'previousOwner': ref.read(ownerProvider)?.ownerName ?? 'Unknown',
+          'previousOwner': owner?.ownerName ?? 'Unknown',
           'newOwner': updated.ownerName,
           'gymName': updated.gymName,
           'newEmail': _newEmailController.text.trim(),

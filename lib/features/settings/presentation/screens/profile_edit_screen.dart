@@ -5,6 +5,7 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/providers/owner_provider.dart';
+import '../../../../core/data/local/models/owner_profile_model.dart';
 
 class ProfileEditScreen extends ConsumerStatefulWidget {
   final bool isGymProfile;
@@ -178,8 +179,12 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   void _saveHandler() async {
-    final owner = ref.read(ownerProvider);
-    if (owner == null) return;
+    final owner = ref.read(ownerProvider) ?? OwnerProfile(
+      gymName: '',
+      ownerName: '',
+      phone: '',
+      address: '',
+    );
     
     final updated = owner.copyWith(
       gymName: widget.isGymProfile ? _nameController.text : owner.gymName,

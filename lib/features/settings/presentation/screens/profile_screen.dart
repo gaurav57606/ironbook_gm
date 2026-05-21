@@ -5,6 +5,7 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/providers/owner_provider.dart';
+import '../../../../core/data/local/models/owner_profile_model.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -34,8 +35,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _save() async {
-    final owner = ref.read(ownerProvider);
-    if (owner == null) return;
+    final owner = ref.read(ownerProvider) ?? OwnerProfile(
+      gymName: '',
+      ownerName: '',
+      phone: '',
+      address: '',
+    );
 
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

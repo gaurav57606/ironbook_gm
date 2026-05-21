@@ -6,6 +6,7 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
+import '../../../../core/data/local/models/owner_profile_model.dart';
 import 'package:go_router/go_router.dart';
 
 class TaxBillingScreen extends ConsumerStatefulWidget {
@@ -49,9 +50,13 @@ class _TaxBillingScreenState extends ConsumerState<TaxBillingScreen> {
   }
 
   Future<void> _save() async {
-    final owner = ref.read(ownerProvider);
+    final owner = ref.read(ownerProvider) ?? OwnerProfile(
+      gymName: '',
+      ownerName: '',
+      phone: '',
+      address: '',
+    );
     final settings = ref.read(settingsProvider);
-    if (owner == null) return;
 
     final parsedGst = double.tryParse(_gstRateController.text.trim());
     if (parsedGst == null || parsedGst < 0 || parsedGst > 100) {

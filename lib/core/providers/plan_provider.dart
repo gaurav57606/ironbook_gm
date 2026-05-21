@@ -144,6 +144,37 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     
     await _syncWorker.performSync();
   }
+
+  Future<void> deletePlan(String planId) async {
+    final now = DateTime.now();
+    final updatedList = state.where((p) => p.id != planId).toList();
+
+    final event = DomainEvent(
+      entityId: 'gym-plans',
+      eventType: EventType.plansUpdated,
+      deviceId: _deviceId,
+      deviceTimestamp: now,
+      payload: {
+        'plans': updatedList.map((p) => {
+          'id': p.id,
+          'name': p.name,
+          'durationMonths': p.durationMonths,
+          'active': p.active,
+          'price': p.price,
+          'components': p.components
+              .map((c) => {'id': c.id, 'name': c.name, 'price': c.price})
+              .toList(),
+        }).toList()
+      },
+    );
+
+    await _db.transaction(() async {
+      await _eventRepo.persist(event);
+      await (_db.delete(_db.plans)..where((t) => t.id.equals(planId))).go();
+    });
+
+    await _syncWorker.performSync();
+  }
 }
 
 final planProvider = StateNotifierProvider<PlanNotifier, List<Plan>>((ref) {
