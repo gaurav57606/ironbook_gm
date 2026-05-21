@@ -47,6 +47,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
   }
 
   void _handleSave() {
+    debugPrint('HANDLE SAVE CALLED');
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final ageStr = _ageController.text.trim();
@@ -129,6 +130,7 @@ class _QuickAddMemberScreenState extends ConsumerState<QuickAddMemberScreen> {
     }
 
     final selectedPlan = selectedBasePlans.isNotEmpty ? selectedBasePlans[_selectedPlanIndex] : null;
+    debugPrint('BUILD: plans = ${plans.map((p) => p.name).toList()}, plans.isEmpty = ${plans.isEmpty}, isSaving = $isSaving');
 
     return Scaffold(
       key: const Key('quick-add-member-root'),

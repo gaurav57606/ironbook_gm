@@ -85,19 +85,39 @@ void main() {
           planRepositoryProvider.overrideWithValue(mockPlanRepo),
           billingRepositoryProvider.overrideWithValue(mockBilling),
           billingNotifierProvider.overrideWith((ref) => FakeBillingNotifier()),
+          membersProvider.overrideWith((ref) => FakeMemberNotifier()),
+          paymentsProvider.overrideWith((ref) => FakePaymentNotifier()),
         ],
       );
 
       await tester.pumpAndSettle();
 
       // 1. Verify screen loaded
-      expect(find.text('Add Member'), findsOneWidget);
+      expect(find.text('Registration'), findsOneWidget);
       debugPrint('[TEST] Screen loaded');
 
       // 2. Enter details
-      await tester.enterText(find.byType(TextFormField).at(0), 'Jane Doe');
-      await tester.enterText(find.byType(TextFormField).at(1), '1234567890');
-      await tester.enterText(find.byType(TextFormField).at(2), '30');
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const Key('input-member-name')),
+          matching: find.byType(TextFormField),
+        ),
+        'Jane Doe',
+      );
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const Key('input-member-phone')),
+          matching: find.byType(TextFormField),
+        ),
+        '1234567890',
+      );
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const Key('input-member-age')),
+          matching: find.byType(TextFormField),
+        ),
+        '30',
+      );
       await tester.pump();
       debugPrint('[TEST] Details entered');
 

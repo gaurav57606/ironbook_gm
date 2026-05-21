@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:ironbook_gm/core/providers/bootstrap_provider.dart';
@@ -77,6 +78,8 @@ class _Pill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTest = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -89,8 +92,8 @@ class _Pill extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: color)
               .animate(
-                autoPlay: !const bool.fromEnvironment('FLUTTER_TEST'),
-                onPlay: (controller) => (isAnimated && !const bool.fromEnvironment('FLUTTER_TEST')) ? controller.repeat() : null,
+                autoPlay: !isTest,
+                onPlay: (controller) => (isAnimated && !isTest) ? controller.repeat() : null,
               )
               .rotate(duration: 2.seconds),
           const SizedBox(width: 6),

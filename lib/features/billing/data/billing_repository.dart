@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
 
@@ -8,6 +9,7 @@ abstract class IBillingRepository {
   Future<List<Payment>> getMemberPayments(String memberId);
   Stream<List<Payment>> watchMemberPayments(String memberId);
   Future<List<Payment>> getAllPayments();
+  Stream<List<Payment>> watchAllPayments();
 
   // Sales
   Future<void> recordSale(Sale sale);
@@ -44,6 +46,13 @@ class BillingRepository implements IBillingRepository {
   @override
   Future<List<Payment>> getAllPayments() async {
     return _db.select(_db.payments).get();
+  }
+
+  @override
+  Stream<List<Payment>> watchAllPayments() {
+    return (_db.select(_db.payments)
+          ..orderBy([(p) => OrderingTerm.desc(p.date)]))
+        .watch();
   }
 
   @override

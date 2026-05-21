@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart';
 import '../local/drift/outbox_database.dart' as db;
 import '../local/models/product_model.dart' as domain;
 import '../../providers/base_providers.dart';
 
 abstract class IProductRepository {
   Future<List<domain.Product>> getAllProducts();
+  Stream<List<domain.Product>> watchAllProducts();
   Future<void> upsertProduct(domain.Product product);
 }
 
@@ -17,6 +19,14 @@ class DriftProductRepository implements IProductRepository {
   Future<List<domain.Product>> getAllProducts() async {
     final docs = await _db.select(_db.products).get();
     return docs.map((d) => domain.Product.fromDrift(d)).toList();
+  }
+
+  @override
+  Stream<List<domain.Product>> watchAllProducts() {
+    return (_db.select(_db.products)
+          ..orderBy([(p) => OrderingTerm.asc(p.name)]))
+        .watch()
+        .map((docs) => docs.map((d) => domain.Product.fromDrift(d)).toList());
   }
 
   @override

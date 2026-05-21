@@ -60,6 +60,11 @@ final allPaymentsProvider = FutureProvider<List<Payment>>((ref) {
   return repository.getAllPayments();
 });
 
+final allPaymentsStreamProvider = StreamProvider<List<Payment>>((ref) {
+  final repository = ref.watch(billingRepositoryProvider);
+  return repository.watchAllPayments();
+});
+
 final salesProvider = StreamProvider<List<Sale>>((ref) {
   final repository = ref.watch(billingRepositoryProvider);
   return repository.watchAllSales();

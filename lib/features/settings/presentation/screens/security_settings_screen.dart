@@ -5,7 +5,6 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
-import '../../../../core/providers/base_providers.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/settings_toggle_tile.dart';
@@ -82,9 +81,8 @@ class SecuritySettingsScreen extends ConsumerWidget {
                               TextButton(
                                 onPressed: () async {
                                   Navigator.of(dialogContext).pop();
-                                  // Clear PIN flag from SharedPreferences
-                                  final prefs = ref.read(sharedPreferencesProvider);
-                                  await prefs.setBool('pin_configured', false);
+                                  // Clear PIN through AuthNotifier so in-memory state updates immediately
+                                  await ref.read(authProvider.notifier).clearPin();
                                   // Also disable biometrics in settings
                                   await ref
                                       .read(settingsProvider.notifier)

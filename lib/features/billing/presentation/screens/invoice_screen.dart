@@ -62,6 +62,30 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
     }
   }
 
+  Future<void> _downloadInvoice(Payment payment, String memberName) async {
+    setState(() => _isProcessing = true);
+    try {
+      final owner = ref.read(ownerProvider);
+      if (owner == null) return;
+      
+      final file = await InvoicePdfService.generateInvoice(
+        payment: payment,
+        owner: owner,
+        memberName: memberName,
+      );
+      
+      await Share.shareXFiles([XFile(file.path)]);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error downloading invoice: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   Future<void> _printInvoice(Payment payment, String memberName) async {
     setState(() => _isProcessing = true);
     try {
@@ -82,7 +106,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final paymentsAsync = ref.watch(allPaymentsProvider);
+    final paymentsAsync = ref.watch(allPaymentsStreamProvider);
     final memberId = widget.memberId;
     
     Payment? payment;
@@ -119,7 +143,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
                       child: AppButton(
-                        text: _isProcessing ? 'Processing...' : 'Share via WhatsApp',
+                        text: _isProcessing ? 'Processing...' : 'Share Invoice',
                         icon: _isProcessing 
                           ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.share, size: 13, color: Colors.white),
@@ -177,7 +201,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
           _buildAppBarIcon(Icons.download_rounded, onTap: payment != null ? () {
             final members = ref.read(membersProvider);
             final memberName = members.firstWhereOrNull((m) => m.memberId == payment.memberId)?.name ?? 'Member';
-            _printInvoice(payment, memberName); 
+            _downloadInvoice(payment, memberName); 
           } : null),
           AppSpacing.gapS,
           _buildAppBarIcon(Icons.print_rounded, onTap: payment != null ? () {
@@ -329,7 +353,7 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
         spacing: 8,
         runSpacing: 8,
         children: payments.map((method) {
-          final isSelected = method.contains(selectedMethod);
+          final isSelected = method.toLowerCase().contains(selectedMethod.toLowerCase());
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(

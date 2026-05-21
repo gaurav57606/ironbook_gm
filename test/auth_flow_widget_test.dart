@@ -40,12 +40,25 @@ void main() {
         ),
       );
 
-      // 1. Initially should be on Login Screen
+      // 1. Initially should be on Onboarding Screen (First Launch)
       await boundedPump(tester);
+      expect(find.textContaining('Track every member'), findsOneWidget);
+      await tester.tap(find.textContaining('Next').first);
+      await boundedPump(tester);
+      
+      expect(find.textContaining('Instant invoices'), findsOneWidget);
+      await tester.tap(find.textContaining('Next').first);
+      await boundedPump(tester);
+      
+      expect(find.textContaining('Your gym, your rules'), findsOneWidget);
+      await tester.tap(find.textContaining('Get started').first);
+      await boundedPump(tester);
+
+      // 2. After completing onboarding, should be redirected to Login Screen (not yet authenticated)
       expect(find.byType(LoginScreen), findsOneWidget);
       expect(find.text('Welcome Back'), findsOneWidget);
 
-      // 2. Navigate to Signup
+      // 3. Navigate to Signup
       final signupLink = find.textContaining('Create an account', findRichText: true);
       expect(signupLink, findsOneWidget);
       await tester.ensureVisible(signupLink);
@@ -53,7 +66,7 @@ void main() {
       await boundedPump(tester);
       expect(find.byType(SignupScreen), findsOneWidget);
 
-      // 3. Fill signup form
+      // 4. Fill signup form and complete Signup
       await tester.enterText(find.byKey(const Key('input-signup-gym')), 'IronBook Gym');
       await tester.enterText(find.byKey(const Key('input-signup-owner')), 'John Doe');
       await tester.enterText(find.byKey(const Key('input-signup-email')), 'test@example.com');
@@ -68,20 +81,7 @@ void main() {
       await tester.tap(signupBtn, warnIfMissed: false);
       await boundedPump(tester);
 
-      // 4. Now authenticated + first launch -> Should be on Onboarding
-      expect(find.textContaining('Track every member'), findsOneWidget);
-      await tester.tap(find.textContaining('Next').first);
-      await boundedPump(tester);
-      
-      expect(find.textContaining('Instant invoices'), findsOneWidget);
-      await tester.tap(find.textContaining('Next').first);
-      await boundedPump(tester);
-      
-      expect(find.textContaining('Your gym, your rules'), findsOneWidget);
-      await tester.tap(find.textContaining('Get started').first);
-      await boundedPump(tester);
-
-      // 5. Finally on PIN Setup Screen
+      // 5. Finally on PIN Setup Screen (Authenticated but PIN not setup yet)
       expect(find.byType(PinSetupScreen), findsOneWidget);
       expect(find.text('Create your PIN'), findsOneWidget);
     });

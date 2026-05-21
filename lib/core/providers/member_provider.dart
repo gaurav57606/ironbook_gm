@@ -114,10 +114,12 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final now = ref.watch(clockProvider).now;
   final sort = ref.watch(memberSortProvider);
 
-  // Apply search filter
   List<MemberSnapshot> filtered = query.isEmpty
       ? List<MemberSnapshot>.from(members)
-      : members.where((m) => m.name.toLowerCase().contains(query)).toList();
+      : members.where((m) =>
+          m.name.toLowerCase().contains(query) ||
+          (m.phone?.toLowerCase().contains(query) ?? false)
+        ).toList();
 
   // Apply tab filter
   switch (tabIndex) {

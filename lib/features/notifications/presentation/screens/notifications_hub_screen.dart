@@ -115,7 +115,10 @@ class _NotificationsHubScreenState extends ConsumerState<NotificationsHubScreen>
             ),
           ),
           TextButton(
-            onPressed: () => NotificationService.markAllAsRead(),
+            onPressed: () async {
+              await NotificationService.markAllAsRead();
+              ref.invalidate(notificationProvider);
+            },
             child: const Text(
               'Mark all as read',
               style: TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.w600),
@@ -146,7 +149,7 @@ class _NotificationsHubScreenState extends ConsumerState<NotificationsHubScreen>
         itemCount: notifications.length,
         itemBuilder: (context, index) {
           final n = notifications[index];
-          return _buildNotificationItem(n);
+          return _buildNotificationItem(n, ref);
         },
       ),
     );
@@ -176,7 +179,7 @@ class _NotificationsHubScreenState extends ConsumerState<NotificationsHubScreen>
     );
   }
 
-  Widget _buildNotificationItem(db.Notification n) {
+  Widget _buildNotificationItem(db.Notification n, WidgetRef ref) {
     final Color color = _getCategoryColor(n.category);
     final IconData icon = _getCategoryIcon(n.category);
     final String timeStr = _formatTimestamp(n.timestamp);
@@ -184,6 +187,7 @@ class _NotificationsHubScreenState extends ConsumerState<NotificationsHubScreen>
     return InkWell(
       onTap: () async {
         await NotificationService.markAsRead(n.id);
+        ref.invalidate(notificationProvider);
         if (n.payload != null && mounted) {
            // We can't easily call handlePayload with context here because it's static and complex.
            // But we can just use the router directly.

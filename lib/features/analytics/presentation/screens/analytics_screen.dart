@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/sync_status_indicator.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/providers/notification_provider.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
@@ -84,23 +85,29 @@ class AnalyticsScreen extends ConsumerWidget {
               backgroundColor: AppColors.elevation2,
               padding: const EdgeInsets.all(8),
             ),
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_none_rounded, color: AppColors.text3, size: 20),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: AppColors.orange,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.bg, width: 1.5),
-                    ),
-                  ),
-                ),
-              ],
+            icon: Consumer(
+              builder: (context, ref, _) {
+                final unread = ref.watch(unreadNotificationsCountProvider);
+                return Stack(
+                  children: [
+                    const Icon(Icons.notifications_none_rounded, color: AppColors.text3, size: 20),
+                    if (unread > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: AppColors.orange,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.bg, width: 1.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
           const SizedBox(width: 8),
@@ -173,10 +180,47 @@ class AnalyticsScreen extends ConsumerWidget {
   }
 
   Widget _buildGraph(String title, List<double> data, {bool isCurrency = false}) {
+    final allZero = data.every((v) => v == 0);
+    if (allZero) {
+      return Container(
+        height: 180,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.bg2,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'No data yet',
+                  style: TextStyle(
+                    color: AppColors.text3,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final maxVal = data.isEmpty ? 1.0 : data.reduce((a, b) => a > b ? a : b);
     
     return Container(
-      height: 160,
+      height: 180,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.bg2,
@@ -193,8 +237,12 @@ class AnalyticsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(data.length, (index) {
               final val = data[index];
-              final height = maxVal == 0 ? 2.0 : (val / maxVal) * 80.0 + 2.0;
+              final height = maxVal == 0 ? 2.0 : (val / maxVal) * 70.0 + 2.0;
+              // Day label: today is index 6
+              final day = DateTime.now().subtract(Duration(days: 6 - index));
+              final label = DateFormat('E').format(day).substring(0, 1); // M,T,W...
               return Column(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
                     width: 14,
@@ -211,6 +259,8 @@ class AnalyticsScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(label, style: const TextStyle(color: AppColors.text3, fontSize: 9)),
                 ],
               );
             }),

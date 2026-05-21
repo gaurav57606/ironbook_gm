@@ -17,6 +17,7 @@ abstract class IPaymentRepository {
   Future<void> applyEvent(DomainEvent event);
   Future<double> getTotalRevenue();
   Future<List<double>> getWeeklyRevenue(DateTime now);
+  Future<double> getRevenueBetween(DateTime start, DateTime end);
 }
 
 class DriftPaymentRepository implements IPaymentRepository {
@@ -109,6 +110,17 @@ class DriftPaymentRepository implements IPaymentRepository {
       }
     }
     return weekly;
+  }
+
+  @override
+  Future<double> getRevenueBetween(DateTime start, DateTime end) async {
+    final amountExp = _db.payments.amount.sum();
+    final query = _db.selectOnly(_db.payments)
+      ..where(_db.payments.date.isBiggerOrEqualValue(start) &
+          _db.payments.date.isSmallerOrEqualValue(end))
+      ..addColumns([amountExp]);
+    final row = await query.getSingle();
+    return row.read(amountExp) ?? 0.0;
   }
 }
 

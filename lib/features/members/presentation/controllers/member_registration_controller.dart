@@ -8,6 +8,7 @@ import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'package:ironbook_gm/core/monitoring/monitoring_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
+import 'package:ironbook_gm/core/providers/base_providers.dart';
 
 class RegistrationState {
   final bool isSaving;
@@ -37,9 +38,14 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
   final MemberNotifier _memberNotifier;
   final PaymentNotifier _paymentNotifier;
   final LoggerService _logger;
+  final FirebaseAuth? _auth;
 
-  MemberRegistrationController(this._memberNotifier, this._paymentNotifier, this._logger)
-      : super(RegistrationState());
+  MemberRegistrationController(
+    this._memberNotifier,
+    this._paymentNotifier,
+    this._logger, [
+    this._auth,
+  ]) : super(RegistrationState());
 
   Future<void> registerMember({
     required String name,
@@ -71,7 +77,7 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
       );
       
       // Monitoring Sidecar: Passive Archival
-      final ownerUid = FirebaseAuth.instance.currentUser?.uid;
+      final ownerUid = _auth?.currentUser?.uid;
       MonitoringService.logMembershipCreated(
         memberId, 
         selectedPlan.name, 
@@ -118,6 +124,7 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
 
       state = state.copyWith(isSaving: false, successMemberId: memberId);
     } catch (e, stack) {
+      debugPrint('REGISTRATION FAILED WITH ERROR: $e');
       _logger.error(
         'Member registration failed', 
         category: 'REGISTRATION', 
@@ -150,5 +157,6 @@ final memberRegistrationControllerProvider =
   final memberNotifier = ref.watch(membersProvider.notifier);
   final paymentNotifier = ref.watch(paymentsProvider.notifier);
   final logger = ref.watch(loggerProvider);
-  return MemberRegistrationController(memberNotifier, paymentNotifier, logger);
+  final auth = ref.watch(firebaseAuthProvider);
+  return MemberRegistrationController(memberNotifier, paymentNotifier, logger, auth);
 });

@@ -53,7 +53,7 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   Future<bool> login(String email, String password) async => true;
   
   @override
-  Future<void> signOut() async {}
+  void triggerBackgroundRecovery() {}
   
   @override
   void lock() {}
@@ -63,6 +63,9 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   
   @override
   Future<void> setPin(String pin) async {}
+  
+  @override
+  Future<void> clearPin() async {}
   
   @override
   Future<void> setBiometricOptIn(bool enabled) async {}
@@ -243,7 +246,7 @@ class MockFactory {
     when(() => mock.login(any(), any())).thenAnswer((_) async => true);
     when(() => mock.signUp(any(), any(), gymName: any(named: 'gymName'), ownerName: any(named: 'ownerName'), phone: any(named: 'phone')))
         .thenAnswer((_) async => true);
-    when(() => mock.signOut()).thenAnswer((_) async {});
+    when(() => mock.logout()).thenAnswer((_) async {});
     when(() => mock.completeOnboarding()).thenAnswer((_) async {});
     when(() => mock.authenticate(pin: any(named: 'pin'))).thenAnswer((_) async => true);
     return mock;

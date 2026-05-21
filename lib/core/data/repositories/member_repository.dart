@@ -21,6 +21,7 @@ abstract class IMemberRepository {
   Future<int> countActiveMembers();
   Future<List<MemberSnapshot>> getUnsyncedMembers();
   Future<void> markSynced(String id);
+  Future<int> countMembersJoinedBetween(DateTime start, DateTime end);
 }
 
 class DriftMemberRepository implements IMemberRepository {
@@ -178,6 +179,18 @@ class DriftMemberRepository implements IMemberRepository {
   Future<void> markSynced(String id) async {
     await (_db.update(_db.members)..where((t) => t.id.equals(id)))
         .write(MembersCompanion(isSynced: const Value(true)));
+  }
+
+  @override
+  Future<int> countMembersJoinedBetween(DateTime start, DateTime end) async {
+    final countExp = _db.members.id.count();
+    final query = _db.selectOnly(_db.members)
+      ..addColumns([countExp])
+      ..where(_db.members.archived.equals(false) &
+          _db.members.joinDate.isBiggerOrEqualValue(start) &
+          _db.members.joinDate.isSmallerOrEqualValue(end));
+    final row = await query.getSingle();
+    return row.read(countExp) ?? 0;
   }
 }
 

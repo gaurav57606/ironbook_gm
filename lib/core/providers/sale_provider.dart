@@ -179,9 +179,9 @@ class SaleNotifier extends StateNotifier<List<Sale>> {
   }
 }
 
-final productsProvider = FutureProvider<List<Product>>((ref) async {
+final productsProvider = StreamProvider<List<Product>>((ref) {
   final repo = ref.watch(productRepositoryProvider);
-  return repo.getAllProducts();
+  return repo.watchAllProducts();
 });
 
 final saleProvider = StateNotifierProvider<SaleNotifier, List<Sale>>((ref) {

@@ -30,7 +30,7 @@ class MockRepo implements IEventRepository {
       events.where((e) => e.entityId == entityId).toList();
 
   @override
-  Future<List<DomainEvent>> getAll() async => List.from(events);
+  Future<List<DomainEvent>> getAllEvents() async => List.from(events);
   @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async {
     return events.where((e) => e.deviceTimestamp.isAfter(since)).toList();
@@ -100,6 +100,7 @@ void main() {
       when(() => mockMemberRepo.getMember(any())).thenAnswer((_) async => null);
       when(() => mockMemberRepo.applyEvent(any())).thenAnswer((_) async => {});
       when(() => mockMemberRepo.upsertMember(any())).thenAnswer((_) async => {});
+      when(() => mockMemberRepo.upsertMembers(any())).thenAnswer((_) async => {});
       when(() => mockPrefs.getInt(any())).thenAnswer((_) async => 0);
       when(() => mockPrefs.setInt(any(), any())).thenAnswer((_) async => true);
 
@@ -124,7 +125,7 @@ void main() {
       expect(notifier.state.first.name, 'Survivor');
 
       // Verify that the rebuilt snapshot was persisted back to the repository
-      verify(() => mockMemberRepo.upsertMember(any())).called(1);
+      verify(() => mockMemberRepo.upsertMembers(any())).called(1);
     });
   });
 }

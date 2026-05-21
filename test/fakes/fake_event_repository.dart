@@ -48,7 +48,7 @@ class FakeEventRepository implements IEventRepository {
   }
 
   @override
-  Future<List<DomainEvent>> getAll() async => List.from(_events);
+  Future<List<DomainEvent>> getAllEvents() async => List.from(_events);
 
   @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async {

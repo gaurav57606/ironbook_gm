@@ -15,6 +15,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/utils/clock.dart';
 import '../widgets/payment_history_item.dart';
 import '../widgets/renewal_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/providers/owner_provider.dart';
 
 class MemberDetailScreen extends ConsumerWidget {
   final String memberId;
@@ -312,8 +314,33 @@ class MemberDetailScreen extends ConsumerWidget {
                   icon: Icons.chat_outlined,
                   label: 'WhatsApp',
                   color: AppColors.textPrimary,
-                  onTap: () {
-                    // Open WhatsApp
+                  onTap: () async {
+                    final phone = member.phone;
+                    if (phone == null || phone.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('No phone number saved for this member')),
+                      );
+                      return;
+                    }
+                    final clean = phone.replaceAll(RegExp(r'[\s\-\(\)\+]'), '');
+                    final dialCode = clean.startsWith('91') ? clean : '91$clean';
+                    final gymName = ref.read(ownerProvider)?.gymName ?? 'your gym';
+                    final expiry = member.expiryDate != null
+                        ? 'Your membership expires on ${AppDateUtils.format(member.expiryDate!)}.'
+                        : '';
+                    final msg = Uri.encodeComponent(
+                      'Hi ${member.name}, this is a reminder from $gymName. $expiry Please renew to continue! 💪',
+                    );
+                    final url = Uri.parse('https://wa.me/$dialCode?text=$msg');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('WhatsApp is not installed')),
+                        );
+                      }
+                    }
                   },
                 ),
               ),

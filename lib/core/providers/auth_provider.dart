@@ -162,6 +162,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Called when PIN is disabled from Security Settings.
+  /// Clears the stored PIN and refreshes in-memory auth state.
+  Future<void> clearPin() async {
+    final prefs = _ref.read(sharedPreferencesProvider);
+    await prefs.setBool('pin_configured', false);
+    await _storage.delete(key: 'pin_hash');
+    await _storage.delete(key: 'pin_salt');
+    if (mounted) {
+      state = state.copyWith(isPinSetup: false);
+    }
+  }
+
   Future<void> setBiometricOptIn(bool enabled) async {
     final settings = await _settingsRepo.getSettings();
     await _settingsRepo.updateSettings(settings.copyWith(useBiometrics: enabled));

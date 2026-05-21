@@ -246,7 +246,7 @@ class _RenewalDialogState extends ConsumerState<RenewalDialog> {
       );
       
       // Monitoring Sidecar: Passive Archival
-      final ownerUid = FirebaseAuth.instance.currentUser?.uid;
+      final ownerUid = ref.read(firebaseAuthProvider)?.currentUser?.uid;
       MonitoringService.logMembershipRenewed(
         widget.member.memberId, 
         plan.name, 

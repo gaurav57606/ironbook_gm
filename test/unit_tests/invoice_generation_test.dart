@@ -44,10 +44,12 @@ void main() {
     });
 
     test('Should reset sequence on manual reset', () async {
-      await service.next();
-      await service.reset(2027);
+      final frozenClock = FrozenClock(DateTime(2027, 1, 1));
+      final service2027 = InvoiceService(sequenceRepo, frozenClock);
+      await service2027.next();
+      await service2027.reset(2027);
 
-      final inv = await service.next();
+      final inv = await service2027.next();
       expect(inv, 'INV-2027-0001');
     });
 

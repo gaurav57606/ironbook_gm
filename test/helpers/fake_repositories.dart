@@ -38,7 +38,7 @@ class FakeDriftEventRepository implements IEventRepository {
     return result;
   }
   @override
-  Future<List<DomainEvent>> getAll() async => List.unmodifiable(_events);
+  Future<List<DomainEvent>> getAllEvents() async => List.unmodifiable(_events);
   @override
   Future<List<DomainEvent>> getEventsSince(DateTime since) async =>
       _events.where((e) => e.deviceTimestamp.isAfter(since)).toList();

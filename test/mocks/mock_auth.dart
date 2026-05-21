@@ -46,9 +46,16 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
     return true;
   }
 
-  @override
   Future<void> signOut() async {
     state = state.copyWith(isAuthenticated: false, unlocked: false);
+  }
+
+  @override
+  void triggerBackgroundRecovery() {}
+
+  @override
+  Future<void> clearPin() async {
+    state = state.copyWith(isPinSetup: false);
   }
 
   @override

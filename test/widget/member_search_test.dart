@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/features/members/presentation/screens/members_list_screen.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/core/data/local/models/member_snapshot_model.dart';
+import 'package:ironbook_gm/core/data/local/models/domain_event_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
@@ -33,6 +34,8 @@ void main() {
   late MockSyncCoordinator mockCoordinator;
   late MockMembershipService mockMembership;
   late MockHmacService mockHmac;
+  late MockMemberRepo mockMemberRepo;
+  late MockPreferencesRepo mockPreferencesRepo;
   late List<MemberSnapshot> testMembers;
 
   setUp(() {
@@ -40,11 +43,9 @@ void main() {
     mockCoordinator = MockSyncCoordinator();
     mockMembership = MockMembershipService();
     mockHmac = MockHmacService();
+    mockMemberRepo = MockMemberRepo();
+    mockPreferencesRepo = MockPreferencesRepo();
     
-    when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
-    when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
-    when(() => mockCoordinator.triggerSync()).thenReturn(null);
-
     testMembers = [
       MemberSnapshot(
         memberId: 'm1',
@@ -68,6 +69,44 @@ void main() {
         expiryDate: DateTime(2024, 1, 5), // Expiring (within 7 days of 1-1)
       ),
     ];
+
+    final List<DomainEvent> mockEvents = [
+      DomainEvent(
+        id: 'e1',
+        entityId: 'm1',
+        eventType: EventType.memberCreated,
+        payload: {},
+        deviceTimestamp: DateTime(2024, 1, 1),
+        deviceId: 'test-device',
+      ),
+      DomainEvent(
+        id: 'e2',
+        entityId: 'm2',
+        eventType: EventType.memberCreated,
+        payload: {},
+        deviceTimestamp: DateTime(2024, 1, 1),
+        deviceId: 'test-device',
+      ),
+      DomainEvent(
+        id: 'e3',
+        entityId: 'm3',
+        eventType: EventType.memberCreated,
+        payload: {},
+        deviceTimestamp: DateTime(2024, 1, 1),
+        deviceId: 'test-device',
+      ),
+    ];
+
+    when(() => mockRepo.watch()).thenAnswer((_) => const Stream.empty());
+    when(() => mockRepo.getEventsSince(any())).thenAnswer((_) async => []);
+    when(() => mockRepo.getAllEvents()).thenAnswer((_) async => mockEvents);
+    when(() => mockMemberRepo.getAllMembers()).thenAnswer((_) async => testMembers);
+    when(() => mockMemberRepo.getMember(any())).thenAnswer((_) async => null);
+    when(() => mockMemberRepo.deleteMember(any())).thenAnswer((_) async {});
+    when(() => mockPreferencesRepo.getInt(any())).thenAnswer((_) async => 0);
+    when(() => mockPreferencesRepo.setInt(any(), any())).thenAnswer((_) async {});
+    when(() => mockHmac.getInstallationId()).thenAnswer((_) async => 'test-device');
+    when(() => mockCoordinator.triggerSync()).thenReturn(null);
   });
 
   Widget wrap(Widget child) {
@@ -81,9 +120,9 @@ void main() {
           final notifier = MemberNotifier(
             MockOutboxDatabase(), 
             mockRepo, 
-            MockMemberRepo(), 
+            mockMemberRepo, 
             MockPlanRepo(), 
-            MockPreferencesRepo(), 
+            mockPreferencesRepo, 
             FrozenClock(DateTime(2024, 1, 1)), 
             mockHmac, 
             mockMembership,
@@ -134,7 +173,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap "Expired" tab (index 3)
-      await tester.tap(find.text('Expired 1'));
+      await tester.tap(find.text('Expired'));
       await tester.pump();
 
       expect(find.text('Jane Smith'), findsOneWidget);
@@ -142,7 +181,7 @@ void main() {
       expect(find.text('Bob Wilson'), findsNothing);
 
       // Tap "Expiring" tab (index 2)
-      await tester.tap(find.text('Expiring 1'));
+      await tester.tap(find.text('Expiring'));
       await tester.pump();
 
       expect(find.text('Bob Wilson'), findsOneWidget);
