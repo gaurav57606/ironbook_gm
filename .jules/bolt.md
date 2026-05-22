@@ -32,3 +32,7 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+
+## 2024-05-18 - [Optimization Failed Validation] Scratchpads and Lockfiles
+**Learning:** Adding test or bench scripts (e.g., test_perf.dart) directly to the repository and forgetting to remove them violates PR hygiene. Also, unprompted changes to pubspec.lock resulting from environment discrepancies will block merges.
+**Action:** Always strictly clean up all temporary files created for validation before pushing. If a local environment implicitly modifies lockfiles, check them out/revert them before submitting. Never modify environment definitions.
