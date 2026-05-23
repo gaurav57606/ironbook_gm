@@ -90,18 +90,18 @@ class MemberSnapshot extends HiveObject {
   // ── COMPUTED (Now deterministic) ──
   int getDaysRemaining(DateTime relativeTo) {
     if (expiryDate == null) return 0;
-    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
-    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
-    return expiry.difference(today).inDays;
+    final today = DateTime.utc(relativeTo.year, relativeTo.month, relativeTo.day);
+    final expiry = DateTime.utc(expiryDate!.year, expiryDate!.month, expiryDate!.day);
+    return (expiry.millisecondsSinceEpoch - today.millisecondsSinceEpoch) ~/ 86400000;
   }
 
   MemberStatus getStatus(DateTime relativeTo) {
     if (archived) return MemberStatus.archived;
     if (expiryDate == null) return MemberStatus.pending;
     
-    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
-    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
-    final d = expiry.difference(today).inDays;
+    final today = DateTime.utc(relativeTo.year, relativeTo.month, relativeTo.day);
+    final expiry = DateTime.utc(expiryDate!.year, expiryDate!.month, expiryDate!.day);
+    final d = (expiry.millisecondsSinceEpoch - today.millisecondsSinceEpoch) ~/ 86400000;
 
     if (d < 0) return MemberStatus.expired;
     if (d <= 7) return MemberStatus.expiring;

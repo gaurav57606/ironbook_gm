@@ -69,9 +69,9 @@ class MembershipService {
     if (isArchived) return MemberStatus.archived;
     if (expiryDate == null) return MemberStatus.pending;
     
-    final today = DateTime(now.year, now.month, now.day);
-    final expiry = DateTime(expiryDate.year, expiryDate.month, expiryDate.day);
-    final diff = expiry.difference(today).inDays;
+    final today = DateTime.utc(now.year, now.month, now.day);
+    final expiry = DateTime.utc(expiryDate.year, expiryDate.month, expiryDate.day);
+    final diff = (expiry.millisecondsSinceEpoch - today.millisecondsSinceEpoch) ~/ 86400000;
 
     if (diff < 0) return MemberStatus.expired;
     if (diff <= 7) return MemberStatus.expiring;
