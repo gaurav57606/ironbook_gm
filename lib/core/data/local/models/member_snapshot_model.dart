@@ -90,18 +90,26 @@ class MemberSnapshot extends HiveObject {
   // ── COMPUTED (Now deterministic) ──
   int getDaysRemaining(DateTime relativeTo) {
     if (expiryDate == null) return 0;
-    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
-    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
-    return expiry.difference(today).inDays;
+    // Optimization: Avoids OS timezone lookups and Duration allocations.
+    // UTC days are consistently 86400000ms.
+    final todayMs = DateTime.utc(
+      relativeTo.year,
+      relativeTo.month,
+      relativeTo.day,
+    ).millisecondsSinceEpoch;
+    final expiryMs = DateTime.utc(
+      expiryDate!.year,
+      expiryDate!.month,
+      expiryDate!.day,
+    ).millisecondsSinceEpoch;
+    return (expiryMs - todayMs) ~/ 86400000;
   }
 
   MemberStatus getStatus(DateTime relativeTo) {
     if (archived) return MemberStatus.archived;
     if (expiryDate == null) return MemberStatus.pending;
-    
-    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
-    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
-    final d = expiry.difference(today).inDays;
+
+    final d = getDaysRemaining(relativeTo);
 
     if (d < 0) return MemberStatus.expired;
     if (d <= 7) return MemberStatus.expiring;
@@ -156,15 +164,21 @@ class MemberSnapshot extends HiveObject {
       joinDate: DateTime.parse(payload['joinDate']),
       planId: payload['planId'],
       planName: payload['planName'],
-      expiryDate: payload['expiryDate'] != null ? DateTime.parse(payload['expiryDate']) : null,
+      expiryDate: payload['expiryDate'] != null
+          ? DateTime.parse(payload['expiryDate'])
+          : null,
       totalPaid: payload['totalPaid'] ?? 0,
       archived: payload['archived'] ?? false,
       paymentIds: List<String>.from(payload['paymentIds'] ?? []),
-      lastUpdated: payload['lastUpdated'] != null ? DateTime.parse(payload['lastUpdated']) : DateTime.now(),
+      lastUpdated: payload['lastUpdated'] != null
+          ? DateTime.parse(payload['lastUpdated'])
+          : DateTime.now(),
       gender: payload['gender'],
       age: payload['age'],
       checkInPin: payload['checkInPin'],
-      lastCheckIn: payload['lastCheckIn'] != null ? DateTime.parse(payload['lastCheckIn']) : null,
+      lastCheckIn: payload['lastCheckIn'] != null
+          ? DateTime.parse(payload['lastCheckIn'])
+          : null,
       lastCheckInDevice: payload['lastCheckInDevice'],
       hmacSignature: payload['hmacSignature'],
     );
@@ -188,17 +202,17 @@ class MemberSnapshot extends HiveObject {
 
   @override
   int get hashCode => Object.hash(
-        memberId,
-        name,
-        phone,
-        joinDate,
-        totalPaid,
-        planId,
-        expiryDate,
-        Object.hashAll(paymentIds),
-        Object.hashAll(joinDateHistory),
-        archived,
-      );
+    memberId,
+    name,
+    phone,
+    joinDate,
+    totalPaid,
+    planId,
+    expiryDate,
+    Object.hashAll(paymentIds),
+    Object.hashAll(joinDateHistory),
+    archived,
+  );
 
   bool _listEquals(List? a, List? b) {
     if (a == null || b == null) return a == b;
@@ -257,19 +271,10 @@ class MemberSnapshot extends HiveObject {
   }
 
   dynamic toDrift() {
-    // Note: We return the Companion/Data class type at runtime. 
+    // Note: We return the Companion/Data class type at runtime.
     // In actual implementation, we use the generated classes from outbox_database.g.dart
     return null; // Placeholder, will be used in repository
   }
 }
 
 enum MemberStatus { pending, active, expiring, expired, archived }
-
-
-
-
-
-
-
-
-
