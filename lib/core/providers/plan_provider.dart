@@ -25,7 +25,8 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
     this._planRepo,
     this._syncWorker,
     this._hmac,
-  ) : _db = db, super([]) {
+  ) : _db = db,
+      super([]) {
     _init();
   }
 
@@ -64,14 +65,21 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   }
 
   Future<void> _reconcilePlans() async {
-    final allEvents = await _eventRepo.getAllEvents();
-    final planEvents = allEvents.where((e) => e.eventType == EventType.plansUpdated).toList();
-    
+    // ⚡ Bolt Optimization: Replace O(N) full-table scan with targeted DB query
+    // Instead of `getAllEvents()` which loads all events into memory, we use `getByEntityId`
+    // to fetch only the relevant events. This significantly reduces memory bloat and I/O overhead.
+    final events = await _eventRepo.getByEntityId('gym-plans');
+    final planEvents = events
+        .where((e) => e.eventType == EventType.plansUpdated)
+        .toList();
+
     if (planEvents.isEmpty) return;
 
     // Get the latest plan update
-    final latestEvent = planEvents.reduce((a, b) => a.deviceTimestamp.isAfter(b.deviceTimestamp) ? a : b);
-    
+    final latestEvent = planEvents.reduce(
+      (a, b) => a.deviceTimestamp.isAfter(b.deviceTimestamp) ? a : b,
+    );
+
     // We can just use applyEvent here
     await _planRepo.applyEvent(latestEvent);
     state = await _planRepo.getAllPlans();
@@ -82,21 +90,29 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
 
   Future<void> addPlan(Plan plan) async {
     final now = DateTime.now();
-    
+
     // Emit sync event FIRST
     final event = DomainEvent(
       entityId: 'gym-plans',
-      eventType: EventType.plansUpdated, 
+      eventType: EventType.plansUpdated,
       deviceId: _deviceId,
       deviceTimestamp: now,
-      payload: {'plans': [...state, plan].map((p) => {
-        'id': p.id,
-        'name': p.name,
-        'durationMonths': p.durationMonths,
-        'active': p.active,
-        'price': p.price,
-        'components': p.components.map((c) => {'id': c.id, 'name': c.name, 'price': c.price}).toList(),
-      }).toList()},
+      payload: {
+        'plans': [...state, plan]
+            .map(
+              (p) => {
+                'id': p.id,
+                'name': p.name,
+                'durationMonths': p.durationMonths,
+                'active': p.active,
+                'price': p.price,
+                'components': p.components
+                    .map((c) => {'id': c.id, 'name': c.name, 'price': c.price})
+                    .toList(),
+              },
+            )
+            .toList(),
+      },
     );
 
     await _db.transaction(() async {
@@ -115,7 +131,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
 
   Future<void> updatePlan(Plan plan) async {
     final now = DateTime.now();
-    
+
     final updatedList = state.map((p) => p.id == plan.id ? plan : p).toList();
 
     final event = DomainEvent(
@@ -123,25 +139,35 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
       eventType: EventType.plansUpdated,
       deviceId: _deviceId,
       deviceTimestamp: now,
-      payload: {'plans': updatedList.map((p) => {
-        'id': p.id,
-        'name': p.name,
-        'durationMonths': p.durationMonths,
-        'active': p.active,
-        'price': p.price,
-        'components': p.components.map((c) => {'id': c.id, 'name': c.name, 'price': c.price}).toList(),
-      }).toList()},
+      payload: {
+        'plans': updatedList
+            .map(
+              (p) => {
+                'id': p.id,
+                'name': p.name,
+                'durationMonths': p.durationMonths,
+                'active': p.active,
+                'price': p.price,
+                'components': p.components
+                    .map((c) => {'id': c.id, 'name': c.name, 'price': c.price})
+                    .toList(),
+              },
+            )
+            .toList(),
+      },
     );
 
     await _db.transaction(() async {
-      debugPrint('[TRANSACTION] PlanNotifier: Starting updatePlan for ${plan.id}');
+      debugPrint(
+        '[TRANSACTION] PlanNotifier: Starting updatePlan for ${plan.id}',
+      );
       await _eventRepo.persist(event);
 
       // Persist Locally in Drift
       await _planRepo.upsertPlan(plan);
       debugPrint('[TRANSACTION] PlanNotifier: updatePlan transaction complete');
     });
-    
+
     await _syncWorker.performSync();
   }
 
@@ -155,16 +181,20 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
       deviceId: _deviceId,
       deviceTimestamp: now,
       payload: {
-        'plans': updatedList.map((p) => {
-          'id': p.id,
-          'name': p.name,
-          'durationMonths': p.durationMonths,
-          'active': p.active,
-          'price': p.price,
-          'components': p.components
-              .map((c) => {'id': c.id, 'name': c.name, 'price': c.price})
-              .toList(),
-        }).toList()
+        'plans': updatedList
+            .map(
+              (p) => {
+                'id': p.id,
+                'name': p.name,
+                'durationMonths': p.durationMonths,
+                'active': p.active,
+                'price': p.price,
+                'components': p.components
+                    .map((c) => {'id': c.id, 'name': c.name, 'price': c.price})
+                    .toList(),
+              },
+            )
+            .toList(),
       },
     );
 
@@ -185,14 +215,3 @@ final planProvider = StateNotifierProvider<PlanNotifier, List<Plan>>((ref) {
   final hmac = ref.watch(hmacServiceProvider);
   return PlanNotifier(db, eventRepo, planRepo, syncWorker, hmac);
 });
-
-
-
-
-
-
-
-
-
-
-
