@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2024-05-25 - Prevent Full Table Scan in PlanNotifier Reconcile
+**Learning:** In Dart/Drift, replacing in-memory filtering (`getAll().where(...)`) with targeted DB queries (`getByEntityId`) is a critical optimization during state reconciliation, as loading all events into memory causes O(N) I/O and memory bloat.
+**Action:** Always prefer offloading filtering to the local SQLite database via Drift rather than fetching all rows and filtering in Dart memory.
