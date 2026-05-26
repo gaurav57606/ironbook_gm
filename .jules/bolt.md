@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2025-05-25 - [Performance Optimization Gotcha: DateTime Instantiation in Loops]
+**Learning:** While replacing `DateTime.difference()` with UTC millisecond division avoids slow OS timezone lookups, instantiating new `DateTime.utc(...)` objects *inside* a loop introduces significant object allocation overhead, resulting in a net performance loss compared to reusing pre-allocated `DateTime` objects with `.difference()`.
+**Action:** Always ensure that `DateTime.utc(...)` conversions are performed *outside* of any loops when refactoring date logic. If the date objects to be compared are dynamic per iteration, ensure the benchmark proves the UTC division outweighs the instantiation cost, and avoid modifying existing external properties before calculations.
