@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import '../router/app_router.dart';
+import 'notification_service.dart';
 
 // Top-level handler for background/terminated messages
 @pragma('vm:entry-point')
@@ -46,14 +47,58 @@ class FcmService {
     }
 
     // 3. Foreground
-    FirebaseMessaging.onMessage.listen(processKillSignal);
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      await processKillSignal(message);
+      
+      final notification = message.notification;
+      if (notification != null) {
+        final title = notification.title ?? '';
+        final body = notification.body ?? '';
+        final category = message.data['category'] ?? 'general';
+        final payload = message.data['payload'];
+        
+        await NotificationService.sendGenericNotification(
+          title: title,
+          body: body,
+          category: category,
+          dedupKey: 'fcm_${message.messageId ?? DateTime.now().millisecondsSinceEpoch}',
+          payload: payload,
+        );
+      }
+    });
 
     // 4. Background (handled by top-level function)
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     // 5. Terminated
     final initial = await messaging.getInitialMessage();
-    if (initial != null) await processKillSignal(initial);
+    if (initial != null) {
+      await processKillSignal(initial);
+      
+      final notification = initial.notification;
+      if (notification != null) {
+        final title = notification.title ?? '';
+        final body = notification.body ?? '';
+        final category = initial.data['category'] ?? 'general';
+        final payload = initial.data['payload'];
+        
+        await NotificationService.sendGenericNotification(
+          title: title,
+          body: body,
+          category: category,
+          dedupKey: 'fcm_${initial.messageId ?? DateTime.now().millisecondsSinceEpoch}',
+          payload: payload,
+        );
+      }
+    }
+
+    // 6. Notification Tap Handling
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      final payload = message.data['payload'];
+      if (payload != null && payload.isNotEmpty) {
+        NotificationService._handlePayload(payload);
+      }
+    });
   }
 
   static Future<void> processKillSignal(RemoteMessage message) async {

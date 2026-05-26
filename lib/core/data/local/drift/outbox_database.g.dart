@@ -589,6 +589,12 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
   late final GeneratedColumn<String> photoPath = GeneratedColumn<String>(
       'photo_path', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _photoUrlMeta =
+      const VerificationMeta('photoUrl');
+  @override
+  late final GeneratedColumn<String> photoUrl = GeneratedColumn<String>(
+      'photo_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -606,7 +612,8 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
         lastCheckIn,
         hmacSignature,
         isSynced,
-        photoPath
+        photoPath,
+        photoUrl
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -695,6 +702,10 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
       context.handle(_photoPathMeta,
           photoPath.isAcceptableOrUnknown(data['photo_path']!, _photoPathMeta));
     }
+    if (data.containsKey('photo_url')) {
+      context.handle(_photoUrlMeta,
+          photoUrl.isAcceptableOrUnknown(data['photo_url']!, _photoUrlMeta));
+    }
     return context;
   }
 
@@ -736,6 +747,8 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       photoPath: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}photo_path']),
+      photoUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}photo_url']),
     );
   }
 
@@ -762,6 +775,7 @@ class Member extends DataClass implements Insertable<Member> {
   final String hmacSignature;
   final bool isSynced;
   final String? photoPath;
+  final String? photoUrl;
   const Member(
       {required this.id,
       required this.name,
@@ -778,7 +792,8 @@ class Member extends DataClass implements Insertable<Member> {
       this.lastCheckIn,
       required this.hmacSignature,
       required this.isSynced,
-      this.photoPath});
+      this.photoPath,
+      this.photoUrl});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -816,6 +831,9 @@ class Member extends DataClass implements Insertable<Member> {
     if (!nullToAbsent || photoPath != null) {
       map['photo_path'] = Variable<String>(photoPath);
     }
+    if (!nullToAbsent || photoUrl != null) {
+      map['photo_url'] = Variable<String>(photoUrl);
+    }
     return map;
   }
 
@@ -850,6 +868,9 @@ class Member extends DataClass implements Insertable<Member> {
       photoPath: photoPath == null && nullToAbsent
           ? const Value.absent()
           : Value(photoPath),
+      photoUrl: photoUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoUrl),
     );
   }
 
@@ -873,6 +894,7 @@ class Member extends DataClass implements Insertable<Member> {
       hmacSignature: serializer.fromJson<String>(json['hmacSignature']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       photoPath: serializer.fromJson<String?>(json['photoPath']),
+      photoUrl: serializer.fromJson<String?>(json['photoUrl']),
     );
   }
   @override
@@ -895,6 +917,7 @@ class Member extends DataClass implements Insertable<Member> {
       'hmacSignature': serializer.toJson<String>(hmacSignature),
       'isSynced': serializer.toJson<bool>(isSynced),
       'photoPath': serializer.toJson<String?>(photoPath),
+      'photoUrl': serializer.toJson<String?>(photoUrl),
     };
   }
 
@@ -914,7 +937,8 @@ class Member extends DataClass implements Insertable<Member> {
           Value<DateTime?> lastCheckIn = const Value.absent(),
           String? hmacSignature,
           bool? isSynced,
-          Value<String?> photoPath = const Value.absent()}) =>
+          Value<String?> photoPath = const Value.absent(),
+          Value<String?> photoUrl = const Value.absent()}) =>
       Member(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -932,6 +956,7 @@ class Member extends DataClass implements Insertable<Member> {
         hmacSignature: hmacSignature ?? this.hmacSignature,
         isSynced: isSynced ?? this.isSynced,
         photoPath: photoPath.present ? photoPath.value : this.photoPath,
+        photoUrl: photoUrl.present ? photoUrl.value : this.photoUrl,
       );
   Member copyWithCompanion(MembersCompanion data) {
     return Member(
@@ -956,6 +981,7 @@ class Member extends DataClass implements Insertable<Member> {
           : this.hmacSignature,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       photoPath: data.photoPath.present ? data.photoPath.value : this.photoPath,
+      photoUrl: data.photoUrl.present ? data.photoUrl.value : this.photoUrl,
     );
   }
 
@@ -977,7 +1003,8 @@ class Member extends DataClass implements Insertable<Member> {
           ..write('lastCheckIn: $lastCheckIn, ')
           ..write('hmacSignature: $hmacSignature, ')
           ..write('isSynced: $isSynced, ')
-          ..write('photoPath: $photoPath')
+          ..write('photoPath: $photoPath, ')
+          ..write('photoUrl: $photoUrl')
           ..write(')'))
         .toString();
   }
@@ -999,7 +1026,8 @@ class Member extends DataClass implements Insertable<Member> {
       lastCheckIn,
       hmacSignature,
       isSynced,
-      photoPath);
+      photoPath,
+      photoUrl);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1019,7 +1047,8 @@ class Member extends DataClass implements Insertable<Member> {
           other.lastCheckIn == this.lastCheckIn &&
           other.hmacSignature == this.hmacSignature &&
           other.isSynced == this.isSynced &&
-          other.photoPath == this.photoPath);
+          other.photoPath == this.photoPath &&
+          other.photoUrl == this.photoUrl);
 }
 
 class MembersCompanion extends UpdateCompanion<Member> {
@@ -1039,6 +1068,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
   final Value<String> hmacSignature;
   final Value<bool> isSynced;
   final Value<String?> photoPath;
+  final Value<String?> photoUrl;
   final Value<int> rowid;
   const MembersCompanion({
     this.id = const Value.absent(),
@@ -1057,6 +1087,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.photoPath = const Value.absent(),
+    this.photoUrl = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MembersCompanion.insert({
@@ -1076,6 +1107,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.photoPath = const Value.absent(),
+    this.photoUrl = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name),
@@ -1097,6 +1129,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
     Expression<String>? hmacSignature,
     Expression<bool>? isSynced,
     Expression<String>? photoPath,
+    Expression<String>? photoUrl,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1116,6 +1149,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
       if (hmacSignature != null) 'hmac_signature': hmacSignature,
       if (isSynced != null) 'is_synced': isSynced,
       if (photoPath != null) 'photo_path': photoPath,
+      if (photoUrl != null) 'photo_url': photoUrl,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1137,6 +1171,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
       Value<String>? hmacSignature,
       Value<bool>? isSynced,
       Value<String?>? photoPath,
+      Value<String?>? photoUrl,
       Value<int>? rowid}) {
     return MembersCompanion(
       id: id ?? this.id,
@@ -1155,6 +1190,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
       hmacSignature: hmacSignature ?? this.hmacSignature,
       isSynced: isSynced ?? this.isSynced,
       photoPath: photoPath ?? this.photoPath,
+      photoUrl: photoUrl ?? this.photoUrl,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1210,6 +1246,9 @@ class MembersCompanion extends UpdateCompanion<Member> {
     if (photoPath.present) {
       map['photo_path'] = Variable<String>(photoPath.value);
     }
+    if (photoUrl.present) {
+      map['photo_url'] = Variable<String>(photoUrl.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1235,6 +1274,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
           ..write('hmacSignature: $hmacSignature, ')
           ..write('isSynced: $isSynced, ')
           ..write('photoPath: $photoPath, ')
+          ..write('photoUrl: $photoUrl, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4862,6 +4902,14 @@ class $AppSettingsTableTable extends AppSettingsTable
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _subscriptionModeMeta =
+      const VerificationMeta('subscriptionMode');
+  @override
+  late final GeneratedColumn<String> subscriptionMode = GeneratedColumn<String>(
+      'subscription_mode', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('calendar_month'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -4873,7 +4921,8 @@ class $AppSettingsTableTable extends AppSettingsTable
         businessType,
         lastBackupAt,
         hmacSignature,
-        isSynced
+        isSynced,
+        subscriptionMode
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4939,6 +4988,12 @@ class $AppSettingsTableTable extends AppSettingsTable
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('subscription_mode')) {
+      context.handle(
+          _subscriptionModeMeta,
+          subscriptionMode.isAcceptableOrUnknown(
+              data['subscription_mode']!, _subscriptionModeMeta));
+    }
     return context;
   }
 
@@ -4968,6 +5023,8 @@ class $AppSettingsTableTable extends AppSettingsTable
           .read(DriftSqlType.string, data['${effectivePrefix}hmac_signature']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      subscriptionMode: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}subscription_mode'])!,
     );
   }
 
@@ -4989,6 +5046,7 @@ class AppSettingsTableData extends DataClass
   final DateTime? lastBackupAt;
   final String? hmacSignature;
   final bool isSynced;
+  final String subscriptionMode;
   const AppSettingsTableData(
       {required this.id,
       required this.gstRate,
@@ -4999,7 +5057,8 @@ class AppSettingsTableData extends DataClass
       required this.businessType,
       this.lastBackupAt,
       this.hmacSignature,
-      required this.isSynced});
+      required this.isSynced,
+      required this.subscriptionMode});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -5017,6 +5076,7 @@ class AppSettingsTableData extends DataClass
       map['hmac_signature'] = Variable<String>(hmacSignature);
     }
     map['is_synced'] = Variable<bool>(isSynced);
+    map['subscription_mode'] = Variable<String>(subscriptionMode);
     return map;
   }
 
@@ -5036,6 +5096,7 @@ class AppSettingsTableData extends DataClass
           ? const Value.absent()
           : Value(hmacSignature),
       isSynced: Value(isSynced),
+      subscriptionMode: Value(subscriptionMode),
     );
   }
 
@@ -5053,6 +5114,7 @@ class AppSettingsTableData extends DataClass
       lastBackupAt: serializer.fromJson<DateTime?>(json['lastBackupAt']),
       hmacSignature: serializer.fromJson<String?>(json['hmacSignature']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      subscriptionMode: serializer.fromJson<String>(json['subscriptionMode']),
     );
   }
   @override
@@ -5069,6 +5131,7 @@ class AppSettingsTableData extends DataClass
       'lastBackupAt': serializer.toJson<DateTime?>(lastBackupAt),
       'hmacSignature': serializer.toJson<String?>(hmacSignature),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'subscriptionMode': serializer.toJson<String>(subscriptionMode),
     };
   }
 
@@ -5082,7 +5145,8 @@ class AppSettingsTableData extends DataClass
           String? businessType,
           Value<DateTime?> lastBackupAt = const Value.absent(),
           Value<String?> hmacSignature = const Value.absent(),
-          bool? isSynced}) =>
+          bool? isSynced,
+          String? subscriptionMode}) =>
       AppSettingsTableData(
         id: id ?? this.id,
         gstRate: gstRate ?? this.gstRate,
@@ -5096,6 +5160,7 @@ class AppSettingsTableData extends DataClass
         hmacSignature:
             hmacSignature.present ? hmacSignature.value : this.hmacSignature,
         isSynced: isSynced ?? this.isSynced,
+        subscriptionMode: subscriptionMode ?? this.subscriptionMode,
       );
   AppSettingsTableData copyWithCompanion(AppSettingsTableCompanion data) {
     return AppSettingsTableData(
@@ -5123,6 +5188,9 @@ class AppSettingsTableData extends DataClass
           ? data.hmacSignature.value
           : this.hmacSignature,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      subscriptionMode: data.subscriptionMode.present
+          ? data.subscriptionMode.value
+          : this.subscriptionMode,
     );
   }
 
@@ -5138,7 +5206,8 @@ class AppSettingsTableData extends DataClass
           ..write('businessType: $businessType, ')
           ..write('lastBackupAt: $lastBackupAt, ')
           ..write('hmacSignature: $hmacSignature, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('subscriptionMode: $subscriptionMode')
           ..write(')'))
         .toString();
   }
@@ -5154,7 +5223,8 @@ class AppSettingsTableData extends DataClass
       businessType,
       lastBackupAt,
       hmacSignature,
-      isSynced);
+      isSynced,
+      subscriptionMode);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5168,7 +5238,8 @@ class AppSettingsTableData extends DataClass
           other.businessType == this.businessType &&
           other.lastBackupAt == this.lastBackupAt &&
           other.hmacSignature == this.hmacSignature &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.subscriptionMode == this.subscriptionMode);
 }
 
 class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
@@ -5182,6 +5253,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
   final Value<DateTime?> lastBackupAt;
   final Value<String?> hmacSignature;
   final Value<bool> isSynced;
+  final Value<String> subscriptionMode;
   const AppSettingsTableCompanion({
     this.id = const Value.absent(),
     this.gstRate = const Value.absent(),
@@ -5193,6 +5265,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     this.lastBackupAt = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.subscriptionMode = const Value.absent(),
   });
   AppSettingsTableCompanion.insert({
     this.id = const Value.absent(),
@@ -5205,6 +5278,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     this.lastBackupAt = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.subscriptionMode = const Value.absent(),
   });
   static Insertable<AppSettingsTableData> custom({
     Expression<int>? id,
@@ -5217,6 +5291,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     Expression<DateTime>? lastBackupAt,
     Expression<String>? hmacSignature,
     Expression<bool>? isSynced,
+    Expression<String>? subscriptionMode,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -5230,6 +5305,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
       if (lastBackupAt != null) 'last_backup_at': lastBackupAt,
       if (hmacSignature != null) 'hmac_signature': hmacSignature,
       if (isSynced != null) 'is_synced': isSynced,
+      if (subscriptionMode != null) 'subscription_mode': subscriptionMode,
     });
   }
 
@@ -5243,7 +5319,8 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
       Value<String>? businessType,
       Value<DateTime?>? lastBackupAt,
       Value<String?>? hmacSignature,
-      Value<bool>? isSynced}) {
+      Value<bool>? isSynced,
+      Value<String>? subscriptionMode}) {
     return AppSettingsTableCompanion(
       id: id ?? this.id,
       gstRate: gstRate ?? this.gstRate,
@@ -5255,6 +5332,7 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
       lastBackupAt: lastBackupAt ?? this.lastBackupAt,
       hmacSignature: hmacSignature ?? this.hmacSignature,
       isSynced: isSynced ?? this.isSynced,
+      subscriptionMode: subscriptionMode ?? this.subscriptionMode,
     );
   }
 
@@ -5291,6 +5369,9 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (subscriptionMode.present) {
+      map['subscription_mode'] = Variable<String>(subscriptionMode.value);
+    }
     return map;
   }
 
@@ -5306,7 +5387,8 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
           ..write('businessType: $businessType, ')
           ..write('lastBackupAt: $lastBackupAt, ')
           ..write('hmacSignature: $hmacSignature, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('subscriptionMode: $subscriptionMode')
           ..write(')'))
         .toString();
   }
@@ -5695,6 +5777,1030 @@ class NotificationsCompanion extends UpdateCompanion<Notification> {
   }
 }
 
+class $MemberSubscriptionsTable extends MemberSubscriptions
+    with TableInfo<$MemberSubscriptionsTable, MemberSubscription> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemberSubscriptionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _memberIdMeta =
+      const VerificationMeta('memberId');
+  @override
+  late final GeneratedColumn<String> memberId = GeneratedColumn<String>(
+      'member_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _startDateMeta =
+      const VerificationMeta('startDate');
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+      'start_date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _endDateMeta =
+      const VerificationMeta('endDate');
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+      'end_date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<String> planId = GeneratedColumn<String>(
+      'plan_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _planNameMeta =
+      const VerificationMeta('planName');
+  @override
+  late final GeneratedColumn<String> planName = GeneratedColumn<String>(
+      'plan_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _amountPaidMeta =
+      const VerificationMeta('amountPaid');
+  @override
+  late final GeneratedColumn<double> amountPaid = GeneratedColumn<double>(
+      'amount_paid', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('active'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _hmacSignatureMeta =
+      const VerificationMeta('hmacSignature');
+  @override
+  late final GeneratedColumn<String> hmacSignature = GeneratedColumn<String>(
+      'hmac_signature', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        memberId,
+        startDate,
+        endDate,
+        planId,
+        planName,
+        amountPaid,
+        status,
+        createdAt,
+        hmacSignature,
+        isSynced
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'member_subscriptions';
+  @override
+  VerificationContext validateIntegrity(Insertable<MemberSubscription> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('member_id')) {
+      context.handle(_memberIdMeta,
+          memberId.isAcceptableOrUnknown(data['member_id']!, _memberIdMeta));
+    } else if (isInserting) {
+      context.missing(_memberIdMeta);
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(_startDateMeta,
+          startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta));
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(_endDateMeta,
+          endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta));
+    } else if (isInserting) {
+      context.missing(_endDateMeta);
+    }
+    if (data.containsKey('plan_id')) {
+      context.handle(_planIdMeta,
+          planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta));
+    }
+    if (data.containsKey('plan_name')) {
+      context.handle(_planNameMeta,
+          planName.isAcceptableOrUnknown(data['plan_name']!, _planNameMeta));
+    }
+    if (data.containsKey('amount_paid')) {
+      context.handle(
+          _amountPaidMeta,
+          amountPaid.isAcceptableOrUnknown(
+              data['amount_paid']!, _amountPaidMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('hmac_signature')) {
+      context.handle(
+          _hmacSignatureMeta,
+          hmacSignature.isAcceptableOrUnknown(
+              data['hmac_signature']!, _hmacSignatureMeta));
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemberSubscription map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemberSubscription(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      memberId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}member_id'])!,
+      startDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}start_date'])!,
+      endDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}end_date'])!,
+      planId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}plan_id']),
+      planName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}plan_name']),
+      amountPaid: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount_paid'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      hmacSignature: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}hmac_signature'])!,
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+    );
+  }
+
+  @override
+  $MemberSubscriptionsTable createAlias(String alias) {
+    return $MemberSubscriptionsTable(attachedDatabase, alias);
+  }
+}
+
+class MemberSubscription extends DataClass
+    implements Insertable<MemberSubscription> {
+  final String id;
+  final String memberId;
+  final DateTime startDate;
+  final DateTime endDate;
+  final String? planId;
+  final String? planName;
+  final double amountPaid;
+  final String status;
+  final DateTime createdAt;
+  final String hmacSignature;
+  final bool isSynced;
+  const MemberSubscription(
+      {required this.id,
+      required this.memberId,
+      required this.startDate,
+      required this.endDate,
+      this.planId,
+      this.planName,
+      required this.amountPaid,
+      required this.status,
+      required this.createdAt,
+      required this.hmacSignature,
+      required this.isSynced});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['member_id'] = Variable<String>(memberId);
+    map['start_date'] = Variable<DateTime>(startDate);
+    map['end_date'] = Variable<DateTime>(endDate);
+    if (!nullToAbsent || planId != null) {
+      map['plan_id'] = Variable<String>(planId);
+    }
+    if (!nullToAbsent || planName != null) {
+      map['plan_name'] = Variable<String>(planName);
+    }
+    map['amount_paid'] = Variable<double>(amountPaid);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['hmac_signature'] = Variable<String>(hmacSignature);
+    map['is_synced'] = Variable<bool>(isSynced);
+    return map;
+  }
+
+  MemberSubscriptionsCompanion toCompanion(bool nullToAbsent) {
+    return MemberSubscriptionsCompanion(
+      id: Value(id),
+      memberId: Value(memberId),
+      startDate: Value(startDate),
+      endDate: Value(endDate),
+      planId:
+          planId == null && nullToAbsent ? const Value.absent() : Value(planId),
+      planName: planName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planName),
+      amountPaid: Value(amountPaid),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      hmacSignature: Value(hmacSignature),
+      isSynced: Value(isSynced),
+    );
+  }
+
+  factory MemberSubscription.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemberSubscription(
+      id: serializer.fromJson<String>(json['id']),
+      memberId: serializer.fromJson<String>(json['memberId']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime>(json['endDate']),
+      planId: serializer.fromJson<String?>(json['planId']),
+      planName: serializer.fromJson<String?>(json['planName']),
+      amountPaid: serializer.fromJson<double>(json['amountPaid']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      hmacSignature: serializer.fromJson<String>(json['hmacSignature']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'memberId': serializer.toJson<String>(memberId),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime>(endDate),
+      'planId': serializer.toJson<String?>(planId),
+      'planName': serializer.toJson<String?>(planName),
+      'amountPaid': serializer.toJson<double>(amountPaid),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'hmacSignature': serializer.toJson<String>(hmacSignature),
+      'isSynced': serializer.toJson<bool>(isSynced),
+    };
+  }
+
+  MemberSubscription copyWith(
+          {String? id,
+          String? memberId,
+          DateTime? startDate,
+          DateTime? endDate,
+          Value<String?> planId = const Value.absent(),
+          Value<String?> planName = const Value.absent(),
+          double? amountPaid,
+          String? status,
+          DateTime? createdAt,
+          String? hmacSignature,
+          bool? isSynced}) =>
+      MemberSubscription(
+        id: id ?? this.id,
+        memberId: memberId ?? this.memberId,
+        startDate: startDate ?? this.startDate,
+        endDate: endDate ?? this.endDate,
+        planId: planId.present ? planId.value : this.planId,
+        planName: planName.present ? planName.value : this.planName,
+        amountPaid: amountPaid ?? this.amountPaid,
+        status: status ?? this.status,
+        createdAt: createdAt ?? this.createdAt,
+        hmacSignature: hmacSignature ?? this.hmacSignature,
+        isSynced: isSynced ?? this.isSynced,
+      );
+  MemberSubscription copyWithCompanion(MemberSubscriptionsCompanion data) {
+    return MemberSubscription(
+      id: data.id.present ? data.id.value : this.id,
+      memberId: data.memberId.present ? data.memberId.value : this.memberId,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      planId: data.planId.present ? data.planId.value : this.planId,
+      planName: data.planName.present ? data.planName.value : this.planName,
+      amountPaid:
+          data.amountPaid.present ? data.amountPaid.value : this.amountPaid,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      hmacSignature: data.hmacSignature.present
+          ? data.hmacSignature.value
+          : this.hmacSignature,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemberSubscription(')
+          ..write('id: $id, ')
+          ..write('memberId: $memberId, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('planId: $planId, ')
+          ..write('planName: $planName, ')
+          ..write('amountPaid: $amountPaid, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('hmacSignature: $hmacSignature, ')
+          ..write('isSynced: $isSynced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, memberId, startDate, endDate, planId,
+      planName, amountPaid, status, createdAt, hmacSignature, isSynced);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemberSubscription &&
+          other.id == this.id &&
+          other.memberId == this.memberId &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.planId == this.planId &&
+          other.planName == this.planName &&
+          other.amountPaid == this.amountPaid &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.hmacSignature == this.hmacSignature &&
+          other.isSynced == this.isSynced);
+}
+
+class MemberSubscriptionsCompanion extends UpdateCompanion<MemberSubscription> {
+  final Value<String> id;
+  final Value<String> memberId;
+  final Value<DateTime> startDate;
+  final Value<DateTime> endDate;
+  final Value<String?> planId;
+  final Value<String?> planName;
+  final Value<double> amountPaid;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<String> hmacSignature;
+  final Value<bool> isSynced;
+  final Value<int> rowid;
+  const MemberSubscriptionsCompanion({
+    this.id = const Value.absent(),
+    this.memberId = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.planName = const Value.absent(),
+    this.amountPaid = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.hmacSignature = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemberSubscriptionsCompanion.insert({
+    required String id,
+    required String memberId,
+    required DateTime startDate,
+    required DateTime endDate,
+    this.planId = const Value.absent(),
+    this.planName = const Value.absent(),
+    this.amountPaid = const Value.absent(),
+    this.status = const Value.absent(),
+    required DateTime createdAt,
+    this.hmacSignature = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        memberId = Value(memberId),
+        startDate = Value(startDate),
+        endDate = Value(endDate),
+        createdAt = Value(createdAt);
+  static Insertable<MemberSubscription> custom({
+    Expression<String>? id,
+    Expression<String>? memberId,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<String>? planId,
+    Expression<String>? planName,
+    Expression<double>? amountPaid,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<String>? hmacSignature,
+    Expression<bool>? isSynced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (memberId != null) 'member_id': memberId,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (planId != null) 'plan_id': planId,
+      if (planName != null) 'plan_name': planName,
+      if (amountPaid != null) 'amount_paid': amountPaid,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (hmacSignature != null) 'hmac_signature': hmacSignature,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemberSubscriptionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? memberId,
+      Value<DateTime>? startDate,
+      Value<DateTime>? endDate,
+      Value<String?>? planId,
+      Value<String?>? planName,
+      Value<double>? amountPaid,
+      Value<String>? status,
+      Value<DateTime>? createdAt,
+      Value<String>? hmacSignature,
+      Value<bool>? isSynced,
+      Value<int>? rowid}) {
+    return MemberSubscriptionsCompanion(
+      id: id ?? this.id,
+      memberId: memberId ?? this.memberId,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      planId: planId ?? this.planId,
+      planName: planName ?? this.planName,
+      amountPaid: amountPaid ?? this.amountPaid,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      hmacSignature: hmacSignature ?? this.hmacSignature,
+      isSynced: isSynced ?? this.isSynced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (memberId.present) {
+      map['member_id'] = Variable<String>(memberId.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (planId.present) {
+      map['plan_id'] = Variable<String>(planId.value);
+    }
+    if (planName.present) {
+      map['plan_name'] = Variable<String>(planName.value);
+    }
+    if (amountPaid.present) {
+      map['amount_paid'] = Variable<double>(amountPaid.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (hmacSignature.present) {
+      map['hmac_signature'] = Variable<String>(hmacSignature.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemberSubscriptionsCompanion(')
+          ..write('id: $id, ')
+          ..write('memberId: $memberId, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('planId: $planId, ')
+          ..write('planName: $planName, ')
+          ..write('amountPaid: $amountPaid, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('hmacSignature: $hmacSignature, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DeviceTokensTable extends DeviceTokens
+    with TableInfo<$DeviceTokensTable, DeviceToken> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeviceTokensTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _gymIdMeta = const VerificationMeta('gymId');
+  @override
+  late final GeneratedColumn<String> gymId = GeneratedColumn<String>(
+      'gym_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _fcmTokenMeta =
+      const VerificationMeta('fcmToken');
+  @override
+  late final GeneratedColumn<String> fcmToken = GeneratedColumn<String>(
+      'fcm_token', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _deviceNameMeta =
+      const VerificationMeta('deviceName');
+  @override
+  late final GeneratedColumn<String> deviceName = GeneratedColumn<String>(
+      'device_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _platformMeta =
+      const VerificationMeta('platform');
+  @override
+  late final GeneratedColumn<String> platform = GeneratedColumn<String>(
+      'platform', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('android'));
+  static const VerificationMeta _registeredAtMeta =
+      const VerificationMeta('registeredAt');
+  @override
+  late final GeneratedColumn<DateTime> registeredAt = GeneratedColumn<DateTime>(
+      'registered_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _lastSeenAtMeta =
+      const VerificationMeta('lastSeenAt');
+  @override
+  late final GeneratedColumn<DateTime> lastSeenAt = GeneratedColumn<DateTime>(
+      'last_seen_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _isActiveMeta =
+      const VerificationMeta('isActive');
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+      'is_active', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_active" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        gymId,
+        userId,
+        fcmToken,
+        deviceName,
+        platform,
+        registeredAt,
+        lastSeenAt,
+        isActive
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'device_tokens';
+  @override
+  VerificationContext validateIntegrity(Insertable<DeviceToken> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('gym_id')) {
+      context.handle(
+          _gymIdMeta, gymId.isAcceptableOrUnknown(data['gym_id']!, _gymIdMeta));
+    } else if (isInserting) {
+      context.missing(_gymIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('fcm_token')) {
+      context.handle(_fcmTokenMeta,
+          fcmToken.isAcceptableOrUnknown(data['fcm_token']!, _fcmTokenMeta));
+    } else if (isInserting) {
+      context.missing(_fcmTokenMeta);
+    }
+    if (data.containsKey('device_name')) {
+      context.handle(
+          _deviceNameMeta,
+          deviceName.isAcceptableOrUnknown(
+              data['device_name']!, _deviceNameMeta));
+    }
+    if (data.containsKey('platform')) {
+      context.handle(_platformMeta,
+          platform.isAcceptableOrUnknown(data['platform']!, _platformMeta));
+    }
+    if (data.containsKey('registered_at')) {
+      context.handle(
+          _registeredAtMeta,
+          registeredAt.isAcceptableOrUnknown(
+              data['registered_at']!, _registeredAtMeta));
+    } else if (isInserting) {
+      context.missing(_registeredAtMeta);
+    }
+    if (data.containsKey('last_seen_at')) {
+      context.handle(
+          _lastSeenAtMeta,
+          lastSeenAt.isAcceptableOrUnknown(
+              data['last_seen_at']!, _lastSeenAtMeta));
+    } else if (isInserting) {
+      context.missing(_lastSeenAtMeta);
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(_isActiveMeta,
+          isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DeviceToken map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeviceToken(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      gymId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}gym_id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      fcmToken: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}fcm_token'])!,
+      deviceName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}device_name']),
+      platform: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}platform'])!,
+      registeredAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}registered_at'])!,
+      lastSeenAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_seen_at'])!,
+      isActive: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
+    );
+  }
+
+  @override
+  $DeviceTokensTable createAlias(String alias) {
+    return $DeviceTokensTable(attachedDatabase, alias);
+  }
+}
+
+class DeviceToken extends DataClass implements Insertable<DeviceToken> {
+  final String id;
+  final String gymId;
+  final String userId;
+  final String fcmToken;
+  final String? deviceName;
+  final String platform;
+  final DateTime registeredAt;
+  final DateTime lastSeenAt;
+  final bool isActive;
+  const DeviceToken(
+      {required this.id,
+      required this.gymId,
+      required this.userId,
+      required this.fcmToken,
+      this.deviceName,
+      required this.platform,
+      required this.registeredAt,
+      required this.lastSeenAt,
+      required this.isActive});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['gym_id'] = Variable<String>(gymId);
+    map['user_id'] = Variable<String>(userId);
+    map['fcm_token'] = Variable<String>(fcmToken);
+    if (!nullToAbsent || deviceName != null) {
+      map['device_name'] = Variable<String>(deviceName);
+    }
+    map['platform'] = Variable<String>(platform);
+    map['registered_at'] = Variable<DateTime>(registeredAt);
+    map['last_seen_at'] = Variable<DateTime>(lastSeenAt);
+    map['is_active'] = Variable<bool>(isActive);
+    return map;
+  }
+
+  DeviceTokensCompanion toCompanion(bool nullToAbsent) {
+    return DeviceTokensCompanion(
+      id: Value(id),
+      gymId: Value(gymId),
+      userId: Value(userId),
+      fcmToken: Value(fcmToken),
+      deviceName: deviceName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deviceName),
+      platform: Value(platform),
+      registeredAt: Value(registeredAt),
+      lastSeenAt: Value(lastSeenAt),
+      isActive: Value(isActive),
+    );
+  }
+
+  factory DeviceToken.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeviceToken(
+      id: serializer.fromJson<String>(json['id']),
+      gymId: serializer.fromJson<String>(json['gymId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      fcmToken: serializer.fromJson<String>(json['fcmToken']),
+      deviceName: serializer.fromJson<String?>(json['deviceName']),
+      platform: serializer.fromJson<String>(json['platform']),
+      registeredAt: serializer.fromJson<DateTime>(json['registeredAt']),
+      lastSeenAt: serializer.fromJson<DateTime>(json['lastSeenAt']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'gymId': serializer.toJson<String>(gymId),
+      'userId': serializer.toJson<String>(userId),
+      'fcmToken': serializer.toJson<String>(fcmToken),
+      'deviceName': serializer.toJson<String?>(deviceName),
+      'platform': serializer.toJson<String>(platform),
+      'registeredAt': serializer.toJson<DateTime>(registeredAt),
+      'lastSeenAt': serializer.toJson<DateTime>(lastSeenAt),
+      'isActive': serializer.toJson<bool>(isActive),
+    };
+  }
+
+  DeviceToken copyWith(
+          {String? id,
+          String? gymId,
+          String? userId,
+          String? fcmToken,
+          Value<String?> deviceName = const Value.absent(),
+          String? platform,
+          DateTime? registeredAt,
+          DateTime? lastSeenAt,
+          bool? isActive}) =>
+      DeviceToken(
+        id: id ?? this.id,
+        gymId: gymId ?? this.gymId,
+        userId: userId ?? this.userId,
+        fcmToken: fcmToken ?? this.fcmToken,
+        deviceName: deviceName.present ? deviceName.value : this.deviceName,
+        platform: platform ?? this.platform,
+        registeredAt: registeredAt ?? this.registeredAt,
+        lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+        isActive: isActive ?? this.isActive,
+      );
+  DeviceToken copyWithCompanion(DeviceTokensCompanion data) {
+    return DeviceToken(
+      id: data.id.present ? data.id.value : this.id,
+      gymId: data.gymId.present ? data.gymId.value : this.gymId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      fcmToken: data.fcmToken.present ? data.fcmToken.value : this.fcmToken,
+      deviceName:
+          data.deviceName.present ? data.deviceName.value : this.deviceName,
+      platform: data.platform.present ? data.platform.value : this.platform,
+      registeredAt: data.registeredAt.present
+          ? data.registeredAt.value
+          : this.registeredAt,
+      lastSeenAt:
+          data.lastSeenAt.present ? data.lastSeenAt.value : this.lastSeenAt,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeviceToken(')
+          ..write('id: $id, ')
+          ..write('gymId: $gymId, ')
+          ..write('userId: $userId, ')
+          ..write('fcmToken: $fcmToken, ')
+          ..write('deviceName: $deviceName, ')
+          ..write('platform: $platform, ')
+          ..write('registeredAt: $registeredAt, ')
+          ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('isActive: $isActive')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, gymId, userId, fcmToken, deviceName,
+      platform, registeredAt, lastSeenAt, isActive);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeviceToken &&
+          other.id == this.id &&
+          other.gymId == this.gymId &&
+          other.userId == this.userId &&
+          other.fcmToken == this.fcmToken &&
+          other.deviceName == this.deviceName &&
+          other.platform == this.platform &&
+          other.registeredAt == this.registeredAt &&
+          other.lastSeenAt == this.lastSeenAt &&
+          other.isActive == this.isActive);
+}
+
+class DeviceTokensCompanion extends UpdateCompanion<DeviceToken> {
+  final Value<String> id;
+  final Value<String> gymId;
+  final Value<String> userId;
+  final Value<String> fcmToken;
+  final Value<String?> deviceName;
+  final Value<String> platform;
+  final Value<DateTime> registeredAt;
+  final Value<DateTime> lastSeenAt;
+  final Value<bool> isActive;
+  final Value<int> rowid;
+  const DeviceTokensCompanion({
+    this.id = const Value.absent(),
+    this.gymId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.fcmToken = const Value.absent(),
+    this.deviceName = const Value.absent(),
+    this.platform = const Value.absent(),
+    this.registeredAt = const Value.absent(),
+    this.lastSeenAt = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DeviceTokensCompanion.insert({
+    required String id,
+    required String gymId,
+    required String userId,
+    required String fcmToken,
+    this.deviceName = const Value.absent(),
+    this.platform = const Value.absent(),
+    required DateTime registeredAt,
+    required DateTime lastSeenAt,
+    this.isActive = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        gymId = Value(gymId),
+        userId = Value(userId),
+        fcmToken = Value(fcmToken),
+        registeredAt = Value(registeredAt),
+        lastSeenAt = Value(lastSeenAt);
+  static Insertable<DeviceToken> custom({
+    Expression<String>? id,
+    Expression<String>? gymId,
+    Expression<String>? userId,
+    Expression<String>? fcmToken,
+    Expression<String>? deviceName,
+    Expression<String>? platform,
+    Expression<DateTime>? registeredAt,
+    Expression<DateTime>? lastSeenAt,
+    Expression<bool>? isActive,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (gymId != null) 'gym_id': gymId,
+      if (userId != null) 'user_id': userId,
+      if (fcmToken != null) 'fcm_token': fcmToken,
+      if (deviceName != null) 'device_name': deviceName,
+      if (platform != null) 'platform': platform,
+      if (registeredAt != null) 'registered_at': registeredAt,
+      if (lastSeenAt != null) 'last_seen_at': lastSeenAt,
+      if (isActive != null) 'is_active': isActive,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DeviceTokensCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? gymId,
+      Value<String>? userId,
+      Value<String>? fcmToken,
+      Value<String?>? deviceName,
+      Value<String>? platform,
+      Value<DateTime>? registeredAt,
+      Value<DateTime>? lastSeenAt,
+      Value<bool>? isActive,
+      Value<int>? rowid}) {
+    return DeviceTokensCompanion(
+      id: id ?? this.id,
+      gymId: gymId ?? this.gymId,
+      userId: userId ?? this.userId,
+      fcmToken: fcmToken ?? this.fcmToken,
+      deviceName: deviceName ?? this.deviceName,
+      platform: platform ?? this.platform,
+      registeredAt: registeredAt ?? this.registeredAt,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      isActive: isActive ?? this.isActive,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (gymId.present) {
+      map['gym_id'] = Variable<String>(gymId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (fcmToken.present) {
+      map['fcm_token'] = Variable<String>(fcmToken.value);
+    }
+    if (deviceName.present) {
+      map['device_name'] = Variable<String>(deviceName.value);
+    }
+    if (platform.present) {
+      map['platform'] = Variable<String>(platform.value);
+    }
+    if (registeredAt.present) {
+      map['registered_at'] = Variable<DateTime>(registeredAt.value);
+    }
+    if (lastSeenAt.present) {
+      map['last_seen_at'] = Variable<DateTime>(lastSeenAt.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeviceTokensCompanion(')
+          ..write('id: $id, ')
+          ..write('gymId: $gymId, ')
+          ..write('userId: $userId, ')
+          ..write('fcmToken: $fcmToken, ')
+          ..write('deviceName: $deviceName, ')
+          ..write('platform: $platform, ')
+          ..write('registeredAt: $registeredAt, ')
+          ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('isActive: $isActive, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$OutboxDatabase extends GeneratedDatabase {
   _$OutboxDatabase(QueryExecutor e) : super(e);
   $OutboxDatabaseManager get managers => $OutboxDatabaseManager(this);
@@ -5712,6 +6818,9 @@ abstract class _$OutboxDatabase extends GeneratedDatabase {
   late final $AppSettingsTableTable appSettingsTable =
       $AppSettingsTableTable(this);
   late final $NotificationsTable notifications = $NotificationsTable(this);
+  late final $MemberSubscriptionsTable memberSubscriptions =
+      $MemberSubscriptionsTable(this);
+  late final $DeviceTokensTable deviceTokens = $DeviceTokensTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5728,7 +6837,9 @@ abstract class _$OutboxDatabase extends GeneratedDatabase {
         preferences,
         ownerProfiles,
         appSettingsTable,
-        notifications
+        notifications,
+        memberSubscriptions,
+        deviceTokens
       ];
 }
 
@@ -5985,6 +7096,7 @@ typedef $$MembersTableCreateCompanionBuilder = MembersCompanion Function({
   Value<String> hmacSignature,
   Value<bool> isSynced,
   Value<String?> photoPath,
+  Value<String?> photoUrl,
   Value<int> rowid,
 });
 typedef $$MembersTableUpdateCompanionBuilder = MembersCompanion Function({
@@ -6004,6 +7116,7 @@ typedef $$MembersTableUpdateCompanionBuilder = MembersCompanion Function({
   Value<String> hmacSignature,
   Value<bool> isSynced,
   Value<String?> photoPath,
+  Value<String?> photoUrl,
   Value<int> rowid,
 });
 
@@ -6063,6 +7176,9 @@ class $$MembersTableFilterComposer
 
   ColumnFilters<String> get photoPath => $composableBuilder(
       column: $table.photoPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get photoUrl => $composableBuilder(
+      column: $table.photoUrl, builder: (column) => ColumnFilters(column));
 }
 
 class $$MembersTableOrderingComposer
@@ -6122,6 +7238,9 @@ class $$MembersTableOrderingComposer
 
   ColumnOrderings<String> get photoPath => $composableBuilder(
       column: $table.photoPath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get photoUrl => $composableBuilder(
+      column: $table.photoUrl, builder: (column) => ColumnOrderings(column));
 }
 
 class $$MembersTableAnnotationComposer
@@ -6180,6 +7299,9 @@ class $$MembersTableAnnotationComposer
 
   GeneratedColumn<String> get photoPath =>
       $composableBuilder(column: $table.photoPath, builder: (column) => column);
+
+  GeneratedColumn<String> get photoUrl =>
+      $composableBuilder(column: $table.photoUrl, builder: (column) => column);
 }
 
 class $$MembersTableTableManager extends RootTableManager<
@@ -6221,6 +7343,7 @@ class $$MembersTableTableManager extends RootTableManager<
             Value<String> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<String?> photoPath = const Value.absent(),
+            Value<String?> photoUrl = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MembersCompanion(
@@ -6240,6 +7363,7 @@ class $$MembersTableTableManager extends RootTableManager<
             hmacSignature: hmacSignature,
             isSynced: isSynced,
             photoPath: photoPath,
+            photoUrl: photoUrl,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -6259,6 +7383,7 @@ class $$MembersTableTableManager extends RootTableManager<
             Value<String> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<String?> photoPath = const Value.absent(),
+            Value<String?> photoUrl = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MembersCompanion.insert(
@@ -6278,6 +7403,7 @@ class $$MembersTableTableManager extends RootTableManager<
             hmacSignature: hmacSignature,
             isSynced: isSynced,
             photoPath: photoPath,
+            photoUrl: photoUrl,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -8057,6 +9183,7 @@ typedef $$AppSettingsTableTableCreateCompanionBuilder
   Value<DateTime?> lastBackupAt,
   Value<String?> hmacSignature,
   Value<bool> isSynced,
+  Value<String> subscriptionMode,
 });
 typedef $$AppSettingsTableTableUpdateCompanionBuilder
     = AppSettingsTableCompanion Function({
@@ -8070,6 +9197,7 @@ typedef $$AppSettingsTableTableUpdateCompanionBuilder
   Value<DateTime?> lastBackupAt,
   Value<String?> hmacSignature,
   Value<bool> isSynced,
+  Value<String> subscriptionMode,
 });
 
 class $$AppSettingsTableTableFilterComposer
@@ -8113,6 +9241,10 @@ class $$AppSettingsTableTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subscriptionMode => $composableBuilder(
+      column: $table.subscriptionMode,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$AppSettingsTableTableOrderingComposer
@@ -8160,6 +9292,10 @@ class $$AppSettingsTableTableOrderingComposer
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subscriptionMode => $composableBuilder(
+      column: $table.subscriptionMode,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$AppSettingsTableTableAnnotationComposer
@@ -8200,6 +9336,9 @@ class $$AppSettingsTableTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get subscriptionMode => $composableBuilder(
+      column: $table.subscriptionMode, builder: (column) => column);
 }
 
 class $$AppSettingsTableTableTableManager extends RootTableManager<
@@ -8240,6 +9379,7 @@ class $$AppSettingsTableTableTableManager extends RootTableManager<
             Value<DateTime?> lastBackupAt = const Value.absent(),
             Value<String?> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<String> subscriptionMode = const Value.absent(),
           }) =>
               AppSettingsTableCompanion(
             id: id,
@@ -8252,6 +9392,7 @@ class $$AppSettingsTableTableTableManager extends RootTableManager<
             lastBackupAt: lastBackupAt,
             hmacSignature: hmacSignature,
             isSynced: isSynced,
+            subscriptionMode: subscriptionMode,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -8264,6 +9405,7 @@ class $$AppSettingsTableTableTableManager extends RootTableManager<
             Value<DateTime?> lastBackupAt = const Value.absent(),
             Value<String?> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<String> subscriptionMode = const Value.absent(),
           }) =>
               AppSettingsTableCompanion.insert(
             id: id,
@@ -8276,6 +9418,7 @@ class $$AppSettingsTableTableTableManager extends RootTableManager<
             lastBackupAt: lastBackupAt,
             hmacSignature: hmacSignature,
             isSynced: isSynced,
+            subscriptionMode: subscriptionMode,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -8504,6 +9647,509 @@ typedef $$NotificationsTableProcessedTableManager = ProcessedTableManager<
     ),
     Notification,
     PrefetchHooks Function()>;
+typedef $$MemberSubscriptionsTableCreateCompanionBuilder
+    = MemberSubscriptionsCompanion Function({
+  required String id,
+  required String memberId,
+  required DateTime startDate,
+  required DateTime endDate,
+  Value<String?> planId,
+  Value<String?> planName,
+  Value<double> amountPaid,
+  Value<String> status,
+  required DateTime createdAt,
+  Value<String> hmacSignature,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+typedef $$MemberSubscriptionsTableUpdateCompanionBuilder
+    = MemberSubscriptionsCompanion Function({
+  Value<String> id,
+  Value<String> memberId,
+  Value<DateTime> startDate,
+  Value<DateTime> endDate,
+  Value<String?> planId,
+  Value<String?> planName,
+  Value<double> amountPaid,
+  Value<String> status,
+  Value<DateTime> createdAt,
+  Value<String> hmacSignature,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+
+class $$MemberSubscriptionsTableFilterComposer
+    extends Composer<_$OutboxDatabase, $MemberSubscriptionsTable> {
+  $$MemberSubscriptionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get memberId => $composableBuilder(
+      column: $table.memberId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+      column: $table.startDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get planName => $composableBuilder(
+      column: $table.planName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amountPaid => $composableBuilder(
+      column: $table.amountPaid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get hmacSignature => $composableBuilder(
+      column: $table.hmacSignature, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+}
+
+class $$MemberSubscriptionsTableOrderingComposer
+    extends Composer<_$OutboxDatabase, $MemberSubscriptionsTable> {
+  $$MemberSubscriptionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get memberId => $composableBuilder(
+      column: $table.memberId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+      column: $table.startDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get planName => $composableBuilder(
+      column: $table.planName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amountPaid => $composableBuilder(
+      column: $table.amountPaid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get hmacSignature => $composableBuilder(
+      column: $table.hmacSignature,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MemberSubscriptionsTableAnnotationComposer
+    extends Composer<_$OutboxDatabase, $MemberSubscriptionsTable> {
+  $$MemberSubscriptionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get memberId =>
+      $composableBuilder(column: $table.memberId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<String> get planId =>
+      $composableBuilder(column: $table.planId, builder: (column) => column);
+
+  GeneratedColumn<String> get planName =>
+      $composableBuilder(column: $table.planName, builder: (column) => column);
+
+  GeneratedColumn<double> get amountPaid => $composableBuilder(
+      column: $table.amountPaid, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get hmacSignature => $composableBuilder(
+      column: $table.hmacSignature, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+}
+
+class $$MemberSubscriptionsTableTableManager extends RootTableManager<
+    _$OutboxDatabase,
+    $MemberSubscriptionsTable,
+    MemberSubscription,
+    $$MemberSubscriptionsTableFilterComposer,
+    $$MemberSubscriptionsTableOrderingComposer,
+    $$MemberSubscriptionsTableAnnotationComposer,
+    $$MemberSubscriptionsTableCreateCompanionBuilder,
+    $$MemberSubscriptionsTableUpdateCompanionBuilder,
+    (
+      MemberSubscription,
+      BaseReferences<_$OutboxDatabase, $MemberSubscriptionsTable,
+          MemberSubscription>
+    ),
+    MemberSubscription,
+    PrefetchHooks Function()> {
+  $$MemberSubscriptionsTableTableManager(
+      _$OutboxDatabase db, $MemberSubscriptionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemberSubscriptionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemberSubscriptionsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemberSubscriptionsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> memberId = const Value.absent(),
+            Value<DateTime> startDate = const Value.absent(),
+            Value<DateTime> endDate = const Value.absent(),
+            Value<String?> planId = const Value.absent(),
+            Value<String?> planName = const Value.absent(),
+            Value<double> amountPaid = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<String> hmacSignature = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemberSubscriptionsCompanion(
+            id: id,
+            memberId: memberId,
+            startDate: startDate,
+            endDate: endDate,
+            planId: planId,
+            planName: planName,
+            amountPaid: amountPaid,
+            status: status,
+            createdAt: createdAt,
+            hmacSignature: hmacSignature,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String memberId,
+            required DateTime startDate,
+            required DateTime endDate,
+            Value<String?> planId = const Value.absent(),
+            Value<String?> planName = const Value.absent(),
+            Value<double> amountPaid = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            required DateTime createdAt,
+            Value<String> hmacSignature = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemberSubscriptionsCompanion.insert(
+            id: id,
+            memberId: memberId,
+            startDate: startDate,
+            endDate: endDate,
+            planId: planId,
+            planName: planName,
+            amountPaid: amountPaid,
+            status: status,
+            createdAt: createdAt,
+            hmacSignature: hmacSignature,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MemberSubscriptionsTableProcessedTableManager = ProcessedTableManager<
+    _$OutboxDatabase,
+    $MemberSubscriptionsTable,
+    MemberSubscription,
+    $$MemberSubscriptionsTableFilterComposer,
+    $$MemberSubscriptionsTableOrderingComposer,
+    $$MemberSubscriptionsTableAnnotationComposer,
+    $$MemberSubscriptionsTableCreateCompanionBuilder,
+    $$MemberSubscriptionsTableUpdateCompanionBuilder,
+    (
+      MemberSubscription,
+      BaseReferences<_$OutboxDatabase, $MemberSubscriptionsTable,
+          MemberSubscription>
+    ),
+    MemberSubscription,
+    PrefetchHooks Function()>;
+typedef $$DeviceTokensTableCreateCompanionBuilder = DeviceTokensCompanion
+    Function({
+  required String id,
+  required String gymId,
+  required String userId,
+  required String fcmToken,
+  Value<String?> deviceName,
+  Value<String> platform,
+  required DateTime registeredAt,
+  required DateTime lastSeenAt,
+  Value<bool> isActive,
+  Value<int> rowid,
+});
+typedef $$DeviceTokensTableUpdateCompanionBuilder = DeviceTokensCompanion
+    Function({
+  Value<String> id,
+  Value<String> gymId,
+  Value<String> userId,
+  Value<String> fcmToken,
+  Value<String?> deviceName,
+  Value<String> platform,
+  Value<DateTime> registeredAt,
+  Value<DateTime> lastSeenAt,
+  Value<bool> isActive,
+  Value<int> rowid,
+});
+
+class $$DeviceTokensTableFilterComposer
+    extends Composer<_$OutboxDatabase, $DeviceTokensTable> {
+  $$DeviceTokensTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get gymId => $composableBuilder(
+      column: $table.gymId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fcmToken => $composableBuilder(
+      column: $table.fcmToken, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deviceName => $composableBuilder(
+      column: $table.deviceName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get platform => $composableBuilder(
+      column: $table.platform, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get registeredAt => $composableBuilder(
+      column: $table.registeredAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastSeenAt => $composableBuilder(
+      column: $table.lastSeenAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+      column: $table.isActive, builder: (column) => ColumnFilters(column));
+}
+
+class $$DeviceTokensTableOrderingComposer
+    extends Composer<_$OutboxDatabase, $DeviceTokensTable> {
+  $$DeviceTokensTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get gymId => $composableBuilder(
+      column: $table.gymId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fcmToken => $composableBuilder(
+      column: $table.fcmToken, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deviceName => $composableBuilder(
+      column: $table.deviceName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get platform => $composableBuilder(
+      column: $table.platform, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get registeredAt => $composableBuilder(
+      column: $table.registeredAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastSeenAt => $composableBuilder(
+      column: $table.lastSeenAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+      column: $table.isActive, builder: (column) => ColumnOrderings(column));
+}
+
+class $$DeviceTokensTableAnnotationComposer
+    extends Composer<_$OutboxDatabase, $DeviceTokensTable> {
+  $$DeviceTokensTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get gymId =>
+      $composableBuilder(column: $table.gymId, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get fcmToken =>
+      $composableBuilder(column: $table.fcmToken, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceName => $composableBuilder(
+      column: $table.deviceName, builder: (column) => column);
+
+  GeneratedColumn<String> get platform =>
+      $composableBuilder(column: $table.platform, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get registeredAt => $composableBuilder(
+      column: $table.registeredAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSeenAt => $composableBuilder(
+      column: $table.lastSeenAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+}
+
+class $$DeviceTokensTableTableManager extends RootTableManager<
+    _$OutboxDatabase,
+    $DeviceTokensTable,
+    DeviceToken,
+    $$DeviceTokensTableFilterComposer,
+    $$DeviceTokensTableOrderingComposer,
+    $$DeviceTokensTableAnnotationComposer,
+    $$DeviceTokensTableCreateCompanionBuilder,
+    $$DeviceTokensTableUpdateCompanionBuilder,
+    (
+      DeviceToken,
+      BaseReferences<_$OutboxDatabase, $DeviceTokensTable, DeviceToken>
+    ),
+    DeviceToken,
+    PrefetchHooks Function()> {
+  $$DeviceTokensTableTableManager(_$OutboxDatabase db, $DeviceTokensTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeviceTokensTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DeviceTokensTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DeviceTokensTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> gymId = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> fcmToken = const Value.absent(),
+            Value<String?> deviceName = const Value.absent(),
+            Value<String> platform = const Value.absent(),
+            Value<DateTime> registeredAt = const Value.absent(),
+            Value<DateTime> lastSeenAt = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              DeviceTokensCompanion(
+            id: id,
+            gymId: gymId,
+            userId: userId,
+            fcmToken: fcmToken,
+            deviceName: deviceName,
+            platform: platform,
+            registeredAt: registeredAt,
+            lastSeenAt: lastSeenAt,
+            isActive: isActive,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String gymId,
+            required String userId,
+            required String fcmToken,
+            Value<String?> deviceName = const Value.absent(),
+            Value<String> platform = const Value.absent(),
+            required DateTime registeredAt,
+            required DateTime lastSeenAt,
+            Value<bool> isActive = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              DeviceTokensCompanion.insert(
+            id: id,
+            gymId: gymId,
+            userId: userId,
+            fcmToken: fcmToken,
+            deviceName: deviceName,
+            platform: platform,
+            registeredAt: registeredAt,
+            lastSeenAt: lastSeenAt,
+            isActive: isActive,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$DeviceTokensTableProcessedTableManager = ProcessedTableManager<
+    _$OutboxDatabase,
+    $DeviceTokensTable,
+    DeviceToken,
+    $$DeviceTokensTableFilterComposer,
+    $$DeviceTokensTableOrderingComposer,
+    $$DeviceTokensTableAnnotationComposer,
+    $$DeviceTokensTableCreateCompanionBuilder,
+    $$DeviceTokensTableUpdateCompanionBuilder,
+    (
+      DeviceToken,
+      BaseReferences<_$OutboxDatabase, $DeviceTokensTable, DeviceToken>
+    ),
+    DeviceToken,
+    PrefetchHooks Function()>;
 
 class $OutboxDatabaseManager {
   final _$OutboxDatabase _db;
@@ -8532,4 +10178,8 @@ class $OutboxDatabaseManager {
       $$AppSettingsTableTableTableManager(_db, _db.appSettingsTable);
   $$NotificationsTableTableManager get notifications =>
       $$NotificationsTableTableManager(_db, _db.notifications);
+  $$MemberSubscriptionsTableTableManager get memberSubscriptions =>
+      $$MemberSubscriptionsTableTableManager(_db, _db.memberSubscriptions);
+  $$DeviceTokensTableTableManager get deviceTokens =>
+      $$DeviceTokensTableTableManager(_db, _db.deviceTokens);
 }

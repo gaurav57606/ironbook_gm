@@ -6,6 +6,7 @@ import '../router/app_router.dart';
 import '../providers/base_providers.dart';
 import '../data/local/drift/outbox_database.dart';
 import 'logger_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationService {
   static ProviderContainer? _container;
@@ -135,6 +136,29 @@ class NotificationService {
         isRead: false,
         payload: 'member:${snapshot.memberId}',
       ));
+
+      // ── Dispatch to Firestore events collection for Cloud Function fan-out ──
+      try {
+        final db = _container!.read(outboxDatabaseProvider);
+        final ownerProfile = await (db.select(db.ownerProfiles)).getSingleOrNull();
+        if (ownerProfile != null) {
+          final gymId = ownerProfile.gymName;
+          await FirebaseFirestore.instance
+              .collection('gyms')
+              .doc(gymId)
+              .collection('events')
+              .add({
+                'title': title,
+                'body': 'Tap to view member details',
+                'category': 'expiry_reminder',
+                'payload': {'memberId': snapshot.memberId},
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+          logger.info('FCM alert dispatched to Firestore for member ${snapshot.name}', category: 'NOTIFICATION');
+        }
+      } catch (fcmErr) {
+        logger.warn('Failed to dispatch FCM cloud event: $fcmErr', category: 'NOTIFICATION');
+      }
     } catch (e) {
       logger.error('Failed to send local notification alert', category: 'NOTIFICATION', error: e);
     }
@@ -145,13 +169,78 @@ class NotificationService {
     required String name,
     required String planName,
   }) async {
+    final title = 'New Member Joined';
+    final body = '$name has joined with $planName plan.';
     await sendGenericNotification(
-      title: 'New Member Joined',
-      body: '$name has joined with $planName plan.',
+      title: title,
+      body: body,
       category: 'System',
       dedupKey: 'new_member_$memberId',
       payload: 'member:$memberId',
     );
+
+    // ── Dispatch to Firestore events collection for Cloud Function fan-out ──
+    if (_container != null) {
+      try {
+        final db = _container!.read(outboxDatabaseProvider);
+        final ownerProfile = await (db.select(db.ownerProfiles)).getSingleOrNull();
+        if (ownerProfile != null) {
+          final gymId = ownerProfile.gymName;
+          await FirebaseFirestore.instance
+              .collection('gyms')
+              .doc(gymId)
+              .collection('events')
+              .add({
+                'title': title,
+                'body': body,
+                'category': 'new_member',
+                'payload': {'memberId': memberId},
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+        }
+      } catch (e) {
+        _container!.read(loggerProvider).warn('Failed to sync new member event to Firestore: $e', category: 'NOTIFICATION');
+      }
+    }
+  }
+
+  static Future<void> dispatchGymNotification({
+    required String title,
+    required String body,
+    required String category,
+    String? payload,
+  }) async {
+    final dedupKey = 'custom_${DateTime.now().millisecondsSinceEpoch}';
+    await sendGenericNotification(
+      title: title,
+      body: body,
+      category: category,
+      dedupKey: dedupKey,
+      payload: payload,
+    );
+
+    if (_container != null) {
+      try {
+        final db = _container!.read(outboxDatabaseProvider);
+        final ownerProfile = await (db.select(db.ownerProfiles)).getSingleOrNull();
+        if (ownerProfile != null) {
+          final gymId = ownerProfile.gymName;
+          await FirebaseFirestore.instance
+              .collection('gyms')
+              .doc(gymId)
+              .collection('events')
+              .add({
+                'title': title,
+                'body': body,
+                'category': category,
+                'payload': {'payload': payload},
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+        }
+      } catch (e) {
+        _container!.read(loggerProvider).warn('Failed to dispatch cloud notification event to Firestore: $e', category: 'NOTIFICATION');
+      }
+    }
   }
 
   static Future<void> sendSyncAlert({

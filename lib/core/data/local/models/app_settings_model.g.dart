@@ -25,13 +25,14 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       businessType: fields[4] as String,
       lastBackupAt: fields[6] as DateTime?,
       hmacSignature: fields[7] as String?,
+      subscriptionMode: fields[8] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.gstRate)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(6)
       ..write(obj.lastBackupAt)
       ..writeByte(7)
-      ..write(obj.hmacSignature);
+      ..write(obj.hmacSignature)
+      ..writeByte(8)
+      ..write(obj.subscriptionMode);
   }
 
   @override

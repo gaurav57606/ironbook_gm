@@ -78,3 +78,78 @@ exports.revenuecatWebhook = onRequest(async (req, res) => {
 
   res.status(200).send('OK');
 });
+
+// ── FCM Fan-Out on Gym Events ─────────────────────────────────────────────
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { getMessaging }      = require('firebase-admin/messaging');
+
+exports.fanOutGymNotification = onDocumentCreated('gyms/{gymId}/events/{eventId}', async (event) => {
+  const gymId = event.params.gymId;
+  const eventData = event.data.data();
+
+  if (!eventData) return;
+
+  // Get all active tokens for this gym
+  const tokensSnap = await db
+    .collection('gyms')
+    .doc(gymId)
+    .collection('device_tokens')
+    .where('isActive', '==', true)
+    .get();
+
+  if (tokensSnap.empty) {
+    console.log(`No active device tokens found for gym ${gymId}`);
+    return;
+  }
+
+  const tokens = tokensSnap.docs.map(doc => doc.data().fcmToken);
+  const messaging = getMessaging();
+
+  // Send multicast message
+  const message = {
+    tokens,
+    notification: {
+      title: eventData.title,
+      body: eventData.body,
+    },
+    data: {
+      category: eventData.category || 'general',
+      payload: JSON.stringify(eventData.payload || {}),
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'ironbook_alerts',
+        priority: 'high',
+        defaultSound: true,
+      },
+    },
+  };
+
+  try {
+    const response = await messaging.sendEachForMulticast(message);
+
+    // Clean up invalid tokens
+    const invalidTokenDocs = [];
+    response.responses.forEach((resp, idx) => {
+      if (!resp.success) {
+        const token = tokens[idx];
+        const code = resp.error?.code;
+        if (
+          code === 'messaging/invalid-registration-token' ||
+          code === 'messaging/registration-token-not-registered'
+        ) {
+          const tokenDoc = tokensSnap.docs.find(d => d.data().fcmToken === token);
+          if (tokenDoc) {
+            invalidTokenDocs.push(tokenDoc.ref.update({ isActive: false }));
+          }
+        }
+      }
+    });
+
+    await Promise.all(invalidTokenDocs);
+    console.log(`Fan-out complete for gym ${gymId}: ${response.successCount} success, ${response.failureCount} failed`);
+  } catch (err) {
+    console.error(`Multicast send failed for gym ${gymId}:`, err);
+  }
+});

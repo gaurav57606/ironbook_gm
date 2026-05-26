@@ -22,6 +22,7 @@ import 'package:ironbook_gm/core/providers/base_providers.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'services/notification_service.dart';
 import 'services/fcm_service.dart';
+import 'services/fcm_token_service.dart';
 import 'services/config_service.dart';
 import 'services/logger_service.dart';
 import 'package:ironbook_gm/core/sync/midnight_engine.dart';
@@ -193,6 +194,23 @@ class AppBootstrap {
     logger.info('Firebase Auth ready. Restoring session...', category: 'BOOT');
     await container.read(authProvider.notifier).onFirebaseReady(auth).timeout(const Duration(seconds: 10));
     logger.info('Auth session restored.', category: 'BOOT');
+
+    final currentUser = auth.currentUser;
+    if (currentUser != null) {
+      try {
+        final db = container.read(outboxDatabaseProvider);
+        final ownerProfile = await (db.select(db.ownerProfiles)).getSingleOrNull();
+        if (ownerProfile != null) {
+          logger.info('Registering/Refreshing FCM token...', category: 'BOOT');
+          await container.read(fcmTokenServiceProvider).registerOrRefreshToken(
+            gymId: ownerProfile.gymName,
+            userId: currentUser.uid,
+          ).timeout(const Duration(seconds: 10));
+        }
+      } catch (e) {
+        logger.error('Failed to register/refresh FCM token during bootstrap: $e', category: 'BOOT');
+      }
+    }
 
     // Seed purge: after auth, fully non-blocking. Runs once per install.
     unawaited(Future(() async {

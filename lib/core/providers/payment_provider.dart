@@ -8,9 +8,13 @@ import 'package:ironbook_gm/core/data/local/models/plan_model.dart';
 import 'package:ironbook_gm/core/data/repositories/event_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/payment_repository.dart';
 import 'package:ironbook_gm/core/data/repositories/member_repository.dart';
+import 'package:ironbook_gm/core/data/repositories/settings_repository.dart';
+import 'package:ironbook_gm/features/members/data/subscriptions_repository.dart';
+import 'package:ironbook_gm/core/utils/subscription_duration_helper.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/services/hmac_service.dart';
 import 'package:ironbook_gm/core/providers/base_providers.dart';
+import 'package:ironbook_gm/core/providers/settings_provider.dart';
 import 'package:ironbook_gm/core/services/sync_coordinator.dart';
 import 'package:ironbook_gm/core/services/membership_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
@@ -33,6 +37,8 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
   final MembershipService _membership;
   final SyncCoordinator _coordinator;
   final LoggerService _logger;
+  final ISettingsRepository _settingsRepo;
+  final ISubscriptionsRepository _subscriptionsRepo;
   String _deviceId = 'device-loading';
   Completer<void>? _syncLock;
   StreamSubscription? _eventSubscription;
@@ -47,8 +53,13 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
     this._hmac,
     this._membership,
     this._coordinator,
-    this._logger,
-  ) : _db = db, super([]) {
+    this._logger, [
+    ISettingsRepository? settingsRepo,
+    ISubscriptionsRepository? subscriptionsRepo,
+  ]) : _db = db,
+       _settingsRepo = settingsRepo ?? DriftSettingsRepository(db),
+       _subscriptionsRepo = subscriptionsRepo ?? SubscriptionsRepository(db),
+       super([]) {
     _init();
   }
 
@@ -190,11 +201,30 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
         durationMonths: plan.durationMonths,
       );
 
-      // Calculate new expiry using authoritative service
-      final newExpiryDate = _membership.calculateRenewal(
-        currentExpiry: member?.expiryDate,
+      // Calculate new expiry using authoritative SubscriptionDurationHelper
+      final settings = await _settingsRepo.getSettings();
+      final mode = SubscriptionMode.fromString(settings.subscriptionMode);
+
+      final DateTime baseDate;
+      if (member?.expiryDate != null && member!.expiryDate!.isAfter(now)) {
+        baseDate = member.expiryDate!;
+      } else {
+        baseDate = now;
+      }
+
+      final calculated = SubscriptionDurationHelper.calculateEndDate(
+        startDate: baseDate,
         durationMonths: plan.durationMonths,
-        now: now,
+        mode: mode,
+      );
+      final newExpiryDate = DateTime(
+        calculated.year,
+        calculated.month,
+        calculated.day,
+        23,
+        59,
+        59,
+        999,
       );
 
       final payment = Payment(
@@ -232,6 +262,7 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
           EventPayloadKeys.planId: plan.id,
           EventPayloadKeys.planName: plan.name,
           EventPayloadKeys.durationMonths: plan.durationMonths,
+          'joinDate': baseDate.toUtc().toIso8601String(),
           EventPayloadKeys.newExpiry: newExpiryDate.toUtc().toIso8601String(),
           EventPayloadKeys.updatedAt: now.toUtc().toIso8601String(),
         },
@@ -247,6 +278,27 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
 
         // 6. Persist Cache in Drift
         await _paymentRepo.upsertPayment(payment);
+
+        // NEW — create a subscription record first
+        final newSub = await _subscriptionsRepo.createSubscription(
+          memberId: memberId,
+          startDate: baseDate,
+          endDate: newExpiryDate,
+          planId: plan.id,
+          planName: plan.name,
+          amountPaid: total,
+        );
+
+        // THEN update the member's denormalized cache fields (for fast list queries)
+        if (member != null) {
+          await _memberRepo.upsertMember(member.copyWith(
+            joinDate: newSub.startDate,   // most recent join date
+            expiryDate: newSub.endDate,
+            planId: newSub.planId,
+            planName: newSub.planName,
+          ));
+        }
+
         _logger.info(
           'recordMemberPayment transaction complete', 
           category: 'TRANSACTION'
@@ -255,14 +307,12 @@ class PaymentNotifier extends StateNotifier<List<Payment>> {
       
       _coordinator.triggerSync();
 
-      // Trigger Local Notification for Hub (Live feel)
-      await NotificationService.sendGenericNotification(
+      // Trigger Local & Cloud Notification for Hub (Live feel)
+      await NotificationService.dispatchGymNotification(
         title: 'Payment Recorded',
         body: '₹${payment.amount.toInt()} received from ${member!.name} for ${payment.planName}',
-        category: 'Payment',
-        dedupKey: 'payment_${payment.id}',
+        category: 'payment_received',
         payload: 'member:${payment.memberId}',
-        timestamp: now,
       );
 
       return payment;
@@ -288,10 +338,24 @@ final paymentsProvider = StateNotifierProvider<PaymentNotifier, List<Payment>>((
   final db = ref.watch(outboxDatabaseProvider);
   final coordinator = ref.watch(syncCoordinatorProvider);
   final membership = ref.watch(membershipServiceProvider);
-  
   final logger = ref.watch(loggerProvider);
+  final settingsRepo = ref.watch(settingsRepositoryProvider);
+  final subscriptionsRepo = ref.watch(subscriptionsRepositoryProvider);
   
-  return PaymentNotifier(db, sequenceRepo, eventRepo, paymentRepo, memberRepo, clock, hmac, membership, coordinator, logger);
+  return PaymentNotifier(
+    db,
+    sequenceRepo,
+    eventRepo,
+    paymentRepo,
+    memberRepo,
+    clock,
+    hmac,
+    membership,
+    coordinator,
+    logger,
+    settingsRepo,
+    subscriptionsRepo,
+  );
 });
 
 final latestPaymentForMemberProvider = Provider.family<Payment?, String>((ref, memberId) {

@@ -24,6 +24,9 @@ class AppSettings extends HiveObject {
   @HiveField(7)
   final String? hmacSignature;
 
+  @HiveField(8)
+  final String subscriptionMode; // 'fixed_28' | 'fixed_30' | 'calendar_month'
+
 
   AppSettings({
     this.gstRate = 18.0,
@@ -34,6 +37,7 @@ class AppSettings extends HiveObject {
     this.businessType = 'Gym',
     this.lastBackupAt,
     this.hmacSignature,
+    this.subscriptionMode = 'calendar_month',
   });
 
   factory AppSettings.fromFirestore(Map<String, dynamic> data) {
@@ -46,6 +50,7 @@ class AppSettings extends HiveObject {
       businessType: data['businessType'] ?? 'Gym',
       lastBackupAt: data['lastBackupAt'] != null ? DateTime.parse(data['lastBackupAt']) : null,
       hmacSignature: data['hmacSignature'],
+      subscriptionMode: data['subscriptionMode'] ?? 'calendar_month',
     );
   }
 
@@ -59,6 +64,7 @@ class AppSettings extends HiveObject {
       businessType: d.businessType,
       lastBackupAt: d.lastBackupAt,
       hmacSignature: d.hmacSignature,
+      subscriptionMode: d.subscriptionMode,
     );
   }
 
@@ -74,6 +80,7 @@ class AppSettings extends HiveObject {
       'businessType': businessType,
       'lastBackupAt': lastBackupAt?.toIso8601String(),
       'hmacSignature': hmacSignature,
+      'subscriptionMode': subscriptionMode,
     };
   }
 
@@ -86,6 +93,7 @@ class AppSettings extends HiveObject {
     String? businessType,
     DateTime? lastBackupAt,
     String? hmacSignature,
+    String? subscriptionMode,
   }) {
     return AppSettings(
       gstRate: gstRate ?? this.gstRate,
@@ -96,6 +104,7 @@ class AppSettings extends HiveObject {
       businessType: businessType ?? this.businessType,
       lastBackupAt: lastBackupAt ?? this.lastBackupAt,
       hmacSignature: hmacSignature ?? this.hmacSignature,
+      subscriptionMode: subscriptionMode ?? this.subscriptionMode,
     );
   }
 }

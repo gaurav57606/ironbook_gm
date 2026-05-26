@@ -73,6 +73,7 @@ dependencies:
   encrypt: ^5.0.3
   pointycastle: ^3.9.1
   shared_preferences: ^2.5.3
+  device_info_plus: ^10.1.0
   url_launcher: ^6.3.0
 
 

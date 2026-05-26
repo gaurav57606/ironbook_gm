@@ -27,6 +27,7 @@ class DriftSettingsRepository implements ISettingsRepository {
       useBiometrics: row.useBiometrics,
       businessType: row.businessType,
       lastBackupAt: row.lastBackupAt,
+      subscriptionMode: row.subscriptionMode,
     );
   }
 
@@ -42,6 +43,7 @@ class DriftSettingsRepository implements ISettingsRepository {
         useBiometrics: Value(settings.useBiometrics),
         businessType: Value(settings.businessType),
         lastBackupAt: Value(settings.lastBackupAt),
+        subscriptionMode: Value(settings.subscriptionMode),
       ),
     );
   }

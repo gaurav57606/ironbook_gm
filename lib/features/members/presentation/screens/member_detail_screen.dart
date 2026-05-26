@@ -18,6 +18,8 @@ import '../widgets/renewal_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/providers/owner_provider.dart';
 import '../../../../shared/utils/image_utils.dart';
+import 'package:ironbook_gm/features/members/data/subscriptions_repository.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db_sub;
 import 'dart:io';
 
 class MemberDetailScreen extends ConsumerStatefulWidget {
@@ -64,9 +66,11 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                       _buildQuickActions(context, member),
                       const AppSectionHeader(title: 'SUBSCRIPTION'),
                       _buildSubscriptionCard(member, statusColor, now),
+                      const AppSectionHeader(title: 'MEMBERSHIP HISTORY'),
+                      _buildSubscriptionHistory(widget.memberId),
                       const AppSectionHeader(title: 'FINANCIALS'),
                       _buildFinancialsCard(widget.memberId),
-                      const AppSectionHeader(title: 'HISTORY'),
+                      const AppSectionHeader(title: 'PAYMENT HISTORY'),
                       _buildPaymentHistory(widget.memberId),
                     ],
                   ),
@@ -169,6 +173,126 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                 icon: Icons.payments_rounded,
                 color: AppColors.primary,
                 isLast: index == payments.length - 1,
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSubscriptionHistory(String memberId) {
+    final historyAsync = ref.watch(memberSubscriptionHistoryProvider(memberId));
+
+    return historyAsync.when(
+      loading: () => const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
+      error: (e, s) => const Center(child: Text('Error loading subscription history', style: TextStyle(color: Colors.red))),
+      data: (history) {
+        if (history.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                children: [
+                  Icon(Icons.history_toggle_off_rounded, size: 40, color: AppColors.text3.withValues(alpha: 0.3)),
+                  AppSpacing.gapS,
+                  const Text('No membership history recorded yet', style: TextStyle(color: AppColors.text3)),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+          child: Column(
+            children: List.generate(history.length, (index) {
+              final sub = history[index];
+
+              // Format date
+              final startStr = AppDateUtils.format(sub.startDate);
+              final endStr = AppDateUtils.format(sub.endDate);
+
+              // Status styling
+              final Color statusColor;
+              final String statusText;
+              switch (sub.status.toLowerCase()) {
+                case 'active':
+                  statusColor = AppColors.green;
+                  statusText = 'Active';
+                  break;
+                case 'expired':
+                  statusColor = AppColors.textMuted;
+                  statusText = 'Expired';
+                  break;
+                case 'paused':
+                  statusColor = AppColors.amber;
+                  statusText = 'Paused';
+                  break;
+                default:
+                  statusColor = AppColors.textMuted;
+                  statusText = sub.status;
+              }
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(AppSpacing.m),
+                decoration: BoxDecoration(
+                  color: AppColors.elevation2,
+                  borderRadius: AppRadius.radiusL,
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          sub.planName ?? 'Standard Plan',
+                          style: AppTextStyles.cardTitle.copyWith(fontSize: 14),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: AppRadius.radiusS,
+                            border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                          ),
+                          child: Text(
+                            statusText.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: statusColor,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    AppSpacing.gapS,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$startStr  →  $endStr',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          CurrencyFormatter.format(sub.amountPaid),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               );
             }),
           ),

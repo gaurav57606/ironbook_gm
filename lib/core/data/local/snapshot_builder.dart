@@ -23,10 +23,15 @@ class SnapshotBuilder {
       final amount = payload[EventPayloadKeys.amount] as num?;
       final newExpiryStr = payload[EventPayloadKeys.newExpiry] as String?;
       final newExpiry = newExpiryStr != null ? DateTime.parse(newExpiryStr) : null;
+      final newJoinStr = payload['joinDate'] as String?;
+      final newJoin = newJoinStr != null ? DateTime.parse(newJoinStr) : null;
       
       return current.copyWith(
         totalPaid: current.totalPaid + (amount?.toInt() ?? 0),
+        joinDate: newJoin ?? current.joinDate,
         expiryDate: newExpiry ?? current.expiryDate,
+        planId: payload[EventPayloadKeys.planId] ?? current.planId,
+        planName: payload[EventPayloadKeys.planName] ?? current.planName,
         paymentIds: [...current.paymentIds, payload[EventPayloadKeys.paymentId] ?? event.id],
         lastUpdated: event.deviceTimestamp,
       );

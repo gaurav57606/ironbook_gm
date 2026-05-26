@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 import 'connection/native.dart' if (dart.library.html) 'connection/web.dart';
 
 part 'outbox_database.g.dart';
@@ -141,7 +142,8 @@ class OwnerProfiles extends Table {
   RealColumn get strength => real().withDefault(const Constant(0.5))();
   RealColumn get endurance => real().withDefault(const Constant(0.5))();
   RealColumn get dexterity => real().withDefault(const Constant(0.5))();
-  TextColumn get selectedCharacterId => text().withDefault(const Constant('warrior'))();
+  TextColumn get selectedCharacterId =>
+      text().withDefault(const Constant('warrior'))();
   TextColumn get hmacSignature => text().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   TextColumn get ownerPhotoPath => text().nullable()();
@@ -153,14 +155,20 @@ class OwnerProfiles extends Table {
 class AppSettingsTable extends Table {
   IntColumn get id => integer().autoIncrement()();
   RealColumn get gstRate => real().withDefault(const Constant(18.0))();
-  IntColumn get expiryReminderDays => integer().withDefault(const Constant(3))();
-  BoolColumn get whatsappReminders => boolean().withDefault(const Constant(true))();
-  BoolColumn get biometricEnabled => boolean().withDefault(const Constant(false))();
-  BoolColumn get useBiometrics => boolean().withDefault(const Constant(false))();
+  IntColumn get expiryReminderDays =>
+      integer().withDefault(const Constant(3))();
+  BoolColumn get whatsappReminders =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get biometricEnabled =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get useBiometrics =>
+      boolean().withDefault(const Constant(false))();
   TextColumn get businessType => text().withDefault(const Constant('Gym'))();
   DateTimeColumn get lastBackupAt => dateTime().nullable()();
   TextColumn get hmacSignature => text().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get subscriptionMode =>
+      text().withDefault(const Constant('calendar_month'))();
 }
 
 class Notifications extends Table {
@@ -176,7 +184,39 @@ class Notifications extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class MemberSubscriptions extends Table {
+  TextColumn get id => text()();
+  TextColumn get memberId => text()(); // FK → Members.id
+  DateTimeColumn get startDate => dateTime()();
+  DateTimeColumn get endDate => dateTime()();
+  TextColumn get planId => text().nullable()();
+  TextColumn get planName => text().nullable()();
+  RealColumn get amountPaid => real().withDefault(const Constant(0))();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  // status values: 'active' | 'expired' | 'paused'
+  DateTimeColumn get createdAt => dateTime()();
+  TextColumn get hmacSignature => text().withDefault(const Constant(''))();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class DeviceTokens extends Table {
+  TextColumn get id => text()(); // UUID, generated locally
+  TextColumn get gymId =>
+      text()(); // The gym identifier (ownerProfile.gymName or a UUID)
+  TextColumn get userId => text()(); // Firebase Auth UID of the logged-in user
+  TextColumn get fcmToken => text()(); // FCM device token
+  TextColumn get deviceName => text().nullable()(); // e.g. "Owner's Pixel 8"
+  TextColumn get platform => text().withDefault(const Constant('android'))();
+  DateTimeColumn get registeredAt => dateTime()();
+  DateTimeColumn get lastSeenAt => dateTime()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
 
 @DriftDatabase(tables: [
   OutboxEvents,
@@ -191,76 +231,113 @@ class Notifications extends Table {
   OwnerProfiles,
   AppSettingsTable,
   Notifications,
+  MemberSubscriptions,
+  DeviceTokens,
 ])
 class OutboxDatabase extends _$OutboxDatabase {
-  OutboxDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
+  OutboxDatabase([QueryExecutor? executor])
+      : super(executor ?? openConnection());
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) async {
-      await m.createAll();
-    },
-    onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        await m.createTable(members);
-        await m.createTable(payments);
-        await m.createTable(plans);
-        await m.createTable(sales);
-      }
-      if (from < 3) {
-        await m.createTable(pinAttempts);
-        await m.alterTable(TableMigration(members));
-        await m.alterTable(TableMigration(payments));
-        await m.alterTable(TableMigration(plans));
-        await m.alterTable(TableMigration(sales));
-      }
-      if (from < 4) {
-        await m.createTable(invoiceSequences);
-      }
-      if (from < 5) {
-        await m.createTable(products);
-      }
-      if (from < 6) {
-        await m.createTable(preferences);
-      }
-      if (from < 7) {
-        await m.createTable(ownerProfiles);
-        await m.createTable(appSettingsTable);
-      }
-      if (from < 8) {
-        await m.deleteTable('owner_profiles');
-        await m.deleteTable('app_settings_table');
-        await m.createTable(ownerProfiles);
-        await m.createTable(appSettingsTable);
-      }
-      if (from < 9) {
-        // Nutrition tables removed
-      }
-      if (from < 10) {
-        await m.addColumn(ownerProfiles, ownerProfiles.hmacSignature);
-        await m.addColumn(appSettingsTable, appSettingsTable.hmacSignature);
-      }
-      if (from < 12) {
-        await m.addColumn(outboxEvents, outboxEvents.isVerified as GeneratedColumn<Object>);
-      }
-      if (from < 13) {
-        await m.createTable(notifications);
-      }
-      if (from < 14) {
-        await m.addColumn(members, members.isSynced as GeneratedColumn<Object>);
-        await m.addColumn(payments, payments.isSynced as GeneratedColumn<Object>);
-        await m.addColumn(plans, plans.isSynced as GeneratedColumn<Object>);
-        await m.addColumn(sales, sales.isSynced as GeneratedColumn<Object>);
-        await m.addColumn(ownerProfiles, ownerProfiles.isSynced as GeneratedColumn<Object>);
-        await m.addColumn(appSettingsTable, appSettingsTable.isSynced as GeneratedColumn<Object>);
-      }
-      if (from < 15) {
-        await m.addColumn(members, members.photoPath);
-        await m.addColumn(ownerProfiles, ownerProfiles.ownerPhotoPath);
-      }
-    },
-  );
+        onCreate: (m) async {
+          await m.createAll();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(members);
+            await m.createTable(payments);
+            await m.createTable(plans);
+            await m.createTable(sales);
+          }
+          if (from < 3) {
+            await m.createTable(pinAttempts);
+            await m.alterTable(TableMigration(members));
+            await m.alterTable(TableMigration(payments));
+            await m.alterTable(TableMigration(plans));
+            await m.alterTable(TableMigration(sales));
+          }
+          if (from < 4) {
+            await m.createTable(invoiceSequences);
+          }
+          if (from < 5) {
+            await m.createTable(products);
+          }
+          if (from < 6) {
+            await m.createTable(preferences);
+          }
+          if (from < 7) {
+            await m.createTable(ownerProfiles);
+            await m.createTable(appSettingsTable);
+          }
+          if (from < 8) {
+            await m.deleteTable('owner_profiles');
+            await m.deleteTable('app_settings_table');
+            await m.createTable(ownerProfiles);
+            await m.createTable(appSettingsTable);
+          }
+          if (from < 9) {
+            // Nutrition tables removed
+          }
+          if (from < 10) {
+            await m.addColumn(ownerProfiles, ownerProfiles.hmacSignature);
+            await m.addColumn(appSettingsTable, appSettingsTable.hmacSignature);
+          }
+          if (from < 12) {
+            await m.addColumn(outboxEvents,
+                outboxEvents.isVerified as GeneratedColumn<Object>);
+          }
+          if (from < 13) {
+            await m.createTable(notifications);
+          }
+          if (from < 14) {
+            await m.addColumn(
+                members, members.isSynced as GeneratedColumn<Object>);
+            await m.addColumn(
+                payments, payments.isSynced as GeneratedColumn<Object>);
+            await m.addColumn(plans, plans.isSynced as GeneratedColumn<Object>);
+            await m.addColumn(sales, sales.isSynced as GeneratedColumn<Object>);
+            await m.addColumn(ownerProfiles,
+                ownerProfiles.isSynced as GeneratedColumn<Object>);
+            await m.addColumn(appSettingsTable,
+                appSettingsTable.isSynced as GeneratedColumn<Object>);
+          }
+          if (from < 15) {
+            await m.addColumn(members, members.photoPath);
+            await m.addColumn(ownerProfiles, ownerProfiles.ownerPhotoPath);
+          }
+          if (from < 16) {
+            await m.createTable(memberSubscriptions);
+            // Seed existing members into the new subscriptions table
+            final existingMembers = await select(members).get();
+            for (final member in existingMembers) {
+              if (member.expiryDate != null) {
+                await into(memberSubscriptions)
+                    .insert(MemberSubscriptionsCompanion(
+                  id: Value(const Uuid().v4()),
+                  memberId: Value(member.id),
+                  startDate: Value(member.joinDate),
+                  endDate: Value(member.expiryDate!),
+                  planId: Value(member.planId),
+                  planName: Value(member.planName),
+                  amountPaid: Value(member.totalPaid.toDouble()),
+                  status: const Value('active'),
+                  createdAt: Value(member.joinDate),
+                  isSynced: const Value(false),
+                ));
+              }
+            }
+          }
+          if (from < 17) {
+            await m.addColumn(
+                appSettingsTable, appSettingsTable.subscriptionMode);
+          }
+          if (from < 18) {
+            await m.createTable(deviceTokens);
+          }
+        },
+      );
 }
