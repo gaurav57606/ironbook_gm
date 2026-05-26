@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'dart:async';
-import 'dart:io';
 import 'dart:isolate';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -103,7 +102,7 @@ class AppBootstrap {
   /// Starts Tier 2 and arms a 20-second failsafe timer.
   /// The failsafe guarantees the router always unblocks even if Tier 2 silently crashes.
   static void _scheduleTier2WithFailsafe(ProviderContainer container, dynamic logger) {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (isTestEnvironment) {
       container.read(tier2StatusProvider.notifier).state = Tier2Status.ready;
       container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Ready;
       return;
@@ -131,6 +130,122 @@ class AppBootstrap {
     );
   }
 
+  static Future<void> _clearSyncLocks(ProviderContainer container, dynamic logger) async {
+    try {
+      await container.read(syncCoordinatorProvider).clearAllLocks().timeout(const Duration(seconds: 2));
+    } catch (e) {
+      logger.warn('clearAllLocks failed (non-fatal): $e', category: 'BOOT');
+    }
+  }
+
+  static Future<void> _initFirebase(ProviderContainer container, dynamic logger, Stopwatch stopwatch) async {
+    logger.info('Initializing Firebase...', category: 'FIREBASE');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 15));
+
+    container.read(firebaseInitializedProvider.notifier).state = true;
+    logger.setFirebaseInitialized(true);
+    logger.info('Firebase Initialized (${stopwatch.elapsedMilliseconds}ms).', category: 'FIREBASE');
+
+    if (!kIsWeb) {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
+
+      final originalFlutterError = FlutterError.onError;
+      FlutterError.onError = (errorDetails) {
+        FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+        originalFlutterError?.call(errorDetails);
+      };
+
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+
+      Isolate.current.addErrorListener(RawReceivePort((pair) async {
+        final List<dynamic> errorAndStacktrace = pair;
+        await FirebaseCrashlytics.instance.recordError(
+          errorAndStacktrace.first,
+          errorAndStacktrace.last,
+          fatal: true,
+        );
+      }).sendPort);
+
+      await logger.setHealthSignal('app_version', container.read(configServiceProvider).appVersion);
+      await logger.setHealthSignal('is_debug', kDebugMode);
+      logger.info('Crashlytics hooked.', category: 'FIREBASE');
+    }
+  }
+
+  static Future<void> _initNotificationsAndAuth(ProviderContainer container, dynamic logger) async {
+    if (!kIsWeb) {
+      logger.info('Initializing Notifications...', category: 'NOTIFICATION');
+      try {
+        await NotificationService.init(container).timeout(const Duration(seconds: 7));
+        await FcmService.init(container).timeout(const Duration(seconds: 7));
+      } catch (e, stack) {
+        logger.error('Notification init failed', category: 'NOTIFICATION', error: e, stackTrace: stack);
+      }
+    }
+
+    // Auth ready — safe to use HMAC / SecureStorage from here onward
+    final auth = FirebaseAuth.instance;
+    logger.info('Firebase Auth ready. Restoring session...', category: 'BOOT');
+    await container.read(authProvider.notifier).onFirebaseReady(auth).timeout(const Duration(seconds: 10));
+    logger.info('Auth session restored.', category: 'BOOT');
+
+    // Seed purge: after auth, fully non-blocking. Runs once per install.
+    unawaited(Future(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
+          await SeedData.purgeSeedMembers(container);
+          await prefs.setBool('seed_purge_done_v1', true);
+          logger.info('Seed purge complete.', category: 'BOOT');
+        }
+      } catch (e, stack) {
+        logger.warn('Seed purge failed (non-fatal): $e', category: 'BOOT', error: e, stackTrace: stack);
+      }
+    }));
+  }
+
+  static Future<void> _initWorkmanager(ProviderContainer container, dynamic logger) async {
+    if (!kIsWeb && !isTestEnvironment) {
+      logger.info('Initializing Workmanager...', category: 'WORKER');
+      try {
+        await Workmanager().initialize(
+          MidnightEngine.callbackDispatcher,
+        ).timeout(const Duration(seconds: 5));
+
+        // Risky cancelAll removed: we rely on replace policy for existing tasks
+        await Workmanager().registerPeriodicTask(
+          "1",
+          "midnightTask",
+          frequency: const Duration(hours: 12),
+          existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+          constraints: Constraints(
+            networkType: NetworkType.notRequired,
+            requiresBatteryNotLow: true,
+          ),
+        );
+        logger.info('Workmanager registered.', category: 'WORKER');
+      } catch (e, stack) {
+        logger.error('Workmanager init failed: $e', category: 'WORKER', error: e, stackTrace: stack);
+      }
+    }
+  }
+
+  static void _setupMonitoringAndSync(ProviderContainer container, dynamic logger) {
+    logger.info('Initializing Monitoring Service (Supabase)...', category: 'MONITOR');
+    try {
+      // Instantiate the singleton to start the batch timer
+      MonitoringService();
+      logger.info('Monitoring Service active.', category: 'MONITOR');
+    } catch (e, stack) {
+      logger.warn('Monitoring Service failed to start (non-fatal): $e', category: 'MONITOR', error: e, stackTrace: stack);
+    }
+  }
+
   static Future<void> _runTier2(ProviderContainer container) async {
     final logger = container.read(loggerProvider);
     final stopwatch = Stopwatch()..start();
@@ -139,81 +254,12 @@ class AppBootstrap {
 
     try {
       // 0. Pre-auth non-essential tasks
-      try {
-        await container.read(syncCoordinatorProvider).clearAllLocks().timeout(const Duration(seconds: 2));
-      } catch (e) {
-        logger.warn('clearAllLocks failed (non-fatal): $e', category: 'BOOT');
-      }
+      await _clearSyncLocks(container, logger);
 
       // 1. Firebase
-      logger.info('Initializing Firebase...', category: 'FIREBASE');
       try {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        ).timeout(const Duration(seconds: 15));
-
-        container.read(firebaseInitializedProvider.notifier).state = true;
-        logger.setFirebaseInitialized(true);
-        logger.info('Firebase Initialized (${stopwatch.elapsedMilliseconds}ms).', category: 'FIREBASE');
-
-        if (!kIsWeb) {
-          await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
-
-          final originalFlutterError = FlutterError.onError;
-          FlutterError.onError = (errorDetails) {
-            FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-            originalFlutterError?.call(errorDetails);
-          };
-
-          PlatformDispatcher.instance.onError = (error, stack) {
-            FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-            return true;
-          };
-
-          Isolate.current.addErrorListener(RawReceivePort((pair) async {
-            final List<dynamic> errorAndStacktrace = pair;
-            await FirebaseCrashlytics.instance.recordError(
-              errorAndStacktrace.first,
-              errorAndStacktrace.last,
-              fatal: true,
-            );
-          }).sendPort);
-
-          await logger.setHealthSignal('app_version', container.read(configServiceProvider).appVersion);
-          await logger.setHealthSignal('is_debug', kDebugMode);
-          logger.info('Crashlytics hooked.', category: 'FIREBASE');
-        }
-
-        if (!kIsWeb) {
-          logger.info('Initializing Notifications...', category: 'NOTIFICATION');
-          try {
-            await NotificationService.init(container).timeout(const Duration(seconds: 7));
-            await FcmService.init(container).timeout(const Duration(seconds: 7));
-          } catch (e) {
-            logger.error('Notification init failed', category: 'NOTIFICATION', error: e);
-          }
-        }
-
-        // Auth ready — safe to use HMAC / SecureStorage from here onward
-        final auth = FirebaseAuth.instance;
-        logger.info('Firebase Auth ready. Restoring session...', category: 'BOOT');
-        await container.read(authProvider.notifier).onFirebaseReady(auth).timeout(const Duration(seconds: 10));
-        logger.info('Auth session restored.', category: 'BOOT');
-
-        // Seed purge: after auth, fully non-blocking. Runs once per install.
-        unawaited(Future(() async {
-          try {
-            final prefs = await SharedPreferences.getInstance();
-            if (!(prefs.getBool('seed_purge_done_v1') ?? false)) {
-              await SeedData.purgeSeedMembers(container);
-              await prefs.setBool('seed_purge_done_v1', true);
-              logger.info('Seed purge complete.', category: 'BOOT');
-            }
-          } catch (e) {
-            logger.warn('Seed purge failed (non-fatal): $e', category: 'BOOT');
-          }
-        }));
-
+        await _initFirebase(container, logger, stopwatch);
+        await _initNotificationsAndAuth(container, logger);
       } catch (e, stack) {
         // Firebase failed — continue to degraded, do NOT rethrow
         logger.warn(
@@ -225,40 +271,10 @@ class AppBootstrap {
       }
 
       // 2. Background Tasks
-      if (!kIsWeb && !isTestEnvironment) {
-        logger.info('Initializing Workmanager...', category: 'WORKER');
-        try {
-          await Workmanager().initialize(
-            MidnightEngine.callbackDispatcher,
-          ).timeout(const Duration(seconds: 5));
-
-          await Workmanager().cancelAll();
-
-          await Workmanager().registerPeriodicTask(
-            "1",
-            "midnightTask",
-            frequency: const Duration(hours: 12),
-            existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
-            constraints: Constraints(
-              networkType: NetworkType.not_required,
-              requiresBatteryNotLow: true,
-            ),
-          );
-          logger.info('Workmanager registered.', category: 'WORKER');
-        } catch (e) {
-          logger.error('Workmanager init failed: $e', category: 'WORKER', error: e);
-        }
-      }
+      await _initWorkmanager(container, logger);
 
       // 3. Monitoring Service
-      logger.info('Initializing Monitoring Service (Supabase)...', category: 'MONITOR');
-      try {
-        // Instantiate the singleton to start the batch timer
-        MonitoringService();
-        logger.info('Monitoring Service active.', category: 'MONITOR');
-      } catch (e) {
-        logger.warn('Monitoring Service failed to start (non-fatal): $e', category: 'MONITOR');
-      }
+      _setupMonitoringAndSync(container, logger);
 
       // 4. Finalize Bootstrap & Unblock UI
       if (container.read(firebaseInitializedProvider)) {
@@ -278,7 +294,11 @@ class AppBootstrap {
         
         // 4. DECOUPLED: Trigger recovery AFTER navigation is unblocked
         logger.info('Triggering background data recovery...', category: 'BOOT');
-        container.read(authProvider.notifier).triggerBackgroundRecovery();
+        try {
+          container.read(authProvider.notifier).triggerBackgroundRecovery();
+        } catch (e, stack) {
+          logger.error('Failed to trigger background recovery: $e', category: 'BOOT', error: e, stackTrace: stack);
+        }
       } else {
         logger.warn('Degraded Mode: No Firebase. Arming connectivity retry.', category: 'BOOT');
         container.read(tier2StatusProvider.notifier).state = Tier2Status.degraded;
@@ -300,8 +320,12 @@ class AppBootstrap {
             'Connectivity restored in degraded mode. Retrying Tier 2...',
             category: 'BOOT',
           );
-          offlineRetrySub?.cancel();
-          await _runTier2(container);
+          try {
+            offlineRetrySub?.cancel();
+            await _runTier2(container);
+          } catch (e, stack) {
+            logger.critical('Connectivity retry of Tier 2 failed: $e', category: 'BOOT', error: e, stackTrace: stack);
+          }
         });
       }
 
@@ -312,6 +336,23 @@ class AppBootstrap {
       logger.critical('CRITICAL TIER 2 FAILURE: $e', category: 'BOOT', error: e, stackTrace: stack);
       container.read(tier2StatusProvider.notifier).state = Tier2Status.degraded;
       container.read(bootstrapStateProvider.notifier).state = BootstrapPhase.tier2Degraded;
+    } finally {
+      final tier1Initialized = container.read(bootstrapStateProvider) == BootstrapPhase.tier1Ready ||
+          container.read(bootstrapStateProvider) == BootstrapPhase.tier2Ready ||
+          container.read(bootstrapStateProvider) == BootstrapPhase.tier2Degraded;
+      final firebaseInitialized = container.read(firebaseInitializedProvider);
+      final tier2Status = container.read(tier2StatusProvider);
+      final degradedMode = tier2Status == Tier2Status.degraded;
+
+      logger.info(
+        '=== STARTUP OUTCOME ===\n'
+        '  - Tier 1 Success: $tier1Initialized\n'
+        '  - Firebase Initialized: $firebaseInitialized\n'
+        '  - Tier 2 Final Status: $tier2Status\n'
+        '  - Degraded Mode Entered: $degradedMode\n'
+        '=======================',
+        category: 'BOOT',
+      );
     }
   }
 }

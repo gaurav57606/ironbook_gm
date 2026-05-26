@@ -15,6 +15,7 @@ import '../../features/home/presentation/widgets/main_shell.dart';
 import '../../features/members/presentation/screens/members_list_screen.dart';
 import '../../features/members/presentation/screens/quick_add_member_screen.dart';
 import '../../features/members/presentation/screens/member_detail_screen.dart';
+import '../../features/members/presentation/screens/member_edit_screen.dart';
 import '../../features/billing/presentation/screens/invoice_screen.dart';
 import '../../features/billing/presentation/screens/pos_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
@@ -235,17 +236,9 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
                   ),
                   GoRoute(
                     path: 'member-edit/:id',
-                    builder: (context, state) => MemberDetailScreen(
+                    builder: (context, state) => MemberEditScreen(
                       memberId: state.pathParameters['id']!,
                     ),
-                    routes: [
-                      GoRoute(
-                        path: 'invoice',
-                        builder: (context, state) => InvoiceScreen(
-                          memberId: state.pathParameters['id'],
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

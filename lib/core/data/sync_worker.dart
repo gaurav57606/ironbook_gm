@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'local/drift/outbox_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -397,7 +398,7 @@ class SyncWorker {
   }
 
   void _scheduleNextSync(Duration baseInterval) {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (kIsWeb || const bool.fromEnvironment('FLUTTER_TEST')) {
       return;
     }
     // Audit Check 3.3: Exponential Backoff

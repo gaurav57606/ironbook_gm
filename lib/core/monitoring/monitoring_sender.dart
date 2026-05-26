@@ -20,7 +20,7 @@ class MonitoringSender {
 
   void _startTimer() {
     _timer?.cancel();
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (const bool.fromEnvironment('FLUTTER_TEST')) {
       return;
     }
     _timer = Timer.periodic(

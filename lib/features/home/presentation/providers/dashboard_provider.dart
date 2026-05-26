@@ -107,6 +107,27 @@ final dashboardMemberStatsProvider = Provider<DashboardMemberStats>((ref) {
     }
   }
 
+  // Sort dueMembers: Expired (<0) first, Expiring Soon (0-7) next, Active (>7) last.
+  // Within each group, sort by days remaining ascending.
+  dueMembers.sort((a, b) {
+    final daysA = a.getDaysRemaining(now);
+    final daysB = b.getDaysRemaining(now);
+    
+    int getGroup(int days) {
+      if (days < 0) return 0;
+      if (days <= 7) return 1;
+      return 2;
+    }
+    
+    final groupA = getGroup(daysA);
+    final groupB = getGroup(daysB);
+    
+    if (groupA != groupB) {
+      return groupA.compareTo(groupB);
+    }
+    return daysA.compareTo(daysB);
+  });
+
   return DashboardMemberStats(
     activeCount: activeCount,
     expiringCount: expiringCount,

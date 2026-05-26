@@ -64,17 +64,11 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
   }
 
   Future<void> _reconcilePlans() async {
-    final allEvents = await _eventRepo.getAllEvents();
-    final planEvents = allEvents.where((e) => e.eventType == EventType.plansUpdated).toList();
-    
-    if (planEvents.isEmpty) return;
-
-    // Get the latest plan update
-    final latestEvent = planEvents.reduce((a, b) => a.deviceTimestamp.isAfter(b.deviceTimestamp) ? a : b);
-    
-    // We can just use applyEvent here
-    await _planRepo.applyEvent(latestEvent);
-    state = await _planRepo.getAllPlans();
+    // Drift DB is the source of truth on startup — no replay needed
+    // Reconciliation is handled by the event stream listener in _init()
+    if (mounted) {
+      state = await _planRepo.getAllPlans();
+    }
   }
 
   @visibleForTesting

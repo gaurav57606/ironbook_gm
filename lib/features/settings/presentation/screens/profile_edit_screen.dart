@@ -23,18 +23,34 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   late TextEditingController _bankController;
   late TextEditingController _accountController;
   late TextEditingController _ifscController;
+  bool _populated = false;
 
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController();
+    _phoneController = TextEditingController();
+    _addressController = TextEditingController();
+    _gstinController = TextEditingController();
+    _bankController = TextEditingController();
+    _accountController = TextEditingController();
+    _ifscController = TextEditingController();
+
     final owner = ref.read(ownerProvider);
-    _nameController = TextEditingController(text: widget.isGymProfile ? owner?.gymName : owner?.ownerName);
-    _phoneController = TextEditingController(text: owner?.phone);
-    _addressController = TextEditingController(text: owner?.address);
-    _gstinController = TextEditingController(text: owner?.gstin);
-    _bankController = TextEditingController(text: owner?.bankName);
-    _accountController = TextEditingController(text: owner?.accountNumber);
-    _ifscController = TextEditingController(text: owner?.ifsc);
+    if (owner != null) {
+      _populateControllers(owner);
+      _populated = true;
+    }
+  }
+
+  void _populateControllers(OwnerProfile owner) {
+    _nameController.text = widget.isGymProfile ? owner.gymName : owner.ownerName;
+    _phoneController.text = owner.phone;
+    _addressController.text = owner.address;
+    _gstinController.text = owner.gstin ?? '';
+    _bankController.text = owner.bankName ?? '';
+    _accountController.text = owner.accountNumber ?? '';
+    _ifscController.text = owner.ifsc ?? '';
   }
 
   @override
@@ -51,6 +67,16 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final owner = ref.watch(ownerProvider);
+    if (!_populated && owner != null) {
+      _populated = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _populateControllers(owner);
+        setState(() {});
+      });
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
@@ -186,9 +212,17 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       address: '',
     );
     
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.isGymProfile ? 'Gym name cannot be empty' : 'Owner name cannot be empty')),
+      );
+      return;
+    }
+
     final updated = owner.copyWith(
-      gymName: widget.isGymProfile ? _nameController.text : owner.gymName,
-      ownerName: widget.isGymProfile ? owner.ownerName : _nameController.text,
+      gymName: widget.isGymProfile ? name : owner.gymName,
+      ownerName: widget.isGymProfile ? owner.ownerName : name,
       phone: _phoneController.text,
       address: _addressController.text,
       gstin: _gstinController.text,
@@ -198,6 +232,11 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     );
 
     await ref.read(ownerProvider.notifier).updateOwner(updated);
-    if (mounted) Navigator.pop(context);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.isGymProfile ? 'Gym profile updated' : 'Profile updated successfully')),
+      );
+      Navigator.pop(context);
+    }
   }
 }

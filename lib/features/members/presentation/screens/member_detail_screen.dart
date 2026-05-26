@@ -63,7 +63,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                       _buildHeaderAvatar(member, statusColor, statusMsg),
                       _buildQuickActions(context, member),
                       const AppSectionHeader(title: 'SUBSCRIPTION'),
-                      _buildSubscriptionCard(member, statusColor),
+                      _buildSubscriptionCard(member, statusColor, now),
                       const AppSectionHeader(title: 'FINANCIALS'),
                       _buildFinancialsCard(widget.memberId),
                       const AppSectionHeader(title: 'HISTORY'),
@@ -288,9 +288,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             ),
           ),
           GestureDetector(
-            onTap: () {
-              // Edit member flow
-            },
+            onTap: () => context.push('/members/member-edit/${widget.memberId}'),
             child: Container(
               width: 40,
               height: 40,
@@ -465,7 +463,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
   }
 
 
-  Widget _buildSubscriptionCard(MemberSnapshot member, Color color) {
+  Widget _buildSubscriptionCard(MemberSnapshot member, Color color, DateTime now) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
       padding: const EdgeInsets.all(AppSpacing.m),
@@ -491,6 +489,60 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
             member.expiryDate != null ? AppDateUtils.format(member.expiryDate!) : 'N/A',
             valueColor: color,
             valueWeight: FontWeight.w700,
+          ),
+          Builder(
+            builder: (context) {
+              final days = member.getDaysRemaining(now);
+              final isExpired = days < 0;
+              final isExpiringSoon = !isExpired && days <= 7;
+
+              final label = isExpired
+                  ? '${days.abs()} days overdue'
+                  : days == 0
+                      ? 'Expires today'
+                      : '$days days remaining';
+
+              final color = isExpired
+                  ? AppColors.red
+                  : isExpiringSoon
+                      ? AppColors.amber
+                      : AppColors.green;
+
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.10),
+                    borderRadius: AppRadius.radiusS,
+                    border: Border.all(color: color.withValues(alpha: 0.35)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isExpired
+                            ? Icons.cancel_outlined
+                            : isExpiringSoon
+                                ? Icons.timer_outlined
+                                : Icons.check_circle_outline_rounded,
+                        color: color,
+                        size: 15,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
