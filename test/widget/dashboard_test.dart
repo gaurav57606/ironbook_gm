@@ -61,6 +61,10 @@ void main() {
       // Stats should reflect 1 active member
       // There might be multiple '1's (Total, Active)
       expect(find.text('1'), findsAtLeast(2)); 
+
+      // Cleanup
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 100));
     });
   });
 }

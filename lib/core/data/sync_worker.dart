@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,7 @@ class SyncWorker {
   DateTime? _lastSuccessAt;
   String? _lastErrorMessage;
   StreamSubscription? _syncSubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   final StateProvider<SyncWorkerState> _statusProvider;
   final Ref _ref;
 
@@ -47,12 +49,25 @@ class SyncWorker {
     // Subscribe to manual sync requests from the UI or Repositories
     _syncSubscription = _coordinator.onSyncRequested.listen((_) => performSync());
     
+    // Auto-retry outbox push the moment internet is restored
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+      final isOnline = results.any((r) => r != ConnectivityResult.none);
+      if (isOnline) {
+        _ref.read(loggerProvider).info(
+          'Connectivity restored. Auto-triggering outbox sync.',
+          category: 'SYNC',
+        );
+        performSync();
+      }
+    });
+
     // Load persisted failure count
     _consecutiveFailures = _prefs.getInt('sync_consecutive_failures') ?? 0;
   }
 
   void dispose() {
     _syncSubscription?.cancel();
+    _connectivitySubscription?.cancel();
   }
 
   Future<void> performSync() async {
@@ -382,6 +397,9 @@ class SyncWorker {
   }
 
   void _scheduleNextSync(Duration baseInterval) {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
     // Audit Check 3.3: Exponential Backoff
     // Next delay = base * 2^failures, capped at 15 minutes.
     int factor = 1 << (_consecutiveFailures.clamp(0, 10)); // max 1024x

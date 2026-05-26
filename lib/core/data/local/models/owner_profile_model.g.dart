@@ -34,13 +34,14 @@ class OwnerProfileAdapter extends TypeAdapter<OwnerProfile> {
       endurance: fields[14] as double,
       dexterity: fields[15] as double,
       selectedCharacterId: fields[16] as String,
+      ownerPhotoPath: fields[17] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, OwnerProfile obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.gymName)
       ..writeByte(1)
@@ -74,7 +75,9 @@ class OwnerProfileAdapter extends TypeAdapter<OwnerProfile> {
       ..writeByte(15)
       ..write(obj.dexterity)
       ..writeByte(16)
-      ..write(obj.selectedCharacterId);
+      ..write(obj.selectedCharacterId)
+      ..writeByte(17)
+      ..write(obj.ownerPhotoPath);
   }
 
   @override

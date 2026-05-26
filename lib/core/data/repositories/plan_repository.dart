@@ -13,6 +13,7 @@ abstract class IPlanRepository {
   Future<domain.Plan?> getPlan(String id);
   Future<List<domain.Plan>> getAllPlans();
   Future<void> applyEvent(DomainEvent event);
+  Future<void> deletePlan(String id);
 }
 
 class DriftPlanRepository implements IPlanRepository {
@@ -80,6 +81,11 @@ class DriftPlanRepository implements IPlanRepository {
         }
       }
     }
+  }
+
+  @override
+  Future<void> deletePlan(String id) async {
+    await (_db.delete(_db.plans)..where((t) => t.id.equals(id))).go();
   }
 }
 

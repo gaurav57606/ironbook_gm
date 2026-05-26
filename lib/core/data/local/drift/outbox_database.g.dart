@@ -583,6 +583,12 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _photoPathMeta =
+      const VerificationMeta('photoPath');
+  @override
+  late final GeneratedColumn<String> photoPath = GeneratedColumn<String>(
+      'photo_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -599,7 +605,8 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
         checkInPin,
         lastCheckIn,
         hmacSignature,
-        isSynced
+        isSynced,
+        photoPath
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -684,6 +691,10 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('photo_path')) {
+      context.handle(_photoPathMeta,
+          photoPath.isAcceptableOrUnknown(data['photo_path']!, _photoPathMeta));
+    }
     return context;
   }
 
@@ -723,6 +734,8 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
           .read(DriftSqlType.string, data['${effectivePrefix}hmac_signature'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      photoPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}photo_path']),
     );
   }
 
@@ -748,6 +761,7 @@ class Member extends DataClass implements Insertable<Member> {
   final DateTime? lastCheckIn;
   final String hmacSignature;
   final bool isSynced;
+  final String? photoPath;
   const Member(
       {required this.id,
       required this.name,
@@ -763,7 +777,8 @@ class Member extends DataClass implements Insertable<Member> {
       this.checkInPin,
       this.lastCheckIn,
       required this.hmacSignature,
-      required this.isSynced});
+      required this.isSynced,
+      this.photoPath});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -798,6 +813,9 @@ class Member extends DataClass implements Insertable<Member> {
     }
     map['hmac_signature'] = Variable<String>(hmacSignature);
     map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || photoPath != null) {
+      map['photo_path'] = Variable<String>(photoPath);
+    }
     return map;
   }
 
@@ -829,6 +847,9 @@ class Member extends DataClass implements Insertable<Member> {
           : Value(lastCheckIn),
       hmacSignature: Value(hmacSignature),
       isSynced: Value(isSynced),
+      photoPath: photoPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoPath),
     );
   }
 
@@ -851,6 +872,7 @@ class Member extends DataClass implements Insertable<Member> {
       lastCheckIn: serializer.fromJson<DateTime?>(json['lastCheckIn']),
       hmacSignature: serializer.fromJson<String>(json['hmacSignature']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      photoPath: serializer.fromJson<String?>(json['photoPath']),
     );
   }
   @override
@@ -872,6 +894,7 @@ class Member extends DataClass implements Insertable<Member> {
       'lastCheckIn': serializer.toJson<DateTime?>(lastCheckIn),
       'hmacSignature': serializer.toJson<String>(hmacSignature),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'photoPath': serializer.toJson<String?>(photoPath),
     };
   }
 
@@ -890,7 +913,8 @@ class Member extends DataClass implements Insertable<Member> {
           Value<String?> checkInPin = const Value.absent(),
           Value<DateTime?> lastCheckIn = const Value.absent(),
           String? hmacSignature,
-          bool? isSynced}) =>
+          bool? isSynced,
+          Value<String?> photoPath = const Value.absent()}) =>
       Member(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -907,6 +931,7 @@ class Member extends DataClass implements Insertable<Member> {
         lastCheckIn: lastCheckIn.present ? lastCheckIn.value : this.lastCheckIn,
         hmacSignature: hmacSignature ?? this.hmacSignature,
         isSynced: isSynced ?? this.isSynced,
+        photoPath: photoPath.present ? photoPath.value : this.photoPath,
       );
   Member copyWithCompanion(MembersCompanion data) {
     return Member(
@@ -930,6 +955,7 @@ class Member extends DataClass implements Insertable<Member> {
           ? data.hmacSignature.value
           : this.hmacSignature,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      photoPath: data.photoPath.present ? data.photoPath.value : this.photoPath,
     );
   }
 
@@ -950,7 +976,8 @@ class Member extends DataClass implements Insertable<Member> {
           ..write('checkInPin: $checkInPin, ')
           ..write('lastCheckIn: $lastCheckIn, ')
           ..write('hmacSignature: $hmacSignature, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('photoPath: $photoPath')
           ..write(')'))
         .toString();
   }
@@ -971,7 +998,8 @@ class Member extends DataClass implements Insertable<Member> {
       checkInPin,
       lastCheckIn,
       hmacSignature,
-      isSynced);
+      isSynced,
+      photoPath);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -990,7 +1018,8 @@ class Member extends DataClass implements Insertable<Member> {
           other.checkInPin == this.checkInPin &&
           other.lastCheckIn == this.lastCheckIn &&
           other.hmacSignature == this.hmacSignature &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.photoPath == this.photoPath);
 }
 
 class MembersCompanion extends UpdateCompanion<Member> {
@@ -1009,6 +1038,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
   final Value<DateTime?> lastCheckIn;
   final Value<String> hmacSignature;
   final Value<bool> isSynced;
+  final Value<String?> photoPath;
   final Value<int> rowid;
   const MembersCompanion({
     this.id = const Value.absent(),
@@ -1026,6 +1056,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
     this.lastCheckIn = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.photoPath = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MembersCompanion.insert({
@@ -1044,6 +1075,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
     this.lastCheckIn = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.photoPath = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name),
@@ -1064,6 +1096,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
     Expression<DateTime>? lastCheckIn,
     Expression<String>? hmacSignature,
     Expression<bool>? isSynced,
+    Expression<String>? photoPath,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1082,6 +1115,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
       if (lastCheckIn != null) 'last_check_in': lastCheckIn,
       if (hmacSignature != null) 'hmac_signature': hmacSignature,
       if (isSynced != null) 'is_synced': isSynced,
+      if (photoPath != null) 'photo_path': photoPath,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1102,6 +1136,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
       Value<DateTime?>? lastCheckIn,
       Value<String>? hmacSignature,
       Value<bool>? isSynced,
+      Value<String?>? photoPath,
       Value<int>? rowid}) {
     return MembersCompanion(
       id: id ?? this.id,
@@ -1119,6 +1154,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
       lastCheckIn: lastCheckIn ?? this.lastCheckIn,
       hmacSignature: hmacSignature ?? this.hmacSignature,
       isSynced: isSynced ?? this.isSynced,
+      photoPath: photoPath ?? this.photoPath,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1171,6 +1207,9 @@ class MembersCompanion extends UpdateCompanion<Member> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (photoPath.present) {
+      map['photo_path'] = Variable<String>(photoPath.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1195,6 +1234,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
           ..write('lastCheckIn: $lastCheckIn, ')
           ..write('hmacSignature: $hmacSignature, ')
           ..write('isSynced: $isSynced, ')
+          ..write('photoPath: $photoPath, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3972,6 +4012,12 @@ class $OwnerProfilesTable extends OwnerProfiles
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _ownerPhotoPathMeta =
+      const VerificationMeta('ownerPhotoPath');
+  @override
+  late final GeneratedColumn<String> ownerPhotoPath = GeneratedColumn<String>(
+      'owner_photo_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         gymName,
@@ -3991,7 +4037,8 @@ class $OwnerProfilesTable extends OwnerProfiles
         dexterity,
         selectedCharacterId,
         hmacSignature,
-        isSynced
+        isSynced,
+        ownerPhotoPath
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4089,6 +4136,12 @@ class $OwnerProfilesTable extends OwnerProfiles
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('owner_photo_path')) {
+      context.handle(
+          _ownerPhotoPathMeta,
+          ownerPhotoPath.isAcceptableOrUnknown(
+              data['owner_photo_path']!, _ownerPhotoPathMeta));
+    }
     return context;
   }
 
@@ -4135,6 +4188,8 @@ class $OwnerProfilesTable extends OwnerProfiles
           .read(DriftSqlType.string, data['${effectivePrefix}hmac_signature']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      ownerPhotoPath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}owner_photo_path']),
     );
   }
 
@@ -4163,6 +4218,7 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
   final String selectedCharacterId;
   final String? hmacSignature;
   final bool isSynced;
+  final String? ownerPhotoPath;
   const OwnerProfile(
       {required this.gymName,
       required this.ownerName,
@@ -4181,7 +4237,8 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
       required this.dexterity,
       required this.selectedCharacterId,
       this.hmacSignature,
-      required this.isSynced});
+      required this.isSynced,
+      this.ownerPhotoPath});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -4217,6 +4274,9 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
       map['hmac_signature'] = Variable<String>(hmacSignature);
     }
     map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || ownerPhotoPath != null) {
+      map['owner_photo_path'] = Variable<String>(ownerPhotoPath);
+    }
     return map;
   }
 
@@ -4250,6 +4310,9 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
           ? const Value.absent()
           : Value(hmacSignature),
       isSynced: Value(isSynced),
+      ownerPhotoPath: ownerPhotoPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerPhotoPath),
     );
   }
 
@@ -4276,6 +4339,7 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
           serializer.fromJson<String>(json['selectedCharacterId']),
       hmacSignature: serializer.fromJson<String?>(json['hmacSignature']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      ownerPhotoPath: serializer.fromJson<String?>(json['ownerPhotoPath']),
     );
   }
   @override
@@ -4300,6 +4364,7 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
       'selectedCharacterId': serializer.toJson<String>(selectedCharacterId),
       'hmacSignature': serializer.toJson<String?>(hmacSignature),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'ownerPhotoPath': serializer.toJson<String?>(ownerPhotoPath),
     };
   }
 
@@ -4321,7 +4386,8 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
           double? dexterity,
           String? selectedCharacterId,
           Value<String?> hmacSignature = const Value.absent(),
-          bool? isSynced}) =>
+          bool? isSynced,
+          Value<String?> ownerPhotoPath = const Value.absent()}) =>
       OwnerProfile(
         gymName: gymName ?? this.gymName,
         ownerName: ownerName ?? this.ownerName,
@@ -4343,6 +4409,8 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
         hmacSignature:
             hmacSignature.present ? hmacSignature.value : this.hmacSignature,
         isSynced: isSynced ?? this.isSynced,
+        ownerPhotoPath:
+            ownerPhotoPath.present ? ownerPhotoPath.value : this.ownerPhotoPath,
       );
   OwnerProfile copyWithCompanion(OwnerProfilesCompanion data) {
     return OwnerProfile(
@@ -4370,6 +4438,9 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
           ? data.hmacSignature.value
           : this.hmacSignature,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      ownerPhotoPath: data.ownerPhotoPath.present
+          ? data.ownerPhotoPath.value
+          : this.ownerPhotoPath,
     );
   }
 
@@ -4393,7 +4464,8 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
           ..write('dexterity: $dexterity, ')
           ..write('selectedCharacterId: $selectedCharacterId, ')
           ..write('hmacSignature: $hmacSignature, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('ownerPhotoPath: $ownerPhotoPath')
           ..write(')'))
         .toString();
   }
@@ -4417,7 +4489,8 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
       dexterity,
       selectedCharacterId,
       hmacSignature,
-      isSynced);
+      isSynced,
+      ownerPhotoPath);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4439,7 +4512,8 @@ class OwnerProfile extends DataClass implements Insertable<OwnerProfile> {
           other.dexterity == this.dexterity &&
           other.selectedCharacterId == this.selectedCharacterId &&
           other.hmacSignature == this.hmacSignature &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.ownerPhotoPath == this.ownerPhotoPath);
 }
 
 class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
@@ -4461,6 +4535,7 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
   final Value<String> selectedCharacterId;
   final Value<String?> hmacSignature;
   final Value<bool> isSynced;
+  final Value<String?> ownerPhotoPath;
   final Value<int> rowid;
   const OwnerProfilesCompanion({
     this.gymName = const Value.absent(),
@@ -4481,6 +4556,7 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
     this.selectedCharacterId = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.ownerPhotoPath = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OwnerProfilesCompanion.insert({
@@ -4502,6 +4578,7 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
     this.selectedCharacterId = const Value.absent(),
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.ownerPhotoPath = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : gymName = Value(gymName),
         ownerName = Value(ownerName),
@@ -4526,6 +4603,7 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
     Expression<String>? selectedCharacterId,
     Expression<String>? hmacSignature,
     Expression<bool>? isSynced,
+    Expression<String>? ownerPhotoPath,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4548,6 +4626,7 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
         'selected_character_id': selectedCharacterId,
       if (hmacSignature != null) 'hmac_signature': hmacSignature,
       if (isSynced != null) 'is_synced': isSynced,
+      if (ownerPhotoPath != null) 'owner_photo_path': ownerPhotoPath,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4571,6 +4650,7 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
       Value<String>? selectedCharacterId,
       Value<String?>? hmacSignature,
       Value<bool>? isSynced,
+      Value<String?>? ownerPhotoPath,
       Value<int>? rowid}) {
     return OwnerProfilesCompanion(
       gymName: gymName ?? this.gymName,
@@ -4591,6 +4671,7 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
       selectedCharacterId: selectedCharacterId ?? this.selectedCharacterId,
       hmacSignature: hmacSignature ?? this.hmacSignature,
       isSynced: isSynced ?? this.isSynced,
+      ownerPhotoPath: ownerPhotoPath ?? this.ownerPhotoPath,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4653,6 +4734,9 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (ownerPhotoPath.present) {
+      map['owner_photo_path'] = Variable<String>(ownerPhotoPath.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4680,6 +4764,7 @@ class OwnerProfilesCompanion extends UpdateCompanion<OwnerProfile> {
           ..write('selectedCharacterId: $selectedCharacterId, ')
           ..write('hmacSignature: $hmacSignature, ')
           ..write('isSynced: $isSynced, ')
+          ..write('ownerPhotoPath: $ownerPhotoPath, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5899,6 +5984,7 @@ typedef $$MembersTableCreateCompanionBuilder = MembersCompanion Function({
   Value<DateTime?> lastCheckIn,
   Value<String> hmacSignature,
   Value<bool> isSynced,
+  Value<String?> photoPath,
   Value<int> rowid,
 });
 typedef $$MembersTableUpdateCompanionBuilder = MembersCompanion Function({
@@ -5917,6 +6003,7 @@ typedef $$MembersTableUpdateCompanionBuilder = MembersCompanion Function({
   Value<DateTime?> lastCheckIn,
   Value<String> hmacSignature,
   Value<bool> isSynced,
+  Value<String?> photoPath,
   Value<int> rowid,
 });
 
@@ -5973,6 +6060,9 @@ class $$MembersTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get photoPath => $composableBuilder(
+      column: $table.photoPath, builder: (column) => ColumnFilters(column));
 }
 
 class $$MembersTableOrderingComposer
@@ -6029,6 +6119,9 @@ class $$MembersTableOrderingComposer
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get photoPath => $composableBuilder(
+      column: $table.photoPath, builder: (column) => ColumnOrderings(column));
 }
 
 class $$MembersTableAnnotationComposer
@@ -6084,6 +6177,9 @@ class $$MembersTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get photoPath =>
+      $composableBuilder(column: $table.photoPath, builder: (column) => column);
 }
 
 class $$MembersTableTableManager extends RootTableManager<
@@ -6124,6 +6220,7 @@ class $$MembersTableTableManager extends RootTableManager<
             Value<DateTime?> lastCheckIn = const Value.absent(),
             Value<String> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<String?> photoPath = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MembersCompanion(
@@ -6142,6 +6239,7 @@ class $$MembersTableTableManager extends RootTableManager<
             lastCheckIn: lastCheckIn,
             hmacSignature: hmacSignature,
             isSynced: isSynced,
+            photoPath: photoPath,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -6160,6 +6258,7 @@ class $$MembersTableTableManager extends RootTableManager<
             Value<DateTime?> lastCheckIn = const Value.absent(),
             Value<String> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<String?> photoPath = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MembersCompanion.insert(
@@ -6178,6 +6277,7 @@ class $$MembersTableTableManager extends RootTableManager<
             lastCheckIn: lastCheckIn,
             hmacSignature: hmacSignature,
             isSynced: isSynced,
+            photoPath: photoPath,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -7575,6 +7675,7 @@ typedef $$OwnerProfilesTableCreateCompanionBuilder = OwnerProfilesCompanion
   Value<String> selectedCharacterId,
   Value<String?> hmacSignature,
   Value<bool> isSynced,
+  Value<String?> ownerPhotoPath,
   Value<int> rowid,
 });
 typedef $$OwnerProfilesTableUpdateCompanionBuilder = OwnerProfilesCompanion
@@ -7597,6 +7698,7 @@ typedef $$OwnerProfilesTableUpdateCompanionBuilder = OwnerProfilesCompanion
   Value<String> selectedCharacterId,
   Value<String?> hmacSignature,
   Value<bool> isSynced,
+  Value<String?> ownerPhotoPath,
   Value<int> rowid,
 });
 
@@ -7663,6 +7765,10 @@ class $$OwnerProfilesTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerPhotoPath => $composableBuilder(
+      column: $table.ownerPhotoPath,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$OwnerProfilesTableOrderingComposer
@@ -7730,6 +7836,10 @@ class $$OwnerProfilesTableOrderingComposer
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerPhotoPath => $composableBuilder(
+      column: $table.ownerPhotoPath,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$OwnerProfilesTableAnnotationComposer
@@ -7794,6 +7904,9 @@ class $$OwnerProfilesTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerPhotoPath => $composableBuilder(
+      column: $table.ownerPhotoPath, builder: (column) => column);
 }
 
 class $$OwnerProfilesTableTableManager extends RootTableManager<
@@ -7841,6 +7954,7 @@ class $$OwnerProfilesTableTableManager extends RootTableManager<
             Value<String> selectedCharacterId = const Value.absent(),
             Value<String?> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<String?> ownerPhotoPath = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               OwnerProfilesCompanion(
@@ -7862,6 +7976,7 @@ class $$OwnerProfilesTableTableManager extends RootTableManager<
             selectedCharacterId: selectedCharacterId,
             hmacSignature: hmacSignature,
             isSynced: isSynced,
+            ownerPhotoPath: ownerPhotoPath,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -7883,6 +7998,7 @@ class $$OwnerProfilesTableTableManager extends RootTableManager<
             Value<String> selectedCharacterId = const Value.absent(),
             Value<String?> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<String?> ownerPhotoPath = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               OwnerProfilesCompanion.insert(
@@ -7904,6 +8020,7 @@ class $$OwnerProfilesTableTableManager extends RootTableManager<
             selectedCharacterId: selectedCharacterId,
             hmacSignature: hmacSignature,
             isSynced: isSynced,
+            ownerPhotoPath: ownerPhotoPath,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

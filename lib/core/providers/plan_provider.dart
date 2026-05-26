@@ -170,7 +170,7 @@ class PlanNotifier extends StateNotifier<List<Plan>> {
 
     await _db.transaction(() async {
       await _eventRepo.persist(event);
-      await (_db.delete(_db.plans)..where((t) => t.id.equals(planId))).go();
+      await _planRepo.deletePlan(planId);
     });
 
     await _syncWorker.performSync();

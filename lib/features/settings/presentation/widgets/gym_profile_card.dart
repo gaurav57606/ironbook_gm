@@ -4,15 +4,19 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/constants/app_radius.dart';
 import '../../../../core/constants/app_spacing.dart';
+import 'dart:io';
 
 class GymProfileCard extends StatelessWidget {
   final String? gymName;
+  final String? logoPath;
 
-  const GymProfileCard({super.key, required this.gymName});
+  const GymProfileCard({super.key, required this.gymName, this.logoPath});
 
   @override
   Widget build(BuildContext context) {
     final String initial = (gymName ?? 'R').substring(0, 1).toUpperCase();
+    final bool hasValidLogo = logoPath != null && File(logoPath!).existsSync();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 8),
       child: Material(
@@ -43,7 +47,7 @@ class GymProfileCard extends StatelessWidget {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
+                    gradient: hasValidLogo ? null : AppColors.primaryGradient,
                     borderRadius: AppRadius.radiusXL,
                     boxShadow: [
                       BoxShadow(
@@ -53,15 +57,23 @@ class GymProfileCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  clipBehavior: Clip.antiAlias,
                   alignment: Alignment.center,
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: hasValidLogo
+                      ? Image.file(
+                          File(logoPath!),
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                        )
+                      : Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

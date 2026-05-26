@@ -1,7 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_provider.dart';
+import 'member_provider.dart';
 import '../services/logger_service.dart';
+import '../services/sync_coordinator.dart';
 
 /// Provider that initializes and manages the application lifecycle observer.
 /// It should be "watched" at the top of the widget tree (e.g. in App).
@@ -44,7 +46,25 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
   }
 
   void _handleForeground() {
-    _ref.read(loggerProvider).info('App returned to foreground.', category: 'LIFECYCLE');
+    final logger = _ref.read(loggerProvider);
+    logger.info('App returned to foreground.', category: 'LIFECYCLE');
+
+    // 1. Invalidate clock-tick provider to refresh membership status badges
+    _ref.invalidate(dailyClockTickProvider);
+
+    // 2. Trigger foreground sync
+    try {
+      _ref.read(syncCoordinatorProvider).triggerSync();
+      logger.info(
+        'Foreground sync triggered via SyncCoordinator.',
+        category: 'LIFECYCLE',
+      );
+    } catch (e) {
+      logger.warn(
+        'Foreground sync trigger failed (non-fatal): $e',
+        category: 'LIFECYCLE',
+      );
+    }
   }
 
   void _handleDetach() {

@@ -256,6 +256,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(
           isPinSetup: isPinSetup,
           isFirstLaunch: isFirstLaunch,
+          isAuthenticated: hasOwner,
         );
       }
     } catch (e, stack) {
@@ -411,15 +412,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (_firebaseAuth == null) throw Exception('Firebase not initialized');
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
       
-      // Monitoring Sidecar: Passive Archival
-      MonitoringService.logUserRegistration(
-        credential.user?.uid ?? '', 
-        email,
-        gymName: gymName,
-        ownerName: ownerName,
-        phone: phone,
-      );
-
       if (gymName != null) {
         final owner = OwnerProfile(
           gymName: gymName,
@@ -443,6 +435,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await _eventRepo.persist(event);
         await _ownerRepo.upsertOwner(owner);
         await _preferencesRepo.setString('onboarding_done', 'true');
+
+        // Monitoring Sidecar: Passive Archival (Moved to AFTER profile write succeeds)
+        MonitoringService.logUserRegistration(
+          credential.user?.uid ?? '', 
+          email,
+          gymName: gymName,
+          ownerName: ownerName,
+          phone: phone,
+          address: '',
+        );
+
         _ref.read(syncWorkerProvider).performSync();
 
         if (mounted) {
@@ -454,6 +457,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
             authAttempts: 0,
           );
         }
+      } else {
+        // Monitoring Sidecar: Passive Archival
+        MonitoringService.logUserRegistration(
+          credential.user?.uid ?? '', 
+          email,
+          gymName: gymName,
+          ownerName: ownerName,
+          phone: phone,
+        );
       }
       return true;
     } catch (e) {

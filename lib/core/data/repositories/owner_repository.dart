@@ -35,6 +35,7 @@ class DriftOwnerRepository implements IOwnerRepository {
       endurance: row.endurance,
       dexterity: row.dexterity,
       selectedCharacterId: row.selectedCharacterId,
+      ownerPhotoPath: row.ownerPhotoPath,
     );
   }
 
@@ -58,6 +59,7 @@ class DriftOwnerRepository implements IOwnerRepository {
         endurance: Value(owner.endurance),
         dexterity: Value(owner.dexterity),
         selectedCharacterId: Value(owner.selectedCharacterId),
+        ownerPhotoPath: Value(owner.ownerPhotoPath),
       ),
     );
   }

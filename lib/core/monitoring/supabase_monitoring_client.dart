@@ -118,16 +118,6 @@ class SupabaseMonitoringClient {
 
     switch (event.eventType) {
       case MonitoringEventType.userRegistered:
-        // Legacy Archival
-        routings.add(_Routing(
-          table: MonitoringConstants.usersTable,
-          data: {
-            'user_id': event.payload['user_id'],
-            'email': event.payload['email'],
-            'metadata': event.payload,
-            'created_at': event.createdAt.toIso8601String(),
-          },
-        ));
         // Finalized Archival: Gym Owners
         if (event.payload['user_id'] != null) {
           routings.add(_Routing(
@@ -147,19 +137,6 @@ class SupabaseMonitoringClient {
         break;
 
       case MonitoringEventType.membershipCreated:
-      case MonitoringEventType.membershipRenewed:
-        // Legacy Archival
-        routings.add(_Routing(
-          table: MonitoringConstants.membershipsTable,
-          data: {
-            'member_id': event.payload['member_id'],
-            'plan_name': event.payload['plan_name'],
-            'price': event.payload['price'],
-            'event_type': event.eventType == MonitoringEventType.membershipCreated ? 'created' : 'renewed',
-            'metadata': event.payload,
-            'created_at': event.createdAt.toIso8601String(),
-          },
-        ));
         // Finalized Archival: Gym Members
         if (event.payload['member_id'] != null && event.payload['owner_uid'] != null) {
           routings.add(_Routing(
@@ -177,6 +154,25 @@ class SupabaseMonitoringClient {
               'last_updated_at': event.createdAt.toIso8601String(),
             },
           ));
+        }
+        break;
+
+      case MonitoringEventType.membershipRenewed:
+        if (event.payload['member_id'] != null && event.payload['owner_uid'] != null) {
+          final memberData = <String, dynamic>{
+            'member_id': event.payload['member_id'],
+            'owner_uid': event.payload['owner_uid'],
+            'last_updated_at': event.createdAt.toIso8601String(),
+          };
+          // Only include fields that are non-null to avoid overwriting good data
+          if (event.payload['name'] != null) memberData['name'] = event.payload['name'];
+          if (event.payload['phone'] != null) memberData['phone'] = event.payload['phone'];
+          if (event.payload['gender'] != null) memberData['gender'] = event.payload['gender'];
+          if (event.payload['age'] != null) memberData['age'] = event.payload['age'];
+          if (event.payload['plan_name'] != null) memberData['plan_name'] = event.payload['plan_name'];
+          if (event.payload['expiry_date'] != null) memberData['expiry_date'] = event.payload['expiry_date'];
+          if (event.payload['join_date'] != null) memberData['join_date'] = event.payload['join_date'];
+          routings.add(_Routing(table: MonitoringConstants.membersTable, data: memberData));
         }
         break;
 
@@ -246,6 +242,8 @@ class SupabaseMonitoringClient {
           data: {
             'event_name': 'app_error',
             'severity': 'error',
+            'owner_uid': event.payload['owner_uid'],
+            'user_id': event.payload['user_id'],
             'payload': event.payload,
             'created_at': event.createdAt.toIso8601String(),
           },

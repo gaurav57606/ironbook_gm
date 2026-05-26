@@ -30,6 +30,7 @@ class _RenewalDialogState extends ConsumerState<RenewalDialog> {
   int _selectedPlanIndex = 0;
   int _selectedPayment = 1;
   bool _isSaving = false;
+  bool _isSuccess = false;
 
   static const _paymentMethods = ['Cash', 'UPI', 'Card', 'Bank'];
 
@@ -107,10 +108,41 @@ class _RenewalDialogState extends ConsumerState<RenewalDialog> {
                 _buildPaymentChips(),
                 
                 AppSpacing.gapXL,
-                AppButton(
-                  text: _isSaving ? 'Processing...' : 'Confirm Renewal',
-                  isLoading: _isSaving,
-                  onPressed: _isSaving ? null : () => _handleRenewal(selectedPlan),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _isSuccess
+                      ? Container(
+                          key: const ValueKey('success'),
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.success,
+                            borderRadius: AppRadius.radiusL,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle_rounded,
+                                  color: Colors.white, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Renewed!',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : AppButton(
+                          key: const ValueKey('renew'),
+                          text: _isSaving ? 'Processing...' : 'Confirm Renewal',
+                          isLoading: _isSaving,
+                          onPressed:
+                              _isSaving ? null : () => _handleRenewal(selectedPlan),
+                        ),
                 ),
               ],
             );
@@ -244,39 +276,75 @@ class _RenewalDialogState extends ConsumerState<RenewalDialog> {
         plan: model.Plan.fromDrift(plan),
         method: _paymentMethods[_selectedPayment],
       );
-      
+
       // Monitoring Sidecar: Passive Archival
       final ownerUid = ref.read(firebaseAuthProvider)?.currentUser?.uid;
+      final membershipService = ref.read(membershipServiceProvider);
+      final newExpiry = membershipService.calculateRenewal(
+        currentExpiry: widget.member.expiryDate,
+        durationMonths: plan.durationMonths,
+        now: DateTime.now(),
+      );
+
       MonitoringService.logMembershipRenewed(
-        widget.member.memberId, 
-        plan.name, 
+        widget.member.memberId,
+        plan.name,
         plan.totalPrice,
         ownerUid: ownerUid,
+        name: widget.member.name,
+        phone: widget.member.phone,
+        gender: widget.member.gender,
+        age: widget.member.age,
+        joinDate: widget.member.joinDate,
+        expiryDate: newExpiry,
       );
       MonitoringService.logPaymentSuccess(
-        'renew_${widget.member.memberId}', 
-        plan.totalPrice.toDouble(), 
+        'renew_${widget.member.memberId}',
+        plan.totalPrice.toDouble(),
         _paymentMethods[_selectedPayment],
         ownerUid: ownerUid,
         memberId: widget.member.memberId,
         memberName: widget.member.name,
         planName: plan.name,
       );
-      
+
+      // Show success state briefly before closing
       if (mounted) {
-        context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Membership renewed successfully')),
-        );
+        setState(() {
+          _isSaving = false;
+          _isSuccess = true;
+        });
+        await Future.delayed(const Duration(milliseconds: 900));
+        if (mounted) {
+          context.pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded,
+                      color: Colors.white, size: 18),
+                  const SizedBox(width: 10),
+                  Text('${widget.member.name}\'s membership renewed!'),
+                ],
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       // Monitoring Sidecar: Passive Archival
-      MonitoringService.logPaymentFailure('renew_fail_${widget.member.memberId}', plan.totalPrice.toDouble(), e.toString());
-      
+      MonitoringService.logPaymentFailure(
+          'renew_fail_${widget.member.memberId}',
+          plan.totalPrice.toDouble(),
+          e.toString());
+
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }

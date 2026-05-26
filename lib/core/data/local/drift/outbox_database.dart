@@ -34,6 +34,7 @@ class Members extends Table {
   DateTimeColumn get lastCheckIn => dateTime().nullable()();
   TextColumn get hmacSignature => text().withDefault(const Constant(''))();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get photoPath => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -143,6 +144,7 @@ class OwnerProfiles extends Table {
   TextColumn get selectedCharacterId => text().withDefault(const Constant('warrior'))();
   TextColumn get hmacSignature => text().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get ownerPhotoPath => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {gymName};
@@ -194,7 +196,7 @@ class OutboxDatabase extends _$OutboxDatabase {
   OutboxDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -254,6 +256,10 @@ class OutboxDatabase extends _$OutboxDatabase {
         await m.addColumn(sales, sales.isSynced as GeneratedColumn<Object>);
         await m.addColumn(ownerProfiles, ownerProfiles.isSynced as GeneratedColumn<Object>);
         await m.addColumn(appSettingsTable, appSettingsTable.isSynced as GeneratedColumn<Object>);
+      }
+      if (from < 15) {
+        await m.addColumn(members, members.photoPath);
+        await m.addColumn(ownerProfiles, ownerProfiles.ownerPhotoPath);
       }
     },
   );

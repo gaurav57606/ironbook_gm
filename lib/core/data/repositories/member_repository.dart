@@ -56,6 +56,7 @@ class DriftMemberRepository implements IMemberRepository {
         lastCheckIn: Value(member.lastCheckIn),
         hmacSignature: Value(signature),
         isSynced: Value(isSynced),
+        photoPath: Value(member.photoPath),
       ),
       mode: InsertMode.insertOrReplace,
     );
@@ -97,6 +98,7 @@ class DriftMemberRepository implements IMemberRepository {
             lastCheckIn: Value(member.lastCheckIn),
             hmacSignature: Value(member.hmacSignature ?? ''),
             isSynced: Value(isSynced),
+            photoPath: Value(member.photoPath),
           ),
           mode: InsertMode.insertOrReplace,
         );

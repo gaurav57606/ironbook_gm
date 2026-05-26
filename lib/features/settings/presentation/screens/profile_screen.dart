@@ -6,7 +6,9 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/data/local/models/owner_profile_model.dart';
+import '../../../../shared/utils/image_utils.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:io';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -18,13 +20,29 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
+  String? _ownerPhotoPath;
+  bool _populated = false;
 
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController();
+    _phoneController = TextEditingController();
     final owner = ref.read(ownerProvider);
-    _nameController = TextEditingController(text: owner?.ownerName ?? '');
-    _phoneController = TextEditingController(text: owner?.phone ?? '');
+    if (owner != null) {
+      _nameController.text = owner.ownerName;
+      _phoneController.text = owner.phone;
+      _ownerPhotoPath = owner.ownerPhotoPath;
+      _populated = true;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _ownerPhotoPath = ref.read(ownerProvider)?.ownerPhotoPath;
+        });
+      }
+    });
   }
 
   @override
@@ -34,13 +52,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _pickOwnerPhoto() async {
+    final destPath = await pickImageToDocuments('owner_avatar');
+    if (destPath == null) return;
+
+    if (mounted) {
+      setState(() => _ownerPhotoPath = destPath);
+    }
+  }
+
   Future<void> _save() async {
-    final owner = ref.read(ownerProvider) ?? OwnerProfile(
-      gymName: '',
-      ownerName: '',
-      phone: '',
-      address: '',
-    );
+    final owner = ref.read(ownerProvider) ??
+        OwnerProfile(gymName: '', ownerName: '', phone: '', address: '');
 
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -49,12 +72,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    final updatedOwner = owner.copyWith(
+    final updated = owner.copyWith(
       ownerName: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
+      ownerPhotoPath: _ownerPhotoPath,
     );
 
-    await ref.read(ownerProvider.notifier).updateOwner(updatedOwner);
+    await ref.read(ownerProvider.notifier).updateOwner(updated);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -66,6 +90,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final owner = ref.watch(ownerProvider);
+    if (!_populated && owner != null) {
+      _populated = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _nameController.text = owner.ownerName;
+        _phoneController.text = owner.phone;
+        setState(() => _ownerPhotoPath = owner.ownerPhotoPath);
+      });
+    }
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
@@ -73,59 +107,83 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+          icon: const Icon(Icons.arrow_back_rounded,
+              color: AppColors.textPrimary, size: 24),
           onPressed: () => context.pop(),
         ),
-        title: Text(
-          'My Profile',
-          style: AppTextStyles.h3,
-        ),
+        title: Text('My Profile', style: AppTextStyles.h3),
         centerTitle: true,
       ),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
+        decoration:
+            const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 70, 24, 24),
+          padding: EdgeInsets.fromLTRB(
+              24, MediaQuery.of(context).padding.top + 70, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
+                    Stack(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            gradient: _ownerPhotoPath == null ? AppColors.primaryGradient : null,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        size: 50,
-                        color: Colors.white,
-                      ),
+                          clipBehavior: Clip.antiAlias,
+                          alignment: Alignment.center,
+                          child: _ownerPhotoPath != null && File(_ownerPhotoPath!).existsSync()
+                              ? Image.file(
+                                  File(_ownerPhotoPath!),
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                )
+                              : const Icon(Icons.person_rounded,
+                                  size: 50, color: Colors.white),
+                        ),
+                        Positioned(
+                          bottom: -4,
+                          right: -4,
+                          child: GestureDetector(
+                            onTap: _pickOwnerPhoto,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.elevation2,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: AppColors.border, width: 2),
+                              ),
+                              child: const Icon(Icons.camera_alt_rounded,
+                                  size: 18, color: AppColors.primary),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      'Account Owner',
-                      style: AppTextStyles.cardTitle.copyWith(fontSize: 18),
-                    ),
+                    Text('Account Owner',
+                        style:
+                            AppTextStyles.cardTitle.copyWith(fontSize: 18)),
                     const SizedBox(height: 4),
-                    Text(
-                      'Manage your personal details',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-                    ),
+                    Text('Manage your personal details',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textMuted)),
                   ],
                 ),
               ),
@@ -156,12 +214,3 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 }
-
-
-
-
-
-
-
-
-

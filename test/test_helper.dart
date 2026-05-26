@@ -571,6 +571,8 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>
   @override
   Future<void> deleteMember(String memberId) async {}
   @override
+  Future<void> updateMemberPhoto(String memberId, String photoPath) async {}
+  @override
   Future<void> recordAttendance(String memberId) async {}
   @override
   Future<void> refreshFromDB() async {}

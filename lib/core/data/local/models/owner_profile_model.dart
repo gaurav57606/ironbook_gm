@@ -45,6 +45,9 @@ class OwnerProfile extends HiveObject {
   @HiveField(16)
   String selectedCharacterId;
 
+  @HiveField(17)
+  String? ownerPhotoPath; // local file path for owner avatar
+
   OwnerProfile({
     required this.gymName,
     required this.ownerName,
@@ -63,6 +66,7 @@ class OwnerProfile extends HiveObject {
     this.endurance = 0.5,
     this.dexterity = 0.5,
     this.selectedCharacterId = 'warrior',
+    this.ownerPhotoPath,
   });
 
   factory OwnerProfile.fromFirestore(Map<String, dynamic> data) {
@@ -84,6 +88,7 @@ class OwnerProfile extends HiveObject {
       dexterity: (data['dexterity'] as num?)?.toDouble() ?? 0.5,
       selectedCharacterId: data['selectedCharacterId'] ?? 'warrior',
       hmacSignature: data['hmacSignature'],
+      ownerPhotoPath: data['ownerPhotoPath'],
     );
   }
 
@@ -106,6 +111,7 @@ class OwnerProfile extends HiveObject {
       dexterity: d.dexterity,
       selectedCharacterId: d.selectedCharacterId,
       hmacSignature: d.hmacSignature,
+      ownerPhotoPath: d.ownerPhotoPath,
     );
   }
 
@@ -128,6 +134,7 @@ class OwnerProfile extends HiveObject {
       'dexterity': dexterity,
       'selectedCharacterId': selectedCharacterId,
       'hmacSignature': hmacSignature,
+      'ownerPhotoPath': ownerPhotoPath,
     };
   }
 
@@ -151,6 +158,7 @@ class OwnerProfile extends HiveObject {
     double? endurance,
     double? dexterity,
     String? selectedCharacterId,
+    String? ownerPhotoPath,
   }) {
     return OwnerProfile(
       gymName: gymName ?? this.gymName,
@@ -170,15 +178,7 @@ class OwnerProfile extends HiveObject {
       endurance: endurance ?? this.endurance,
       dexterity: dexterity ?? this.dexterity,
       selectedCharacterId: selectedCharacterId ?? this.selectedCharacterId,
+      ownerPhotoPath: ownerPhotoPath ?? this.ownerPhotoPath,
     );
   }
 }
-
-
-
-
-
-
-
-
-

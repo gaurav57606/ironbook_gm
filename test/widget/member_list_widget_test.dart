@@ -36,6 +36,10 @@ void main() {
 
       expect(find.text('Alice Active'), findsOneWidget);
       expect(find.text('ACTIVE'), findsOneWidget);
+
+      // Cleanup
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 100));
     });
   });
 }

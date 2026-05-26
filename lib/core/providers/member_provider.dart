@@ -18,11 +18,20 @@ import 'package:ironbook_gm/core/services/logger_service.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/services/notification_service.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:collection/collection.dart';
 
 enum MemberSortOption { expiryAsc, expiryDesc, nameAz, nameZa, joinNewest }
 
 final memberSortProvider = StateProvider<MemberSortOption>((ref) => MemberSortOption.expiryAsc);
+
+final dailyClockTickProvider = StreamProvider<DateTime>((ref) {
+  if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    return Stream.value(DateTime.now());
+  }
+  return Stream.periodic(const Duration(minutes: 1), (_) => DateTime.now())
+      .asBroadcastStream();
+});
 
 final membersProvider =
     StateNotifierProvider<MemberNotifier, List<MemberSnapshot>>((ref) {
@@ -76,6 +85,7 @@ class MemberStats {
 }
 
 final memberStatsProvider = Provider<MemberStats>((ref) {
+  ref.watch(dailyClockTickProvider); // subscribe — causes re-eval every minute
   final members = ref.watch(membersProvider);
   final now = ref.watch(clockProvider).now;
 
@@ -108,6 +118,7 @@ final memberByIdProvider = Provider.family<MemberSnapshot?, String>((ref, id) {
 });
 
 final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
+  ref.watch(dailyClockTickProvider); // subscribe — causes re-eval every minute
   final members = ref.watch(membersProvider);
   final query = ref.watch(memberSearchQueryProvider).toLowerCase();
   final tabIndex = ref.watch(memberTabProvider);
@@ -368,17 +379,21 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     // 2. Efficient Dummy Cleanup: Detect members in storage with NO event history
     // Only run if we found no events recently or periodically
     if (recentEvents.isEmpty || lastCheckMs % 5 == 0) { // Simple heuristic or just always for safety in this task
-      final allStorageMembers = await _memberRepo.getAllMembers();
-      final allEventEvents = await _eventRepo.getAllEvents();
-      final allEventIds = allEventEvents.map((e) => e.entityId).toSet();
-      
-      for (final m in allStorageMembers) {
-        if (!allEventIds.contains(m.memberId)) {
-          if (!deletes.contains(m.memberId)) {
-            _logger.warn('Orphan snapshot found: ${m.memberId}. Purging...', category: 'DB');
-            deletes.add(m.memberId);
+      try {
+        final allStorageMembers = await _memberRepo.getAllMembers();
+        final allEventEvents = await _eventRepo.getAllEvents();
+        final allEventIds = allEventEvents.map((e) => e.entityId).toSet();
+        
+        for (final m in allStorageMembers) {
+          if (!allEventIds.contains(m.memberId)) {
+            if (!deletes.contains(m.memberId)) {
+              _logger.warn('Orphan snapshot found: ${m.memberId}. Purging...', category: 'DB');
+              deletes.add(m.memberId);
+            }
           }
         }
+      } catch (e, stack) {
+        _logger.error('Error checking for orphan snapshots: $e', category: 'DB', error: e, stackTrace: stack);
       }
     }
 
@@ -392,7 +407,11 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     }
 
     if (updateCheckpoint) {
-      await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+      try {
+        await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
+      } catch (e, stack) {
+        _logger.error('Error saving reconcile checkpoint: $e', category: 'DB', error: e, stackTrace: stack);
+      }
     }
 
     if (updates.isNotEmpty || deletes.isNotEmpty) {
@@ -733,6 +752,39 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       final index = state.indexWhere((m) => m.memberId == memberId);
       if (index != -1) {
         state = [...state]..[index] = updated;
+      }
+    }
+
+    _coordinator.triggerSync();
+  }
+
+  Future<void> updateMemberPhoto(String memberId, String photoPath) async {
+    final member = state.firstWhereOrNull((m) => m.memberId == memberId);
+    if (member == null) return;
+
+    final updated = member.copyWith(photoPath: photoPath);
+    
+    final updateEvent = DomainEvent(
+      entityId: memberId,
+      eventType: EventType.memberUpdated,
+      deviceId: _deviceId,
+      deviceTimestamp: _clock.now,
+      payload: {
+        EventPayloadKeys.memberId: memberId,
+        'photoPath': photoPath,
+      },
+    );
+
+    await _db.transaction(() async {
+      await _eventRepo.persist(updateEvent);
+      await _memberRepo.applyEvent(updateEvent);
+    });
+
+    final dbMember = await _memberRepo.getMember(memberId);
+    if (mounted && dbMember != null) {
+      final index = state.indexWhere((m) => m.memberId == memberId);
+      if (index != -1) {
+        state = [...state]..[index] = dbMember;
       }
     }
 

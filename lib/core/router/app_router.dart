@@ -30,6 +30,7 @@ import '../../features/settings/presentation/screens/help_center_screen.dart';
 import '../../features/settings/presentation/screens/about_screen.dart';
 import '../../features/settings/presentation/screens/ownership_transfer_screen.dart';
 import '../../features/backup/presentation/backup_restore_screen.dart';
+import '../../features/auth/presentation/screens/forgot_pin_screen.dart';
 
 // Newly Added Screens
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
@@ -91,7 +92,7 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       final isPinSetup = authState.isPinSetup;
       final unlocked = authState.unlocked;
 
-      final isLoginPath = path == '/login' || path == '/signup' || path == '/forgot-password';
+      final isLoginPath = path == '/login' || path == '/signup' || path == '/forgot-password' || path == '/forgot-pin';
       final isOnboardingPath = path == '/onboarding';
       final isUnlockPath = path == '/unlock';
       final isPinSetupPath = path == '/setup-pin';
@@ -169,6 +170,10 @@ final routerProvider = Provider.family<GoRouter, bool>((ref, storageHealthy) {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-pin',
+        builder: (context, state) => const ForgotPinScreen(),
       ),
       GoRoute(
         path: '/setup-pin',

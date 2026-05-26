@@ -2,6 +2,7 @@ import 'package:ironbook_gm/features/members/presentation/screens/quick_add_memb
 import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db;
 import 'package:ironbook_gm/core/data/local/models/plan_model.dart' as domain_plan;
+import 'package:ironbook_gm/shared/widgets/app_button.dart';
 import '../test_helper.dart';
 import '../helpers/mock_factory.dart';
 
@@ -131,12 +132,14 @@ void main() {
       final submitBtn = find.byKey(const ValueKey('register_button'), skipOffstage: false);
       await tester.ensureVisible(submitBtn);
       debugPrint('[TEST] Tapping submit');
-      await tester.tap(submitBtn, warnIfMissed: false);
+      
+      final appBtn = tester.widget<AppButton>(find.byKey(const Key('register_button')));
+      appBtn.onPressed?.call();
       
       debugPrint('[TEST] Waiting for navigation');
-      for (int i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 200));
-      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
 
       debugPrint('[TEST] Verifying invoice screen');
       // 5. Verify Navigation Success

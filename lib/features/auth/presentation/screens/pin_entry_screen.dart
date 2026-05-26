@@ -252,7 +252,7 @@ class _PinEntryScreenState extends ConsumerState<PinEntryScreen> {
 
   Widget _buildForgotButton() {
     return TextButton(
-      onPressed: () => context.push('/forgot-password'),
+      onPressed: () => context.push('/forgot-pin'),
       child: Text(
         'Forgot PIN?',
         style: AppTextStyles.bodySmall.copyWith(

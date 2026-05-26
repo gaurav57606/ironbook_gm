@@ -8,11 +8,8 @@ class MonitoringConstants {
   static const String membersTable = 'gym_members';
   static const String paymentEventsTable = 'payment_events';
   
-  static const String usersTable = 'users_archive';
-  static const String membershipsTable = 'memberships_archive';
   static const String paymentsTable = 'payments_archive';
   static const String activityTable = 'activity_logs';
-  static const String auditTable = 'audit_logs';
   
   static const int maxQueueSize = 500;
   static const int maxRetries = 3;

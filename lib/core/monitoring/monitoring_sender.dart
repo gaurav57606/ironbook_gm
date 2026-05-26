@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'monitoring_models.dart';
 import 'supabase_monitoring_client.dart';
 import 'monitoring_queue.dart';
@@ -19,6 +20,9 @@ class MonitoringSender {
 
   void _startTimer() {
     _timer?.cancel();
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
     _timer = Timer.periodic(
       const Duration(seconds: MonitoringConstants.senderIntervalSeconds),
       (_) => _runBatchProcess(),

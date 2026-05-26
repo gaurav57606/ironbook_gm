@@ -11,9 +11,10 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
+import 'package:ironbook_gm/core/data/local/models/owner_profile_model.dart';
 import 'package:ironbook_gm/features/billing/providers/billing_provider.dart';
 import 'package:ironbook_gm/core/providers/member_provider.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' hide OwnerProfile;
 import 'package:ironbook_gm/shared/utils/date_utils.dart';
 import 'package:collection/collection.dart';
 import 'package:ironbook_gm/features/billing/services/invoice_pdf_service.dart';
@@ -41,8 +42,12 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
   Future<void> _shareInvoice(Payment payment, String memberName) async {
     setState(() => _isProcessing = true);
     try {
-      final owner = ref.read(ownerProvider);
-      if (owner == null) return;
+      final owner = ref.read(ownerProvider) ?? OwnerProfile(
+        gymName: 'IRONBOOK GM',
+        ownerName: 'Owner',
+        phone: '',
+        address: '',
+      );
       
       final file = await InvoicePdfService.generateInvoice(
         payment: payment,
@@ -65,8 +70,12 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
   Future<void> _downloadInvoice(Payment payment, String memberName) async {
     setState(() => _isProcessing = true);
     try {
-      final owner = ref.read(ownerProvider);
-      if (owner == null) return;
+      final owner = ref.read(ownerProvider) ?? OwnerProfile(
+        gymName: 'IRONBOOK GM',
+        ownerName: 'Owner',
+        phone: '',
+        address: '',
+      );
       
       final file = await InvoicePdfService.generateInvoice(
         payment: payment,
@@ -89,8 +98,12 @@ class _InvoiceScreenState extends ConsumerState<InvoiceScreen> {
   Future<void> _printInvoice(Payment payment, String memberName) async {
     setState(() => _isProcessing = true);
     try {
-      final owner = ref.read(ownerProvider);
-      if (owner == null) return;
+      final owner = ref.read(ownerProvider) ?? OwnerProfile(
+        gymName: 'IRONBOOK GM',
+        ownerName: 'Owner',
+        phone: '',
+        address: '',
+      );
       
       final file = await InvoicePdfService.generateInvoice(
         payment: payment,

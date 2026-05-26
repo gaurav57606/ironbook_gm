@@ -71,6 +71,7 @@ class SnapshotBuilder {
       return current.copyWith(
         name: payload[EventPayloadKeys.name] ?? current.name,
         phone: payload[EventPayloadKeys.phone] ?? current.phone,
+        photoPath: payload['photoPath'] ?? current.photoPath,
         lastUpdated: event.deviceTimestamp,
       );
     }

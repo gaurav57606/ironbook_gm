@@ -32,6 +32,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final ownerName = ref.watch(ownerProvider.select((o) => o?.ownerName ?? 'Owner'));
     final gymName = ref.watch(ownerProvider.select((o) => o?.gymName ?? 'Raj\'s Fitness'));
+    final logoPath = ref.watch(ownerProvider.select((o) => o?.logoPath));
     final isPinSetup = ref.watch(authProvider.select((s) => s.isPinSetup));
     final unsyncedCount = ref.watch(unsyncedCountProvider).value ?? 0;
 
@@ -49,7 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
                 children: [
                   if (unsyncedCount > 0) SyncBanner(count: unsyncedCount),
-                  GymProfileCard(gymName: gymName),
+                  GymProfileCard(gymName: gymName, logoPath: logoPath),
                   _buildAccountSection(ownerName, isPinSetup),
                   _buildGymSettingsSection(gymName),
                   _buildDataSyncSection(),

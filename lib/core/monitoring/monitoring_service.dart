@@ -69,8 +69,16 @@ class MonitoringService {
     });
   }
 
-  static void logMembershipRenewed(String memberId, String planName, double price, {
+  static void logMembershipRenewed(
+    String memberId,
+    String planName,
+    double price, {
     String? ownerUid,
+    String? name,
+    String? phone,
+    String? gender,
+    int? age,
+    DateTime? joinDate,
     DateTime? expiryDate,
   }) {
     _enqueue(MonitoringEventType.membershipRenewed, {
@@ -78,6 +86,11 @@ class MonitoringService {
       'plan_name': planName,
       'price': price,
       'owner_uid': ownerUid,
+      'name': name,
+      'phone': phone,
+      'gender': gender,
+      'age': age,
+      'join_date': joinDate?.toIso8601String(),
       'expiry_date': expiryDate?.toIso8601String(),
     });
   }

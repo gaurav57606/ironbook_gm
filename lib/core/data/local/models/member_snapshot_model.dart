@@ -58,6 +58,9 @@ class MemberSnapshot extends HiveObject {
   @HiveField(17)
   String? hmacSignature; // Cryptographic integrity seal
 
+  @HiveField(18)
+  String? photoPath; // local file path for member avatar
+
   MemberSnapshot({
     required this.memberId,
     required this.name,
@@ -77,6 +80,7 @@ class MemberSnapshot extends HiveObject {
     this.lastCheckIn,
     this.lastCheckInDevice,
     this.hmacSignature,
+    this.photoPath,
   }) {
     this.paymentIds = paymentIds ?? [];
     this.joinDateHistory = joinDateHistory ?? [];
@@ -125,6 +129,7 @@ class MemberSnapshot extends HiveObject {
     DateTime? lastCheckIn,
     String? lastCheckInDevice,
     String? hmacSignature,
+    String? photoPath,
   }) {
     return MemberSnapshot(
       memberId: memberId,
@@ -145,6 +150,7 @@ class MemberSnapshot extends HiveObject {
       lastCheckIn: lastCheckIn ?? this.lastCheckIn,
       lastCheckInDevice: lastCheckInDevice ?? this.lastCheckInDevice,
       hmacSignature: hmacSignature ?? this.hmacSignature,
+      photoPath: photoPath ?? this.photoPath,
     );
   }
 
@@ -167,6 +173,7 @@ class MemberSnapshot extends HiveObject {
       lastCheckIn: payload['lastCheckIn'] != null ? DateTime.parse(payload['lastCheckIn']) : null,
       lastCheckInDevice: payload['lastCheckInDevice'],
       hmacSignature: payload['hmacSignature'],
+      photoPath: payload['photoPath'],
     );
   }
 
@@ -233,8 +240,11 @@ class MemberSnapshot extends HiveObject {
       'lastCheckIn': lastCheckIn?.toIso8601String(),
       'lastCheckInDevice': lastCheckInDevice,
       'hmacSignature': hmacSignature,
+      'photoPath': photoPath,
     };
   }
+
+  Map<String, dynamic> toJson() => toFirestore();
 
   // Drift Integration
   factory MemberSnapshot.fromDrift(dynamic d) {
@@ -253,23 +263,13 @@ class MemberSnapshot extends HiveObject {
       checkInPin: d.checkInPin,
       lastCheckIn: d.lastCheckIn,
       hmacSignature: d.hmacSignature,
+      photoPath: d.photoPath,
     );
   }
 
   dynamic toDrift() {
-    // Note: We return the Companion/Data class type at runtime. 
-    // In actual implementation, we use the generated classes from outbox_database.g.dart
-    return null; // Placeholder, will be used in repository
+    return null; 
   }
 }
 
 enum MemberStatus { pending, active, expiring, expired, archived }
-
-
-
-
-
-
-
-
-

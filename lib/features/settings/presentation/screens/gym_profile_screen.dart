@@ -6,11 +6,9 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../core/providers/owner_provider.dart';
 import '../../../../core/data/local/models/owner_profile_model.dart';
+import '../../../../shared/utils/image_utils.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 
 class GymProfileScreen extends ConsumerStatefulWidget {
   const GymProfileScreen({super.key});
@@ -23,15 +21,31 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
   late TextEditingController _gymNameController;
   late TextEditingController _addressController;
   String? _logoPath;
+  bool _populated = false;
 
   @override
   void initState() {
     super.initState();
-    final owner = ref.read(ownerProvider);
-    _gymNameController = TextEditingController(text: owner?.gymName ?? '');
-    _addressController = TextEditingController(text: owner?.address ?? '');
+    _gymNameController = TextEditingController();
+    _addressController = TextEditingController();
     _gymNameController.addListener(() => setState(() {}));
-    _logoPath = ref.read(ownerProvider)?.logoPath;
+    
+    // Fix initState race: load immediately or post frame
+    final owner = ref.read(ownerProvider);
+    if (owner != null) {
+      _gymNameController.text = owner.gymName;
+      _addressController.text = owner.address;
+      _logoPath = owner.logoPath;
+      _populated = true;
+    }
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _logoPath = ref.read(ownerProvider)?.logoPath;
+        });
+      }
+    });
   }
 
   @override
@@ -42,46 +56,15 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-    );
+    final destPath = await pickImageToDocuments('gym_logo');
+    if (destPath == null) return;
 
-    if (result == null || result.files.isEmpty) return;
-    final sourcePath = result.files.single.path;
-    if (sourcePath == null) return;
-
-    // Copy to permanent app documents directory so path stays valid
-    final docsDir = await getApplicationDocumentsDirectory();
-    final fileName = 'gym_logo_${DateTime.now().millisecondsSinceEpoch}${p.extension(sourcePath)}';
-    final destPath = p.join(docsDir.path, fileName);
-    await File(sourcePath).copy(destPath);
-
-    // Persist immediately so _save() picks it up
-    final owner = ref.read(ownerProvider) ?? OwnerProfile(
-      gymName: '',
-      ownerName: '',
-      phone: '',
-      address: '',
-    );
-    await ref.read(ownerProvider.notifier).updateOwner(
-      owner.copyWith(logoPath: destPath),
-    );
-
-    if (mounted) {
-      setState(() {
-        _logoPath = destPath;
-      });
-    }
+    if (mounted) setState(() => _logoPath = destPath);
   }
 
   Future<void> _save() async {
-    final owner = ref.read(ownerProvider) ?? OwnerProfile(
-      gymName: '',
-      ownerName: '',
-      phone: '',
-      address: '',
-    );
+    final owner = ref.read(ownerProvider) ??
+        OwnerProfile(gymName: '', ownerName: '', phone: '', address: '');
 
     if (_gymNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,9 +76,11 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
     final updated = owner.copyWith(
       gymName: _gymNameController.text.trim(),
       address: _addressController.text.trim(),
+      logoPath: _logoPath,
     );
 
     await ref.read(ownerProvider.notifier).updateOwner(updated);
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Gym profile updated')),
@@ -106,6 +91,16 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final owner = ref.watch(ownerProvider);
+    if (!_populated && owner != null) {
+      _populated = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _gymNameController.text = owner.gymName;
+        _addressController.text = owner.address;
+        setState(() => _logoPath = owner.logoPath);
+      });
+    }
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
@@ -113,9 +108,8 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
+        decoration:
+            const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
               24, MediaQuery.of(context).padding.top + 70, 24, 24),
@@ -143,10 +137,7 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
             color: AppColors.textPrimary, size: 24),
         onPressed: () => context.pop(),
       ),
-      title: Text(
-        'Gym Profile',
-        style: AppTextStyles.h3,
-      ),
+      title: Text('Gym Profile', style: AppTextStyles.h3),
       centerTitle: true,
     );
   }
@@ -161,7 +152,8 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  gradient: _logoPath == null ? AppColors.primaryGradient : null,
+                  gradient:
+                      _logoPath == null ? AppColors.primaryGradient : null,
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
@@ -185,10 +177,9 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
                                   : 'G')
                               .toUpperCase(),
                           style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
+                              fontSize: 40,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white),
                         ),
                       )
                     : Text(
@@ -197,10 +188,9 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
                                 : 'G')
                             .toUpperCase(),
                         style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
+                            fontSize: 40,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white),
                       ),
               ),
               Positioned(
@@ -213,7 +203,8 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.elevation2,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.border, width: 2),
+                      border:
+                          Border.all(color: AppColors.border, width: 2),
                     ),
                     child: const Icon(Icons.camera_alt_rounded,
                         size: 18, color: AppColors.primary),
@@ -227,16 +218,13 @@ class _GymProfileScreenState extends ConsumerState<GymProfileScreen> {
         Center(
           child: Column(
             children: [
-              Text(
-                'Gym Identity',
-                style: AppTextStyles.cardTitle.copyWith(fontSize: 18),
-              ),
+              Text('Gym Identity',
+                  style:
+                      AppTextStyles.cardTitle.copyWith(fontSize: 18)),
               const SizedBox(height: 4),
-              Text(
-                'This information is visible on invoices',
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textMuted),
-              ),
+              Text('This information is visible on invoices',
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textMuted)),
             ],
           ),
         ),

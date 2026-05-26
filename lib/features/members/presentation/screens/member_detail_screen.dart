@@ -17,14 +17,21 @@ import '../widgets/payment_history_item.dart';
 import '../widgets/renewal_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/providers/owner_provider.dart';
+import '../../../../shared/utils/image_utils.dart';
+import 'dart:io';
 
-class MemberDetailScreen extends ConsumerWidget {
+class MemberDetailScreen extends ConsumerStatefulWidget {
   final String memberId;
   const MemberDetailScreen({super.key, required this.memberId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final member = ref.watch(memberProvider(memberId));
+  ConsumerState<MemberDetailScreen> createState() => _MemberDetailScreenState();
+}
+
+class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final member = ref.watch(memberProvider(widget.memberId));
 
     if (member == null) {
       return _buildNotFound(context);
@@ -54,13 +61,13 @@ class MemberDetailScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeaderAvatar(member, statusColor, statusMsg),
-                      _buildQuickActions(context, member, ref),
+                      _buildQuickActions(context, member),
                       const AppSectionHeader(title: 'SUBSCRIPTION'),
                       _buildSubscriptionCard(member, statusColor),
                       const AppSectionHeader(title: 'FINANCIALS'),
-                      _buildFinancialsCard(ref, memberId),
+                      _buildFinancialsCard(widget.memberId),
                       const AppSectionHeader(title: 'HISTORY'),
-                      _buildPaymentHistory(ref, memberId),
+                      _buildPaymentHistory(widget.memberId),
                     ],
                   ),
                 ),
@@ -94,7 +101,7 @@ class MemberDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFinancialsCard(WidgetRef ref, String memberId) {
+  Widget _buildFinancialsCard(String memberId) {
     // ⚡ Bolt: Use .select() to compute totals outside the main build method
     final financials = ref.watch(memberPaymentsProvider(memberId).select((p) {
       final list = p.value ?? [];
@@ -130,7 +137,7 @@ class MemberDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPaymentHistory(WidgetRef ref, String memberId) {
+  Widget _buildPaymentHistory(String memberId) {
     final paymentsAsync = ref.watch(memberPaymentsProvider(memberId));
     
     return paymentsAsync.when(
@@ -171,27 +178,61 @@ class MemberDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildHeaderAvatar(MemberSnapshot member, Color statusColor, String statusMsg) {
+    final hasPhoto = member.photoPath != null && File(member.photoPath!).existsSync();
+
     return Center(
       child: Column(
         children: [
           const SizedBox(height: 20),
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [statusColor.withValues(alpha: 0.3), statusColor.withValues(alpha: 0.1)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          Stack(
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: hasPhoto ? null : LinearGradient(
+                    colors: [statusColor.withValues(alpha: 0.3), statusColor.withValues(alpha: 0.1)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: AppRadius.radiusXL,
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
+                ),
+                clipBehavior: Clip.antiAlias,
+                alignment: Alignment.center,
+                child: hasPhoto
+                    ? Image.file(
+                        File(member.photoPath!),
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      )
+                    : Text(
+                        member.name.isNotEmpty ? member.name.substring(0, 1).toUpperCase() : '?',
+                        style: AppTextStyles.heroNumber().copyWith(fontSize: 40, color: statusColor),
+                      ),
               ),
-              borderRadius: AppRadius.radiusXL,
-              border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              member.name.isNotEmpty ? member.name.substring(0, 1).toUpperCase() : '?',
-              style: AppTextStyles.heroNumber().copyWith(fontSize: 40, color: statusColor),
-            ),
+              Positioned(
+                bottom: -4,
+                right: -4,
+                child: GestureDetector(
+                  onTap: () async {
+                    final destPath = await pickImageToDocuments('member_avatar');
+                    if (destPath == null) return;
+                    await ref.read(membersProvider.notifier).updateMemberPhoto(member.memberId, destPath);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.elevation2,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.border, width: 2),
+                    ),
+                    child: const Icon(Icons.camera_alt_rounded, size: 16, color: AppColors.primary),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Text(member.name, style: AppTextStyles.cardTitle.copyWith(fontSize: 24, fontWeight: FontWeight.w800)),
@@ -266,7 +307,7 @@ class MemberDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, MemberSnapshot member, WidgetRef ref) {
+  Widget _buildQuickActions(BuildContext context, MemberSnapshot member) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: AppSpacing.s),
       child: Column(
@@ -350,7 +391,7 @@ class MemberDetailScreen extends ConsumerWidget {
                   icon: Icons.delete_outline_rounded,
                   label: 'Delete',
                   color: AppColors.error,
-                  onTap: () => _showDeleteConfirmation(context, member, ref),
+                  onTap: () => _showDeleteConfirmation(context, member),
                 ),
               ),
             ],
@@ -400,7 +441,7 @@ class MemberDetailScreen extends ConsumerWidget {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, MemberSnapshot member, WidgetRef ref) {
+  void _showDeleteConfirmation(BuildContext context, MemberSnapshot member) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(

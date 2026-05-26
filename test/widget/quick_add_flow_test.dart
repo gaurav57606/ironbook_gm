@@ -131,7 +131,7 @@ void main() {
         syncWorkerProvider.overrideWithValue(mockSyncWorker),
         eventRepositoryProvider.overrideWithValue(mockRepo),
         syncCoordinatorProvider.overrideWithValue(mockCoordinator),
-        membershipServiceProvider.overrideWithValue(mockMembership),
+        membershipServiceProvider.overrideWithValue(const MembershipService()),
         clockProvider.overrideWithValue(FrozenClock(DateTime(2024, 1, 1))),
         activePlansProvider.overrideWith((ref) => Stream.value(testDbPlans)),
         // Mock Notifiers
@@ -150,7 +150,7 @@ void main() {
             mockPreferencesRepo,
             FrozenClock(DateTime(2024, 1, 1)), 
             mockHmac,
-            mockMembership,
+            const MembershipService(),
             mockCoordinator,
             MockLoggerService(),
           );
@@ -168,7 +168,7 @@ void main() {
             mockMemberRepo,
             clock, 
             mockHmac,
-            mockMembership,
+            const MembershipService(),
             mockCoordinator,
             MockLoggerService(),
           );
