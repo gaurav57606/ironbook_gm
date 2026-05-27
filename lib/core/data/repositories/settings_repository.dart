@@ -7,6 +7,7 @@ abstract class ISettingsRepository {
   Future<AppSettings> getSettings();
   Future<void> updateSettings(AppSettings settings);
   Future<void> applyEvent(DomainEvent event);
+  Future<void> updateSubscriptionMode(String mode);
 }
 
 class DriftSettingsRepository implements ISettingsRepository {
@@ -52,5 +53,11 @@ class DriftSettingsRepository implements ISettingsRepository {
   Future<void> applyEvent(DomainEvent event) async {
     final settings = AppSettings.fromFirestore(event.payload);
     await updateSettings(settings);
+  }
+
+  @override
+  Future<void> updateSubscriptionMode(String mode) async {
+    await (_db.update(_db.appSettingsTable))
+        .write(AppSettingsTableCompanion(subscriptionMode: Value(mode)));
   }
 }

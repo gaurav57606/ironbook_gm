@@ -19,7 +19,6 @@ import 'package:ironbook_gm/core/security/entitlement_guard.dart';
 import 'package:ironbook_gm/core/constants/event_payload_keys.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:ironbook_gm/core/services/fcm_token_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ironbook_gm/shared/utils/clock.dart';
 import 'package:ironbook_gm/core/providers/owner_provider.dart';
 import 'package:ironbook_gm/core/providers/settings_provider.dart';
@@ -364,12 +363,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     logger.info('Starting full logout and data purge', category: 'AUTH');
     try {
       try {
-        final token = await FirebaseMessaging.instance.getToken();
+        final messaging = FirebaseMessaging.instance;
+        final token = await messaging.getToken();
         if (token != null) {
-          await _ref.read(fcmTokenServiceProvider).deactivateToken(token);
+          final fcmTokenService = _ref.read(fcmTokenServiceProvider);
+          await fcmTokenService.deactivateToken(token);
         }
       } catch (e) {
-        logger.warn('Failed to deactivate token during logout: $e', category: 'AUTH');
+        // Non-fatal — proceed with sign-out even if deactivation fails
+        debugPrint('[AUTH] Failed to deactivate FCM token on logout: $e');
       }
 
       if (_firebaseAuth != null) await _firebaseAuth.signOut();

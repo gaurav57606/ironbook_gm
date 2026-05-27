@@ -82,3 +82,22 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     }
   }
 }
+
+final appSettingsProvider = AsyncNotifierProvider<AppSettingsNotifier, AppSettings>(() {
+  return AppSettingsNotifier();
+});
+
+class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
+  late final ISettingsRepository _settingsRepo;
+
+  @override
+  FutureOr<AppSettings> build() async {
+    _settingsRepo = ref.watch(settingsRepositoryProvider);
+    return _settingsRepo.getSettings();
+  }
+
+  Future<void> updateSubscriptionMode(String mode) async {
+    await _settingsRepo.updateSubscriptionMode(mode);
+    ref.invalidateSelf();
+  }
+}

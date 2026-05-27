@@ -17,14 +17,23 @@ import '../widgets/payment_history_item.dart';
 import '../widgets/renewal_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/providers/owner_provider.dart';
-import '../../../../shared/utils/image_utils.dart';
 import 'package:ironbook_gm/features/members/data/subscriptions_repository.dart';
-import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db_sub;
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:ironbook_gm/core/services/photo_service.dart';
 import 'package:ironbook_gm/shared/widgets/member_photo_avatar.dart';
 import 'package:ironbook_gm/shared/utils/app_snack_bar.dart';
+import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart';
+
+extension on ISubscriptionsRepository {
+  Stream<List<MemberSubscription>> watchMemberSubscriptions(String memberId) {
+    return watchMemberSubscriptionHistory(memberId);
+  }
+}
+
+final memberSubscriptionsProvider = StreamProvider.family<List<MemberSubscription>, String>((ref, memberId) {
+  final repo = ref.watch(subscriptionsRepositoryProvider);
+  return repo.watchMemberSubscriptions(memberId);
+});
 
 class MemberDetailScreen extends ConsumerStatefulWidget {
   final String memberId;
@@ -70,6 +79,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                       _buildQuickActions(context, member),
                       const AppSectionHeader(title: 'SUBSCRIPTION'),
                       _buildSubscriptionCard(member, statusColor, now),
+                      _SubscriptionHistorySection(memberId: widget.memberId),
                       const AppSectionHeader(title: 'MEMBERSHIP HISTORY'),
                       _buildSubscriptionHistory(widget.memberId),
                       const AppSectionHeader(title: 'FINANCIALS'),
@@ -775,4 +785,51 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     if (days <= 7) return 'Expires in $days days';
     return 'Active Status';
   }
+}
+
+class _SubscriptionHistorySection extends ConsumerWidget {
+  final String memberId;
+  const _SubscriptionHistorySection({required this.memberId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subsAsync = ref.watch(memberSubscriptionsProvider(memberId));
+    return subsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (subs) {
+        if (subs.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text('Subscription History',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            ),
+            ...subs.map((s) => ListTile(
+              dense: true,
+              leading: Icon(
+                s.status == 'active' ? Icons.check_circle : Icons.history,
+                color: s.status == 'active' ? Colors.green : Colors.grey,
+                size: 18,
+              ),
+              title: Text(s.planName ?? 'Unknown Plan'),
+              subtitle: Text(
+                '${_fmt(s.startDate)} → ${_fmt(s.endDate)}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: Text(
+                '₹${s.amountPaid.toInt()}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            )),
+          ],
+        );
+      },
+    );
+  }
+
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
