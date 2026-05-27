@@ -96,7 +96,7 @@ class FcmService {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       final payload = message.data['payload'];
       if (payload != null && payload.isNotEmpty) {
-        NotificationService._handlePayload(payload);
+        NotificationService.handlePayload(payload);
       }
     });
   }

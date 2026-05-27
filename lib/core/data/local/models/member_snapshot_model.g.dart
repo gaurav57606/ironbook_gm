@@ -36,13 +36,14 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
       lastCheckInDevice: fields[16] as String?,
       hmacSignature: fields[17] as String?,
       photoPath: fields[18] as String?,
+      photoUrl: fields[19] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, MemberSnapshot obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.memberId)
       ..writeByte(1)
@@ -80,7 +81,9 @@ class MemberSnapshotAdapter extends TypeAdapter<MemberSnapshot> {
       ..writeByte(17)
       ..write(obj.hmacSignature)
       ..writeByte(18)
-      ..write(obj.photoPath);
+      ..write(obj.photoPath)
+      ..writeByte(19)
+      ..write(obj.photoUrl);
   }
 
   @override

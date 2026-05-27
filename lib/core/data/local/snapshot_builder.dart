@@ -77,6 +77,7 @@ class SnapshotBuilder {
         name: payload[EventPayloadKeys.name] ?? current.name,
         phone: payload[EventPayloadKeys.phone] ?? current.phone,
         photoPath: payload['photoPath'] ?? current.photoPath,
+        photoUrl: payload['photoUrl'] ?? current.photoUrl,
         lastUpdated: event.deviceTimestamp,
       );
     }

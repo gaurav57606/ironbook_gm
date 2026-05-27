@@ -21,6 +21,10 @@ import '../../../../shared/utils/image_utils.dart';
 import 'package:ironbook_gm/features/members/data/subscriptions_repository.dart';
 import 'package:ironbook_gm/core/data/local/drift/outbox_database.dart' as db_sub;
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:ironbook_gm/core/services/photo_service.dart';
+import 'package:ironbook_gm/shared/widgets/member_photo_avatar.dart';
+import 'package:ironbook_gm/shared/utils/app_snack_bar.dart';
 
 class MemberDetailScreen extends ConsumerStatefulWidget {
   final String memberId;
@@ -301,50 +305,96 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     );
   }
 
-  Widget _buildHeaderAvatar(MemberSnapshot member, Color statusColor, String statusMsg) {
-    final hasPhoto = member.photoPath != null && File(member.photoPath!).existsSync();
+  void _removeMemberPhoto(BuildContext context, WidgetRef ref, MemberSnapshot member) async {
+    if (member.photoUrl == null) return;
+    final tempUrl = member.photoUrl;
+    await ref.read(membersProvider.notifier).updateMember(
+      memberId: member.memberId,
+      name: member.name,
+      phone: member.phone ?? '',
+      photoUrl: '', // empty string indicates photo cleared
+    );
+    await photoService.deletePhoto(tempUrl);
+    if (context.mounted) {
+      AppSnackBar.showSuccess(context, 'Photo removed');
+    }
+  }
 
+  Widget _buildHeaderAvatar(MemberSnapshot member, Color statusColor, String statusMsg) {
     return Center(
       child: Column(
         children: [
           const SizedBox(height: 20),
           Stack(
             children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: hasPhoto ? null : LinearGradient(
-                    colors: [statusColor.withValues(alpha: 0.3), statusColor.withValues(alpha: 0.1)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: AppRadius.radiusXL,
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
-                ),
-                clipBehavior: Clip.antiAlias,
-                alignment: Alignment.center,
-                child: hasPhoto
-                    ? Image.file(
-                        File(member.photoPath!),
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                      )
-                    : Text(
-                        member.name.isNotEmpty ? member.name.substring(0, 1).toUpperCase() : '?',
-                        style: AppTextStyles.heroNumber().copyWith(fontSize: 40, color: statusColor),
+              MemberPhotoAvatar(
+                memberName: member.name,
+                photoUrl: member.photoUrl,
+                size: 100,
+                onTap: () async {
+                  final ImageSource? source = await showModalBottomSheet<ImageSource>(
+                    context: context,
+                    backgroundColor: AppColors.elevation2,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    builder: (context) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+                            title: const Text('Take Photo', style: TextStyle(color: Colors.white)),
+                            onTap: () => Navigator.pop(context, ImageSource.camera),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                            title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white)),
+                            onTap: () => Navigator.pop(context, ImageSource.gallery),
+                          ),
+                          if (member.photoUrl != null && member.photoUrl!.isNotEmpty)
+                            ListTile(
+                              leading: const Icon(Icons.delete, color: AppColors.red),
+                              title: const Text('Remove Photo', style: TextStyle(color: AppColors.red)),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _removeMemberPhoto(context, ref, member);
+                              },
+                            ),
+                        ],
                       ),
+                    ),
+                  );
+
+                  if (source == null) return;
+
+                  final url = await photoService.pickAndUpload(
+                    memberId: member.memberId,
+                    source: source,
+                    existingUrl: member.photoUrl,
+                  );
+
+                  if (url != null) {
+                    await ref.read(membersProvider.notifier).updateMember(
+                      memberId: member.memberId,
+                      name: member.name,
+                      phone: member.phone ?? '',
+                      photoUrl: url,
+                    );
+                    if (context.mounted) {
+                      AppSnackBar.showSuccess(context, 'Photo updated successfully');
+                    }
+                  } else {
+                    if (context.mounted) {
+                      AppSnackBar.showError(context, 'Failed to upload photo');
+                    }
+                  }
+                },
               ),
               Positioned(
                 bottom: -4,
                 right: -4,
-                child: GestureDetector(
-                  onTap: () async {
-                    final destPath = await pickImageToDocuments('member_avatar');
-                    if (destPath == null) return;
-                    await ref.read(membersProvider.notifier).updateMemberPhoto(member.memberId, destPath);
-                  },
+                child: IgnorePointer(
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(

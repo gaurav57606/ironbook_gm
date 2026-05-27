@@ -9,6 +9,7 @@ import '../../../../core/providers/member_provider.dart';
 import '../../../../core/data/local/models/member_snapshot_model.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../../shared/utils/clock.dart';
+import '../../../../shared/widgets/member_photo_avatar.dart';
 
 class MemberListItem extends ConsumerWidget {
   final String memberId;
@@ -37,23 +38,10 @@ class MemberListItem extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: AppColors.glassGradient,
-                borderRadius: AppRadius.radiusL,
-                border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                initials,
-                style: AppTextStyles.h3.copyWith(
-                  fontSize: 18, 
-                  color: statusColor,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+            MemberPhotoAvatar(
+              memberName: member.name,
+              photoUrl: member.photoUrl,
+              size: 48,
             ),
             const SizedBox(width: 14),
             Expanded(

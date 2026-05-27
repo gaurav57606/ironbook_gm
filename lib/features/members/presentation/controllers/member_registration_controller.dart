@@ -48,6 +48,7 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
   ]) : super(RegistrationState());
 
   Future<void> registerMember({
+    String? memberId,
     required String name,
     required String phone,
     required db.Plan selectedPlan,
@@ -55,6 +56,7 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
     required String gender,
     required String paymentMethod,
     int? age,
+    String? photoUrl,
   }) async {
     if (state.isSaving) return;
 
@@ -67,19 +69,21 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
       );
       
       // 1. Create Member
-      final memberId = await _memberNotifier.addMember(
+      final newMemberId = await _memberNotifier.addMember(
+        passedMemberId: memberId,
         name: name,
         phone: phone,
         planId: selectedPlan.id,
         joinDate: joiningDate,
         gender: gender,
         age: age,
+        photoUrl: photoUrl,
       );
       
       // Monitoring Sidecar: Passive Archival
       final ownerUid = _auth?.currentUser?.uid;
       MonitoringService.logMembershipCreated(
-        memberId, 
+        newMemberId, 
         selectedPlan.name, 
         selectedPlan.totalPrice,
         ownerUid: ownerUid,
@@ -92,7 +96,7 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
 
       // 2. Record Initial Payment
       await _paymentNotifier.recordMemberPayment(
-        memberId: memberId,
+        memberId: newMemberId,
         plan: model.Plan.fromDrift(selectedPlan),
         method: paymentMethod,
         date: joiningDate,
@@ -100,11 +104,11 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
       
       // Monitoring Sidecar: Passive Archival
       MonitoringService.logPaymentSuccess(
-        'reg_$memberId', 
+        'reg_$newMemberId', 
         selectedPlan.totalPrice.toDouble(), 
         paymentMethod,
         ownerUid: ownerUid,
-        memberId: memberId,
+        memberId: newMemberId,
         memberName: name,
         planName: selectedPlan.name,
         joinDate: joiningDate,
@@ -112,17 +116,17 @@ class MemberRegistrationController extends StateNotifier<RegistrationState> {
       
       // Production Observability: Structured Log
       _logger.info(
-        'New member registered successfully: $memberId', 
+        'New member registered successfully: $newMemberId', 
         category: 'REGISTRATION'
       );
 
       // Business Analytics: Success
       _logger.logAnalyticsEvent('member_registered', {
-        'member_id': memberId,
+        'member_id': newMemberId,
         'mode': 'offline_first', // Default mode for this app
       });
 
-      state = state.copyWith(isSaving: false, successMemberId: memberId);
+      state = state.copyWith(isSaving: false, successMemberId: newMemberId);
     } catch (e, stack) {
       debugPrint('REGISTRATION FAILED WITH ERROR: $e');
       _logger.error(

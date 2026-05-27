@@ -589,12 +589,6 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
   late final GeneratedColumn<String> photoPath = GeneratedColumn<String>(
       'photo_path', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _photoUrlMeta =
-      const VerificationMeta('photoUrl');
-  @override
-  late final GeneratedColumn<String> photoUrl = GeneratedColumn<String>(
-      'photo_url', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -612,8 +606,7 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
         lastCheckIn,
         hmacSignature,
         isSynced,
-        photoPath,
-        photoUrl
+        photoPath
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -702,10 +695,6 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
       context.handle(_photoPathMeta,
           photoPath.isAcceptableOrUnknown(data['photo_path']!, _photoPathMeta));
     }
-    if (data.containsKey('photo_url')) {
-      context.handle(_photoUrlMeta,
-          photoUrl.isAcceptableOrUnknown(data['photo_url']!, _photoUrlMeta));
-    }
     return context;
   }
 
@@ -747,8 +736,6 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       photoPath: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}photo_path']),
-      photoUrl: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}photo_url']),
     );
   }
 
@@ -775,7 +762,6 @@ class Member extends DataClass implements Insertable<Member> {
   final String hmacSignature;
   final bool isSynced;
   final String? photoPath;
-  final String? photoUrl;
   const Member(
       {required this.id,
       required this.name,
@@ -792,8 +778,7 @@ class Member extends DataClass implements Insertable<Member> {
       this.lastCheckIn,
       required this.hmacSignature,
       required this.isSynced,
-      this.photoPath,
-      this.photoUrl});
+      this.photoPath});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -831,9 +816,6 @@ class Member extends DataClass implements Insertable<Member> {
     if (!nullToAbsent || photoPath != null) {
       map['photo_path'] = Variable<String>(photoPath);
     }
-    if (!nullToAbsent || photoUrl != null) {
-      map['photo_url'] = Variable<String>(photoUrl);
-    }
     return map;
   }
 
@@ -868,9 +850,6 @@ class Member extends DataClass implements Insertable<Member> {
       photoPath: photoPath == null && nullToAbsent
           ? const Value.absent()
           : Value(photoPath),
-      photoUrl: photoUrl == null && nullToAbsent
-          ? const Value.absent()
-          : Value(photoUrl),
     );
   }
 
@@ -894,7 +873,6 @@ class Member extends DataClass implements Insertable<Member> {
       hmacSignature: serializer.fromJson<String>(json['hmacSignature']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       photoPath: serializer.fromJson<String?>(json['photoPath']),
-      photoUrl: serializer.fromJson<String?>(json['photoUrl']),
     );
   }
   @override
@@ -917,7 +895,6 @@ class Member extends DataClass implements Insertable<Member> {
       'hmacSignature': serializer.toJson<String>(hmacSignature),
       'isSynced': serializer.toJson<bool>(isSynced),
       'photoPath': serializer.toJson<String?>(photoPath),
-      'photoUrl': serializer.toJson<String?>(photoUrl),
     };
   }
 
@@ -937,8 +914,7 @@ class Member extends DataClass implements Insertable<Member> {
           Value<DateTime?> lastCheckIn = const Value.absent(),
           String? hmacSignature,
           bool? isSynced,
-          Value<String?> photoPath = const Value.absent(),
-          Value<String?> photoUrl = const Value.absent()}) =>
+          Value<String?> photoPath = const Value.absent()}) =>
       Member(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -956,7 +932,6 @@ class Member extends DataClass implements Insertable<Member> {
         hmacSignature: hmacSignature ?? this.hmacSignature,
         isSynced: isSynced ?? this.isSynced,
         photoPath: photoPath.present ? photoPath.value : this.photoPath,
-        photoUrl: photoUrl.present ? photoUrl.value : this.photoUrl,
       );
   Member copyWithCompanion(MembersCompanion data) {
     return Member(
@@ -981,7 +956,6 @@ class Member extends DataClass implements Insertable<Member> {
           : this.hmacSignature,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       photoPath: data.photoPath.present ? data.photoPath.value : this.photoPath,
-      photoUrl: data.photoUrl.present ? data.photoUrl.value : this.photoUrl,
     );
   }
 
@@ -1003,8 +977,7 @@ class Member extends DataClass implements Insertable<Member> {
           ..write('lastCheckIn: $lastCheckIn, ')
           ..write('hmacSignature: $hmacSignature, ')
           ..write('isSynced: $isSynced, ')
-          ..write('photoPath: $photoPath, ')
-          ..write('photoUrl: $photoUrl')
+          ..write('photoPath: $photoPath')
           ..write(')'))
         .toString();
   }
@@ -1026,8 +999,7 @@ class Member extends DataClass implements Insertable<Member> {
       lastCheckIn,
       hmacSignature,
       isSynced,
-      photoPath,
-      photoUrl);
+      photoPath);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1047,8 +1019,7 @@ class Member extends DataClass implements Insertable<Member> {
           other.lastCheckIn == this.lastCheckIn &&
           other.hmacSignature == this.hmacSignature &&
           other.isSynced == this.isSynced &&
-          other.photoPath == this.photoPath &&
-          other.photoUrl == this.photoUrl);
+          other.photoPath == this.photoPath);
 }
 
 class MembersCompanion extends UpdateCompanion<Member> {
@@ -1068,7 +1039,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
   final Value<String> hmacSignature;
   final Value<bool> isSynced;
   final Value<String?> photoPath;
-  final Value<String?> photoUrl;
   final Value<int> rowid;
   const MembersCompanion({
     this.id = const Value.absent(),
@@ -1087,7 +1057,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.photoPath = const Value.absent(),
-    this.photoUrl = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MembersCompanion.insert({
@@ -1107,7 +1076,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
     this.hmacSignature = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.photoPath = const Value.absent(),
-    this.photoUrl = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name),
@@ -1129,7 +1097,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
     Expression<String>? hmacSignature,
     Expression<bool>? isSynced,
     Expression<String>? photoPath,
-    Expression<String>? photoUrl,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1149,7 +1116,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
       if (hmacSignature != null) 'hmac_signature': hmacSignature,
       if (isSynced != null) 'is_synced': isSynced,
       if (photoPath != null) 'photo_path': photoPath,
-      if (photoUrl != null) 'photo_url': photoUrl,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1171,7 +1137,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
       Value<String>? hmacSignature,
       Value<bool>? isSynced,
       Value<String?>? photoPath,
-      Value<String?>? photoUrl,
       Value<int>? rowid}) {
     return MembersCompanion(
       id: id ?? this.id,
@@ -1190,7 +1155,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
       hmacSignature: hmacSignature ?? this.hmacSignature,
       isSynced: isSynced ?? this.isSynced,
       photoPath: photoPath ?? this.photoPath,
-      photoUrl: photoUrl ?? this.photoUrl,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1246,9 +1210,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
     if (photoPath.present) {
       map['photo_path'] = Variable<String>(photoPath.value);
     }
-    if (photoUrl.present) {
-      map['photo_url'] = Variable<String>(photoUrl.value);
-    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1274,7 +1235,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
           ..write('hmacSignature: $hmacSignature, ')
           ..write('isSynced: $isSynced, ')
           ..write('photoPath: $photoPath, ')
-          ..write('photoUrl: $photoUrl, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7096,7 +7056,6 @@ typedef $$MembersTableCreateCompanionBuilder = MembersCompanion Function({
   Value<String> hmacSignature,
   Value<bool> isSynced,
   Value<String?> photoPath,
-  Value<String?> photoUrl,
   Value<int> rowid,
 });
 typedef $$MembersTableUpdateCompanionBuilder = MembersCompanion Function({
@@ -7116,7 +7075,6 @@ typedef $$MembersTableUpdateCompanionBuilder = MembersCompanion Function({
   Value<String> hmacSignature,
   Value<bool> isSynced,
   Value<String?> photoPath,
-  Value<String?> photoUrl,
   Value<int> rowid,
 });
 
@@ -7176,9 +7134,6 @@ class $$MembersTableFilterComposer
 
   ColumnFilters<String> get photoPath => $composableBuilder(
       column: $table.photoPath, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get photoUrl => $composableBuilder(
-      column: $table.photoUrl, builder: (column) => ColumnFilters(column));
 }
 
 class $$MembersTableOrderingComposer
@@ -7238,9 +7193,6 @@ class $$MembersTableOrderingComposer
 
   ColumnOrderings<String> get photoPath => $composableBuilder(
       column: $table.photoPath, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get photoUrl => $composableBuilder(
-      column: $table.photoUrl, builder: (column) => ColumnOrderings(column));
 }
 
 class $$MembersTableAnnotationComposer
@@ -7299,9 +7251,6 @@ class $$MembersTableAnnotationComposer
 
   GeneratedColumn<String> get photoPath =>
       $composableBuilder(column: $table.photoPath, builder: (column) => column);
-
-  GeneratedColumn<String> get photoUrl =>
-      $composableBuilder(column: $table.photoUrl, builder: (column) => column);
 }
 
 class $$MembersTableTableManager extends RootTableManager<
@@ -7343,7 +7292,6 @@ class $$MembersTableTableManager extends RootTableManager<
             Value<String> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<String?> photoPath = const Value.absent(),
-            Value<String?> photoUrl = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MembersCompanion(
@@ -7363,7 +7311,6 @@ class $$MembersTableTableManager extends RootTableManager<
             hmacSignature: hmacSignature,
             isSynced: isSynced,
             photoPath: photoPath,
-            photoUrl: photoUrl,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -7383,7 +7330,6 @@ class $$MembersTableTableManager extends RootTableManager<
             Value<String> hmacSignature = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<String?> photoPath = const Value.absent(),
-            Value<String?> photoUrl = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MembersCompanion.insert(
@@ -7403,7 +7349,6 @@ class $$MembersTableTableManager extends RootTableManager<
             hmacSignature: hmacSignature,
             isSynced: isSynced,
             photoPath: photoPath,
-            photoUrl: photoUrl,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

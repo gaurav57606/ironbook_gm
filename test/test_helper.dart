@@ -554,12 +554,14 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>
   Future<void> rebuildCache() async {}
   @override
   Future<String> addMember({
+    String? passedMemberId,
     required String name,
     required String phone,
     required String planId,
     required DateTime joinDate,
     String? gender,
     int? age,
+    String? photoUrl,
   }) async =>
       'new-member-id';
   @override
@@ -567,6 +569,7 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>
     required String memberId,
     required String name,
     required String phone,
+    String? photoUrl,
   }) async {}
   @override
   Future<void> deleteMember(String memberId) async {}

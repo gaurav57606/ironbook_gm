@@ -530,12 +530,14 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   }
 
   Future<String> addMember({
+    String? passedMemberId,
     required String name,
     required String phone,
     required String planId,
     required DateTime joinDate,
     String? gender,
     int? age,
+    String? photoUrl,
   }) async {
     final now = _clock.now;
     
@@ -563,7 +565,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       throw Exception('A member with this phone number already exists.');
     }
 
-    final memberId = const Uuid().v4();
+    final memberId = passedMemberId ?? const Uuid().v4();
 
     final plan = await _planRepo.getPlan(planId);
     if (plan == null) throw Exception('Plan not found');
@@ -593,6 +595,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         EventPayloadKeys.newExpiry: expiryDate.toUtc().toIso8601String(),
         if (gender != null) EventPayloadKeys.gender: gender,
         if (age != null) EventPayloadKeys.age: age,
+        if (photoUrl != null) 'photoUrl': photoUrl,
       },
     );
 
@@ -685,6 +688,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     required String memberId,
     required String name,
     required String phone,
+    String? photoUrl,
   }) async {
     final updateEvent = DomainEvent(
       entityId: memberId,
@@ -695,6 +699,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         EventPayloadKeys.memberId: memberId,
         EventPayloadKeys.name: name,
         EventPayloadKeys.phone: phone,
+        if (photoUrl != null) 'photoUrl': photoUrl,
       },
     );
 

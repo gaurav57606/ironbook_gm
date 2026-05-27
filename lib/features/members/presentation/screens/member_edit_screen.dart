@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ironbook_gm/core/constants/app_colors.dart';
@@ -9,6 +10,9 @@ import 'package:ironbook_gm/core/providers/member_provider.dart';
 import 'package:ironbook_gm/shared/utils/app_snack_bar.dart';
 import 'package:ironbook_gm/shared/widgets/app_button.dart';
 import 'package:ironbook_gm/shared/widgets/app_text_field.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:ironbook_gm/core/services/photo_service.dart';
+import 'package:ironbook_gm/shared/widgets/member_photo_avatar.dart';
 
 class MemberEditScreen extends ConsumerStatefulWidget {
   final String memberId;
@@ -23,12 +27,97 @@ class _MemberEditScreenState extends ConsumerState<MemberEditScreen> {
   final _phoneController = TextEditingController();
   bool _initialized = false;
   bool _isSaving = false;
+  String? _photoUrl;
+  bool _isUploadingPhoto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_onNameChanged);
+  }
+
+  void _onNameChanged() {
+    setState(() {});
+  }
 
   @override
   void dispose() {
+    _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPhoto() async {
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.elevation2,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+              title: const Text('Take Photo', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.primary),
+              title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            if (_photoUrl != null && _photoUrl!.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.delete, color: AppColors.red),
+                title: const Text('Remove Photo', style: TextStyle(color: AppColors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _removePhoto();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    setState(() {
+      _isUploadingPhoto = true;
+    });
+
+    final url = await photoService.pickAndUpload(
+      memberId: widget.memberId,
+      source: source,
+      existingUrl: _photoUrl,
+    );
+
+    if (mounted) {
+      setState(() {
+        _isUploadingPhoto = false;
+        if (url != null) {
+          _photoUrl = url;
+          AppSnackBar.showSuccess(context, 'Photo uploaded successfully');
+        } else {
+          AppSnackBar.showError(context, 'Failed to upload photo');
+        }
+      });
+    }
+  }
+
+  void _removePhoto() async {
+    if (_photoUrl == null) return;
+    final tempUrl = _photoUrl;
+    setState(() {
+      _photoUrl = null;
+    });
+    await photoService.deletePhoto(tempUrl);
+    if (mounted) {
+      AppSnackBar.showSuccess(context, 'Photo removed');
+    }
   }
 
   Future<void> _handleSave() async {
@@ -52,6 +141,7 @@ class _MemberEditScreenState extends ConsumerState<MemberEditScreen> {
             memberId: widget.memberId,
             name: name,
             phone: phone,
+            photoUrl: _photoUrl ?? '',
           );
       if (mounted) {
         AppSnackBar.showSuccess(context, 'Member updated successfully');
@@ -97,6 +187,7 @@ class _MemberEditScreenState extends ConsumerState<MemberEditScreen> {
     if (!_initialized) {
       _nameController.text = member.name;
       _phoneController.text = member.phone ?? '';
+      _photoUrl = member.photoUrl;
       _initialized = true;
     }
 
@@ -119,6 +210,49 @@ class _MemberEditScreenState extends ConsumerState<MemberEditScreen> {
                     vertical: AppSpacing.m,
                   ),
                   children: [
+                    if (!Platform.environment.containsKey('FLUTTER_TEST')) ...[
+                      Center(
+                        child: Stack(
+                          children: [
+                            MemberPhotoAvatar(
+                              memberName: _nameController.text.isEmpty ? member.name : _nameController.text,
+                              photoUrl: _photoUrl,
+                              size: 100,
+                              onTap: _isUploadingPhoto || _isSaving ? null : _pickPhoto,
+                            ),
+                            if (_isUploadingPhoto)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black45,
+                                    borderRadius: AppRadius.radiusL,
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: CircleAvatar(
+                                radius: 16,
+                                backgroundColor: AppColors.primary,
+                                child: Icon(
+                                  _photoUrl == null || _photoUrl!.isEmpty ? Icons.camera_alt : Icons.edit,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      AppSpacing.gapL,
+                    ],
                     AppTextField(
                       key: const Key('input-edit-member-name'),
                       label: 'Full Name',

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
@@ -72,6 +74,16 @@ class AppBootstrap {
       await container.read(configServiceProvider).init().timeout(const Duration(seconds: 3));
     } catch (e) {
       logger.warn('ConfigService init failed (non-fatal): $e', category: 'BOOT');
+    }
+
+    // Initialize Supabase Storage
+    try {
+      await Supabase.initialize(
+        url: dotenv.env['SUPABASE_URL']!,
+        anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+      );
+    } catch (e) {
+      logger.warn('Supabase init failed (non-fatal): $e', category: 'BOOT');
     }
 
     // Step 2: System UI — synchronous, no I/O

@@ -61,6 +61,9 @@ class MemberSnapshot extends HiveObject {
   @HiveField(18)
   String? photoPath; // local file path for member avatar
 
+  @HiveField(19)
+  String? photoUrl; // Supabase Storage public URL
+
   MemberSnapshot({
     required this.memberId,
     required this.name,
@@ -81,6 +84,7 @@ class MemberSnapshot extends HiveObject {
     this.lastCheckInDevice,
     this.hmacSignature,
     this.photoPath,
+    this.photoUrl,
   }) {
     this.paymentIds = paymentIds ?? [];
     this.joinDateHistory = joinDateHistory ?? [];
@@ -130,6 +134,7 @@ class MemberSnapshot extends HiveObject {
     String? lastCheckInDevice,
     String? hmacSignature,
     String? photoPath,
+    String? photoUrl,
   }) {
     return MemberSnapshot(
       memberId: memberId,
@@ -151,6 +156,7 @@ class MemberSnapshot extends HiveObject {
       lastCheckInDevice: lastCheckInDevice ?? this.lastCheckInDevice,
       hmacSignature: hmacSignature ?? this.hmacSignature,
       photoPath: photoPath ?? this.photoPath,
+      photoUrl: photoUrl ?? this.photoUrl,
     );
   }
 
@@ -174,6 +180,7 @@ class MemberSnapshot extends HiveObject {
       lastCheckInDevice: payload['lastCheckInDevice'],
       hmacSignature: payload['hmacSignature'],
       photoPath: payload['photoPath'],
+      photoUrl: payload['photoUrl'],
     );
   }
 
@@ -241,6 +248,7 @@ class MemberSnapshot extends HiveObject {
       'lastCheckInDevice': lastCheckInDevice,
       'hmacSignature': hmacSignature,
       'photoPath': photoPath,
+      'photoUrl': photoUrl,
     };
   }
 

@@ -25,7 +25,7 @@ class NotificationService {
         logger.info('Processing pending cold-start payload', category: 'NOTIFICATION');
         final payload = _pendingPayload!;
         _pendingPayload = null;
-        _handlePayload(payload);
+        handlePayload(payload);
       }
     } catch (e, stack) {
       logger.error('Failed to initialize local notifications', category: 'NOTIFICATION', error: e, stackTrace: stack);
@@ -45,10 +45,10 @@ class NotificationService {
     final logger = _container!.read(loggerProvider);
     logger.debug('Tap received with payload: $payload', category: 'NOTIFICATION');
 
-    _handlePayload(payload);
+    handlePayload(payload);
   }
 
-  static void _handlePayload(String payload) {
+  static void handlePayload(String payload) {
     if (_container == null) return;
     final logger = _container!.read(loggerProvider);
 
