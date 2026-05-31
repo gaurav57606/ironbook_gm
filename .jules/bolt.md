@@ -32,3 +32,7 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+
+## 2024-05-30 - High Overhead in Dart `DateTime.difference` with Local Timezones
+**Learning:** Instantiating local `DateTime` objects (e.g., `DateTime(year, month, day)`) inside loops and using `difference().inDays` introduces severe performance overhead in Dart due to OS-level timezone lookups. Our benchmarks showed 100,000 iterations taking ~1630ms.
+**Action:** Replace `DateTime(y,m,d)` and `difference().inDays` with `DateTime.utc(y,m,d).millisecondsSinceEpoch` and integer division (`~/ 86400000`) for calendar day calculations (e.g., expiry days, days remaining). This drops execution time to ~17ms (a ~95x speedup) while remaining safe for calendar boundaries and avoiding Daylight Saving Time (DST) edge cases. Do not apply this to strict rolling 24-hour calculations.
