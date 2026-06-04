@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2025-02-12 - [Avoid Modifying Domain Logic during Performance Tuning]
+**Learning:** While addressing an N+1 query pattern during `SaleNotifier` reconciliation by batching inserts, adding cryptographic signing (`HmacService.signSnapshot`) to the new Sales models changed the domain behavior and resulted in a failed review, despite technically working. The optimization should only change *how* data is queried/inserted (e.g., batching), not *what* happens to it (signing).
+**Action:** Always strictly preserve the original logic when performing speed optimizations. If a model wasn't being cryptographically signed in a loop previously, do not add signing to the optimized batch process unless explicitly instructed.
