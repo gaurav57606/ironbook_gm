@@ -98,18 +98,26 @@ class MemberSnapshot extends HiveObject {
   // ── COMPUTED (Now deterministic) ──
   int getDaysRemaining(DateTime relativeTo) {
     if (expiryDate == null) return 0;
-    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
-    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
-    return expiry.difference(today).inDays;
+    final today =
+        DateTime.utc(relativeTo.year, relativeTo.month, relativeTo.day)
+            .millisecondsSinceEpoch;
+    final expiry =
+        DateTime.utc(expiryDate!.year, expiryDate!.month, expiryDate!.day)
+            .millisecondsSinceEpoch;
+    return (expiry - today) ~/ 86400000; // Duration.millisecondsPerDay
   }
 
   MemberStatus getStatus(DateTime relativeTo) {
     if (archived) return MemberStatus.archived;
     if (expiryDate == null) return MemberStatus.pending;
-    
-    final today = DateTime(relativeTo.year, relativeTo.month, relativeTo.day);
-    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
-    final d = expiry.difference(today).inDays;
+
+    final today =
+        DateTime.utc(relativeTo.year, relativeTo.month, relativeTo.day)
+            .millisecondsSinceEpoch;
+    final expiry =
+        DateTime.utc(expiryDate!.year, expiryDate!.month, expiryDate!.day)
+            .millisecondsSinceEpoch;
+    final d = (expiry - today) ~/ 86400000; // Duration.millisecondsPerDay
 
     if (d < 0) return MemberStatus.expired;
     if (d <= 7) return MemberStatus.expiring;
@@ -168,15 +176,21 @@ class MemberSnapshot extends HiveObject {
       joinDate: DateTime.parse(payload['joinDate']),
       planId: payload['planId'],
       planName: payload['planName'],
-      expiryDate: payload['expiryDate'] != null ? DateTime.parse(payload['expiryDate']) : null,
+      expiryDate: payload['expiryDate'] != null
+          ? DateTime.parse(payload['expiryDate'])
+          : null,
       totalPaid: payload['totalPaid'] ?? 0,
       archived: payload['archived'] ?? false,
       paymentIds: List<String>.from(payload['paymentIds'] ?? []),
-      lastUpdated: payload['lastUpdated'] != null ? DateTime.parse(payload['lastUpdated']) : DateTime.now(),
+      lastUpdated: payload['lastUpdated'] != null
+          ? DateTime.parse(payload['lastUpdated'])
+          : DateTime.now(),
       gender: payload['gender'],
       age: payload['age'],
       checkInPin: payload['checkInPin'],
-      lastCheckIn: payload['lastCheckIn'] != null ? DateTime.parse(payload['lastCheckIn']) : null,
+      lastCheckIn: payload['lastCheckIn'] != null
+          ? DateTime.parse(payload['lastCheckIn'])
+          : null,
       lastCheckInDevice: payload['lastCheckInDevice'],
       hmacSignature: payload['hmacSignature'],
       photoPath: payload['photoPath'],
@@ -276,7 +290,7 @@ class MemberSnapshot extends HiveObject {
   }
 
   dynamic toDrift() {
-    return null; 
+    return null;
   }
 }
 
