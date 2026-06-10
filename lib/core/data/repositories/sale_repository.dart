@@ -11,7 +11,9 @@ import '../../constants/event_payload_keys.dart';
 
 abstract class ISaleRepository {
   Future<void> upsertSale(domain.Sale sale);
+  Future<void> upsertSales(List<domain.Sale> sales);
   Future<domain.Sale?> getSale(String id);
+  Future<List<String>> getAllSaleIds();
   Future<List<domain.Sale>> getSalesByMember(String memberId);
   Future<List<domain.Sale>> getAllSales();
   Future<void> applyEvent(DomainEvent event);
@@ -22,37 +24,64 @@ class DriftSaleRepository implements ISaleRepository {
 
   DriftSaleRepository(this._db);
 
-  @override
-  Future<void> upsertSale(domain.Sale sale) async {
-    debugPrint('[DB] SaleRepository: Upserting sale ${sale.id} (Invoice: ${sale.invoiceNumber})');
-    await _db.into(_db.sales).insertOnConflictUpdate(
-      db.SalesCompanion.insert(
-        id: sale.id,
-        memberId: Value(sale.memberId),
-        date: sale.date,
-        totalAmount: sale.totalAmount,
-        paymentMethod: sale.paymentMethod,
-        invoiceNumber: sale.invoiceNumber,
-        itemsJson: jsonEncode(sale.items.map((i) => {
-          'productId': i.productId,
-          'productName': i.productName,
-          'price': i.price,
-          'quantity': i.quantity,
-        }).toList()),
-        hmacSignature: Value(sale.hmacSignature ?? ''),
-      ),
+  db.SalesCompanion _toCompanion(domain.Sale sale) {
+    return db.SalesCompanion.insert(
+      id: sale.id,
+      memberId: Value(sale.memberId),
+      date: sale.date,
+      totalAmount: sale.totalAmount,
+      paymentMethod: sale.paymentMethod,
+      invoiceNumber: sale.invoiceNumber,
+      itemsJson: jsonEncode(sale.items
+          .map((i) => {
+                'productId': i.productId,
+                'productName': i.productName,
+                'price': i.price,
+                'quantity': i.quantity,
+              })
+          .toList()),
+      hmacSignature: Value(sale.hmacSignature ?? ''),
     );
   }
 
   @override
+  Future<void> upsertSale(domain.Sale sale) async {
+    debugPrint(
+        '[DB] SaleRepository: Upserting sale ${sale.id} (Invoice: ${sale.invoiceNumber})');
+    await _db.into(_db.sales).insertOnConflictUpdate(_toCompanion(sale));
+  }
+
+  @override
+  Future<void> upsertSales(List<domain.Sale> sales) async {
+    if (sales.isEmpty) return;
+    await _db.batch((batch) {
+      batch.insertAll(
+        _db.sales,
+        sales.map((sale) => _toCompanion(sale)),
+        mode: InsertMode.insertOrReplace,
+      );
+    });
+  }
+
+  @override
   Future<domain.Sale?> getSale(String id) async {
-    final doc = await (_db.select(_db.sales)..where((t) => t.id.equals(id))).getSingleOrNull();
+    final doc = await (_db.select(_db.sales)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
     return doc != null ? domain.Sale.fromDrift(doc) : null;
   }
 
   @override
+  Future<List<String>> getAllSaleIds() async {
+    final query = _db.selectOnly(_db.sales)..addColumns([_db.sales.id]);
+    final results = await query.get();
+    return results.map((row) => row.read(_db.sales.id)!).toList();
+  }
+
+  @override
   Future<List<domain.Sale>> getSalesByMember(String memberId) async {
-    final docs = await (_db.select(_db.sales)..where((t) => t.memberId.equals(memberId))).get();
+    final docs = await (_db.select(_db.sales)
+          ..where((t) => t.memberId.equals(memberId)))
+        .get();
     return docs.map((d) => domain.Sale.fromDrift(d)).toList();
   }
 
@@ -68,8 +97,10 @@ class DriftSaleRepository implements ISaleRepository {
       if (event.eventType == EventType.saleRecorded) {
         final saleId = event.payload[EventPayloadKeys.saleId] as String?;
         if (saleId != null) {
-          debugPrint('[DB] SaleRepository: Applying saleRecorded event for $saleId');
-          final sale = domain.Sale.fromPayload(saleId, event.payload, event.deviceTimestamp);
+          debugPrint(
+              '[DB] SaleRepository: Applying saleRecorded event for $saleId');
+          final sale = domain.Sale.fromPayload(
+              saleId, event.payload, event.deviceTimestamp);
           await upsertSale(sale);
         }
       }
