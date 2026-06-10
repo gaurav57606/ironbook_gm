@@ -32,3 +32,7 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+
+## 2024-05-25 - [SaleNotifier Reconciliation N+1 Fix]
+**Learning:** In `SaleNotifier._reconcileSales()`, the reconciliation of missing sales from `DomainEvent` objects was iterating over the missing events and applying each event individually using `_saleRepo.applyEvent(event)`, which resulted in sequential `getSale` and `upsertSale` database calls. For large logs, this sequential querying acts as an N+1 performance bottleneck during initialization or cache rebuilds.
+**Action:** Extract an `upsertSales` method taking a `List<Sale>` using Drift's `batch` API (e.g., `batch.insertAll(..., mode: InsertMode.insertOrReplace)`). Similarly, extract an `getAllSaleIds()` method to prefetch existence checks in O(1) database access. Transform the loop into an initial filter to find missing sales, map them into `Sale` objects, and execute a single `upsertSales()` batch call.
