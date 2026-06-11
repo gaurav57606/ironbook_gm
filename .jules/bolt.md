@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2024-05-24 - [Avoid `where().toList()` Chains in Providers]
+**Learning:** Chaining multiple `.where().toList()` filter operations (e.g., sequentially applying search queries followed by status tabs) causes redundant O(N) list iterations and unnecessary intermediate memory allocations in Dart. It also inadvertently causes expensive methods like `getStatus(now)` to be evaluated for items that would have otherwise been filtered out early.
+**Action:** Replace these filter chains with a single-pass `for` loop to evaluate all criteria simultaneously. Use `continue` to early-exit the loop and prevent evaluating expensive derivations on discarded elements. This significantly improves data processing efficiency, particularly within state providers like `filteredMembersProvider`.
