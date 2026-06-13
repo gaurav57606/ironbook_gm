@@ -125,27 +125,32 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final now = ref.watch(clockProvider).now;
   final sort = ref.watch(memberSortProvider);
 
-  List<MemberSnapshot> filtered = query.isEmpty
-      ? List<MemberSnapshot>.from(members)
-      : members.where((m) =>
-          m.name.toLowerCase().contains(query) ||
-          (m.phone?.toLowerCase().contains(query) ?? false)
-        ).toList();
-
-  // Apply tab filter
+  MemberStatus? targetStatus;
   switch (tabIndex) {
-    case 1: // Active
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.active).toList();
+    case 1:
+      targetStatus = MemberStatus.active;
       break;
-    case 2: // Expiring (next 7 days)
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.expiring).toList();
+    case 2:
+      targetStatus = MemberStatus.expiring;
       break;
-    case 3: // Expired
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.expired).toList();
+    case 3:
+      targetStatus = MemberStatus.expired;
       break;
-    default:
-      // No additional filtering
-      break;
+  }
+
+  final List<MemberSnapshot> filtered = [];
+  for (final m in members) {
+    if (query.isNotEmpty &&
+        !m.name.toLowerCase().contains(query) &&
+        !(m.phone?.toLowerCase().contains(query) ?? false)) {
+      continue;
+    }
+
+    if (targetStatus != null && m.getStatus(now) != targetStatus) {
+      continue;
+    }
+
+    filtered.add(m);
   }
 
   // Apply sorting
