@@ -32,3 +32,10 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2024-05-24 - [Avoid `DateTime.now()` and `.difference()` in loops]
+**Learning:** Instantiating local `DateTime` objects (e.g., `DateTime(year, month, day)`) inside large list processing loops is a major bottleneck due to expensive OS timezone lookups. Additionally, using `.difference().inDays` allocates `Duration` objects unnecessarily.
+**Action:** When performing calendar date arithmetic inside loops, always use `DateTime.utc(year, month, day)` instead. Calculate day differences using integer division: `(expiry.millisecondsSinceEpoch - today.millisecondsSinceEpoch) ~/ Duration.millisecondsPerDay`.
+
+## 2024-05-24 - [Avoid Chained `where().toList()` in Providers]
+**Learning:** Chaining multiple `.where(...).toList()` filters inside a Riverpod provider (like filtering by text query, then filtering by status tab) causes redundant O(N) list iterations and unnecessary intermediate memory allocations, severely impacting performance for large datasets.
+**Action:** Replace chained `.where()` filtering operations with a single-pass `for` loop to evaluate all criteria simultaneously.
