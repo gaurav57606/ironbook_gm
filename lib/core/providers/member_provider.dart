@@ -23,7 +23,8 @@ import 'package:collection/collection.dart';
 
 enum MemberSortOption { expiryAsc, expiryDesc, nameAz, nameZa, joinNewest }
 
-final memberSortProvider = StateProvider<MemberSortOption>((ref) => MemberSortOption.expiryAsc);
+final memberSortProvider =
+    StateProvider<MemberSortOption>((ref) => MemberSortOption.expiryAsc);
 
 final dailyClockTickProvider = StreamProvider<DateTime>((ref) {
   if (Platform.environment.containsKey('FLUTTER_TEST')) {
@@ -45,8 +46,8 @@ final membersProvider =
   final membership = ref.watch(membershipServiceProvider);
   final coordinator = ref.watch(syncCoordinatorProvider);
   final logger = ref.watch(loggerProvider);
-  return MemberNotifier(
-      db, eventRepo, memberRepo, planRepo, prefRepo, clock, hmac, membership, coordinator, logger);
+  return MemberNotifier(db, eventRepo, memberRepo, planRepo, prefRepo, clock,
+      hmac, membership, coordinator, logger);
 });
 
 final memberSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -125,45 +126,50 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final now = ref.watch(clockProvider).now;
   final sort = ref.watch(memberSortProvider);
 
-  List<MemberSnapshot> filtered = query.isEmpty
-      ? List<MemberSnapshot>.from(members)
-      : members.where((m) =>
-          m.name.toLowerCase().contains(query) ||
-          (m.phone?.toLowerCase().contains(query) ?? false)
-        ).toList();
+  MemberStatus? targetStatus;
+  if (tabIndex == 1)
+    targetStatus = MemberStatus.active;
+  else if (tabIndex == 2)
+    targetStatus = MemberStatus.expiring;
+  else if (tabIndex == 3) targetStatus = MemberStatus.expired;
 
-  // Apply tab filter
-  switch (tabIndex) {
-    case 1: // Active
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.active).toList();
-      break;
-    case 2: // Expiring (next 7 days)
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.expiring).toList();
-      break;
-    case 3: // Expired
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.expired).toList();
-      break;
-    default:
-      // No additional filtering
-      break;
+  List<MemberSnapshot> filtered = [];
+
+  for (final m in members) {
+    bool matchesQuery = true;
+    if (query.isNotEmpty) {
+      matchesQuery = m.name.toLowerCase().contains(query) ||
+          (m.phone?.toLowerCase().contains(query) ?? false);
+    }
+
+    if (matchesQuery) {
+      if (targetStatus == null || m.getStatus(now) == targetStatus) {
+        filtered.add(m);
+      }
+    }
   }
 
   // Apply sorting
   switch (sort) {
     case MemberSortOption.expiryAsc:
-      filtered.sort((a, b) => (a.expiryDate ?? DateTime(2099)).compareTo(b.expiryDate ?? DateTime(2099)));
+      filtered.sort((a, b) => (a.expiryDate ?? DateTime(2099))
+          .compareTo(b.expiryDate ?? DateTime(2099)));
       break;
     case MemberSortOption.expiryDesc:
-      filtered.sort((a, b) => (b.expiryDate ?? DateTime(2000)).compareTo(a.expiryDate ?? DateTime(2000)));
+      filtered.sort((a, b) => (b.expiryDate ?? DateTime(2000))
+          .compareTo(a.expiryDate ?? DateTime(2000)));
       break;
     case MemberSortOption.nameAz:
-      filtered.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      filtered
+          .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       break;
     case MemberSortOption.nameZa:
-      filtered.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+      filtered
+          .sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
       break;
     case MemberSortOption.joinNewest:
-      filtered.sort((a, b) => (b.joinDate ?? DateTime(2000)).compareTo(a.joinDate ?? DateTime(2000)));
+      filtered.sort((a, b) => (b.joinDate ?? DateTime(2000))
+          .compareTo(a.joinDate ?? DateTime(2000)));
       break;
   }
 
@@ -174,7 +180,6 @@ final memberProvider = Provider.family<MemberSnapshot?, String>((ref, id) {
   final members = ref.watch(membersProvider);
   return members.firstWhereOrNull((m) => m.memberId == id);
 });
-
 
 class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   final db.OutboxDatabase _db;
@@ -207,7 +212,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     this._membership,
     this._coordinator,
     this._logger,
-  ) : _db = db, super([]) {
+  )   : _db = db,
+        super([]) {
     init();
   }
 
@@ -229,9 +235,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       unawaited(Future.microtask(() async {
         try {
           _deviceId = await _hmac.getInstallationId().timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => 'device-fallback',
-          );
+                const Duration(seconds: 5),
+                onTimeout: () => 'device-fallback',
+              );
         } catch (_) {
           _deviceId = 'device-fallback';
         }
@@ -252,10 +258,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         if (!mounted) return;
 
         _logger.debug(
-          'Processing event ${event.eventType} for ${event.entityId}', 
-          category: 'STATE'
-        );
-        
+            'Processing event ${event.eventType} for ${event.entityId}',
+            category: 'STATE');
+
         // Critical: Apply event to repository
         await _memberRepo.applyEvent(event);
 
@@ -291,15 +296,13 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       }
 
       _initCompleter!.complete();
-      _logger.info(
-        'Init complete in ${stopwatch.elapsedMilliseconds}ms', 
-        category: 'STATE'
-      );
+      _logger.info('Init complete in ${stopwatch.elapsedMilliseconds}ms',
+          category: 'STATE');
     } catch (e, stack) {
       _initCompleter?.completeError(e, stack);
       _initCompleter = null; // Allow retry
       _logger.error(
-        'Init failed: $e', 
+        'Init failed: $e',
         category: 'STATE',
         error: e,
         stackTrace: stack,
@@ -342,17 +345,17 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
             .map((e) => e.deviceTimestamp)
             .reduce((a, b) => a.isAfter(b) ? a : b);
 
-        bool needsRebuild = snap == null || snap.lastUpdated.isBefore(latestEventTime);
-        
+        bool needsRebuild =
+            snap == null || snap.lastUpdated.isBefore(latestEventTime);
+
         // Tampered Repair: Verify HMAC integrity seal
         if (!needsRebuild && snap != null) {
           final isValid = await _hmac.verifySnapshot(
-            snap.memberId, 
-            snap.toFirestore(), 
-            snap.hmacSignature ?? ''
-          );
+              snap.memberId, snap.toFirestore(), snap.hmacSignature ?? '');
           if (!isValid) {
-            _logger.error('Tampered snapshot detected for $entityId! Repairing...', category: 'SECURITY');
+            _logger.error(
+                'Tampered snapshot detected for $entityId! Repairing...',
+                category: 'SECURITY');
             needsRebuild = true;
           }
         }
@@ -360,7 +363,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
         if (needsRebuild) {
           final fullHistory = await _eventRepo.getByEntityId(entityId);
           final rebuilt = SnapshotBuilder.rebuild(fullHistory);
-          
+
           if (rebuilt != null) {
             if (rebuilt.archived) {
               deletes.add(entityId);
@@ -369,7 +372,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
             }
           } else if (snap != null) {
             // Dummy User Cleanup: Snapshot exists but no events found
-            _logger.warn('Dummy user detected for $entityId. Cleaning up...', category: 'DB');
+            _logger.warn('Dummy user detected for $entityId. Cleaning up...',
+                category: 'DB');
             deletes.add(entityId);
           }
         }
@@ -378,22 +382,25 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     // 2. Efficient Dummy Cleanup: Detect members in storage with NO event history
     // Only run if we found no events recently or periodically
-    if (recentEvents.isEmpty || lastCheckMs % 5 == 0) { // Simple heuristic or just always for safety in this task
+    if (recentEvents.isEmpty || lastCheckMs % 5 == 0) {
+      // Simple heuristic or just always for safety in this task
       try {
         final allStorageMembers = await _memberRepo.getAllMembers();
         final allEventEvents = await _eventRepo.getAllEvents();
         final allEventIds = allEventEvents.map((e) => e.entityId).toSet();
-        
+
         for (final m in allStorageMembers) {
           if (!allEventIds.contains(m.memberId)) {
             if (!deletes.contains(m.memberId)) {
-              _logger.warn('Orphan snapshot found: ${m.memberId}. Purging...', category: 'DB');
+              _logger.warn('Orphan snapshot found: ${m.memberId}. Purging...',
+                  category: 'DB');
               deletes.add(m.memberId);
             }
           }
         }
       } catch (e, stack) {
-        _logger.error('Error checking for orphan snapshots: $e', category: 'DB', error: e, stackTrace: stack);
+        _logger.error('Error checking for orphan snapshots: $e',
+            category: 'DB', error: e, stackTrace: stack);
       }
     }
 
@@ -401,7 +408,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     if (updates.isNotEmpty) {
       await _memberRepo.upsertMembers(updates.values.toList());
     }
-    
+
     if (deletes.isNotEmpty) {
       await Future.wait(deletes.map((id) => _memberRepo.deleteMember(id)));
     }
@@ -410,7 +417,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       try {
         await _prefRepo.setInt(prefKey, DateTime.now().millisecondsSinceEpoch);
       } catch (e, stack) {
-        _logger.error('Error saving reconcile checkpoint: $e', category: 'DB', error: e, stackTrace: stack);
+        _logger.error('Error saving reconcile checkpoint: $e',
+            category: 'DB', error: e, stackTrace: stack);
       }
     }
 
@@ -425,7 +433,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
   /// preventing snapshot data loss when events haven't synced yet.
   Future<void> rebuildCache() async {
     if (_isRebuilding) {
-      _logger.warn('rebuildCache: Already in progress, skipping.', category: 'DB');
+      _logger.warn('rebuildCache: Already in progress, skipping.',
+          category: 'DB');
       return;
     }
     _isRebuilding = true;
@@ -438,9 +447,9 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     try {
       await Future.delayed(Duration.zero);
 
-      final allEvents = await _eventRepo.getAllEvents(); 
+      final allEvents = await _eventRepo.getAllEvents();
       final Map<String, List<DomainEvent>> byEntity = {};
-      
+
       for (final e in allEvents) {
         byEntity.putIfAbsent(e.entityId, () => []).add(e);
       }
@@ -460,7 +469,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       }
 
       // Dummy Cleanup: Remove entries in DB that have no events
-      final existingIds = (await _memberRepo.getAllMembers()).map((m) => m.memberId).toSet();
+      final existingIds =
+          (await _memberRepo.getAllMembers()).map((m) => m.memberId).toSet();
       final eventIds = byEntity.keys.toSet();
       final dummyIds = existingIds.difference(eventIds);
       deletes.addAll(dummyIds);
@@ -469,7 +479,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       if (updates.isNotEmpty) {
         await _memberRepo.upsertMembers(updates);
       }
-      
+
       // Batch deletes (parallelized)
       if (deletes.isNotEmpty) {
         await Future.wait(deletes.map((id) => _memberRepo.deleteMember(id)));
@@ -540,28 +550,23 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     String? photoUrl,
   }) async {
     final now = _clock.now;
-    
+
     // Audit Check 6.1: Simple throttle (5 seconds)
     final lastAction = _recentCreations[phone];
     if (lastAction != null && now.difference(lastAction).inSeconds < 5) {
-      _logger.warn(
-        'Ignoring rapid duplicate member creation for $phone', 
-        category: 'STATE'
-      );
+      _logger.warn('Ignoring rapid duplicate member creation for $phone',
+          category: 'STATE');
       throw Exception('Request already in progress. Please wait.');
     }
     _recentCreations[phone] = now;
 
     // Audit Check 6.2: Logical Duplicate Check
-    final existing = state.any((m) => 
-      m.phone == phone && m.status != MemberStatus.archived
-    );
-    
+    final existing =
+        state.any((m) => m.phone == phone && m.status != MemberStatus.archived);
+
     if (existing) {
-      _logger.warn(
-        'Member with phone $phone already exists and is active.', 
-        category: 'STATE'
-      );
+      _logger.warn('Member with phone $phone already exists and is active.',
+          category: 'STATE');
       throw Exception('A member with this phone number already exists.');
     }
 
@@ -601,15 +606,14 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
 
     try {
       await _db.transaction(() async {
-        _logger.info(
-          'Starting addMember for $memberId', 
-          category: 'TRANSACTION'
-        );
+        _logger.info('Starting addMember for $memberId',
+            category: 'TRANSACTION');
         // 1. Sign and persist the event FIRST
         await _eventRepo.persist(memberEvent);
 
         // 2. THEN derive snapshot from event payload
-        final snapshot = MemberSnapshot.fromPayload(memberId, memberEvent.payload);
+        final snapshot =
+            MemberSnapshot.fromPayload(memberId, memberEvent.payload);
 
         // 3. THEN store snapshot in Drift
         await _memberRepo.upsertMember(snapshot);
@@ -636,11 +640,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     } catch (e) {
       // Event or snapshot write failed — clean up any partial state
       await _memberRepo.deleteMember(memberId);
-      _logger.error(
-        'addMember failed for $memberId', 
-        category: 'STATE', 
-        error: e
-      );
+      _logger.error('addMember failed for $memberId',
+          category: 'STATE', error: e);
       rethrow;
     }
   }
@@ -654,22 +655,15 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       payload: {'memberId': memberId},
     );
 
-    _logger.info(
-      'Archiving member $memberId', 
-      category: 'DB'
-    );
+    _logger.info('Archiving member $memberId', category: 'DB');
     await _db.transaction(() async {
-      _logger.info(
-        'Starting deleteMember for $memberId', 
-        category: 'TRANSACTION'
-      );
+      _logger.info('Starting deleteMember for $memberId',
+          category: 'TRANSACTION');
       await _eventRepo.persist(archiveEvent);
       // Critical: Use applyEvent to ensure physical deletion for Drift
       await _memberRepo.applyEvent(archiveEvent);
-      _logger.info(
-        'deleteMember transaction complete', 
-        category: 'TRANSACTION'
-      );
+      _logger.info('deleteMember transaction complete',
+          category: 'TRANSACTION');
     });
 
     // Immediate state update for UI responsiveness
@@ -677,10 +671,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       state = state.where((m) => m.memberId != memberId).toList();
     }
 
-    _logger.debug(
-      'Triggering sync after archive', 
-      category: 'SYNC'
-    );
+    _logger.debug('Triggering sync after archive', category: 'SYNC');
     _coordinator.triggerSync();
   }
 
@@ -703,16 +694,11 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
       },
     );
 
-    _logger.info(
-      'Updating member $memberId', 
-      category: 'DB'
-    );
-    
+    _logger.info('Updating member $memberId', category: 'DB');
+
     await _db.transaction(() async {
-      _logger.info(
-        'Starting updateMember for $memberId', 
-        category: 'TRANSACTION'
-      );
+      _logger.info('Starting updateMember for $memberId',
+          category: 'TRANSACTION');
       await _eventRepo.persist(updateEvent);
       await _memberRepo.applyEvent(updateEvent);
     });
@@ -743,10 +729,8 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     );
 
     await _db.transaction(() async {
-      _logger.info(
-        'Starting recordAttendance for $memberId', 
-        category: 'TRANSACTION'
-      );
+      _logger.info('Starting recordAttendance for $memberId',
+          category: 'TRANSACTION');
       await _eventRepo.persist(checkInEvent);
       await _memberRepo.applyEvent(checkInEvent);
     });
@@ -768,7 +752,7 @@ class MemberNotifier extends StateNotifier<List<MemberSnapshot>> {
     if (member == null) return;
 
     final updated = member.copyWith(photoPath: photoPath);
-    
+
     final updateEvent = DomainEvent(
       entityId: memberId,
       eventType: EventType.memberUpdated,
