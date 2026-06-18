@@ -125,27 +125,25 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final now = ref.watch(clockProvider).now;
   final sort = ref.watch(memberSortProvider);
 
-  List<MemberSnapshot> filtered = query.isEmpty
-      ? List<MemberSnapshot>.from(members)
-      : members.where((m) =>
-          m.name.toLowerCase().contains(query) ||
-          (m.phone?.toLowerCase().contains(query) ?? false)
-        ).toList();
+  // ⚡ Bolt: Performance optimization
+  // Reduced multiple chained `.where(...).toList()` filters into a single-pass `for` loop.
+  // This eliminates redundant iterations and intermediate memory allocations,
+  // drastically improving efficiency for large lists and preventing repeated evaluations
+  // of expensive dynamic getters like `m.getStatus(now)`.
+  List<MemberSnapshot> filtered = [];
+  for (final m in members) {
+    if (query.isNotEmpty) {
+      if (!m.name.toLowerCase().contains(query) &&
+          !(m.phone?.toLowerCase().contains(query) ?? false)) {
+        continue;
+      }
+    }
 
-  // Apply tab filter
-  switch (tabIndex) {
-    case 1: // Active
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.active).toList();
-      break;
-    case 2: // Expiring (next 7 days)
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.expiring).toList();
-      break;
-    case 3: // Expired
-      filtered = filtered.where((m) => m.getStatus(now) == MemberStatus.expired).toList();
-      break;
-    default:
-      // No additional filtering
-      break;
+    if (tabIndex == 1 && m.getStatus(now) != MemberStatus.active) continue;
+    if (tabIndex == 2 && m.getStatus(now) != MemberStatus.expiring) continue;
+    if (tabIndex == 3 && m.getStatus(now) != MemberStatus.expired) continue;
+
+    filtered.add(m);
   }
 
   // Apply sorting
