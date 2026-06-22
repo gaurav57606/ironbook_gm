@@ -19,6 +19,12 @@ class HmacService {
   
   static const _keyStorageName = 'hmac_device_key';
   
+  // ⚡ Bolt Performance Optimization:
+  // In-memory cache for device key and installation ID to prevent N+1
+  // disk I/O bottlenecks during batch HMAC verification/signing loops.
+  String? _cachedKey;
+  String? _cachedInstallationId;
+
   HmacService(this._storage, this._auth, this._firestore, [this._config]);
 
   bool get isCloudReady => _auth != null && _firestore != null;
@@ -27,6 +33,7 @@ class HmacService {
   static void setKeyForTest(String key) => _testKey = key;
 
   Future<String> _getOrCreateKey() async {
+    if (_cachedKey != null) return _cachedKey!;
     var key = await _storage.read(key: _keyStorageName);
     if (key == null) {
       final bytes = List.generate(32, (_) => Random.secure().nextInt(256));
@@ -38,6 +45,7 @@ class HmacService {
         await _backupKeyToFirestore(key);
       }
     }
+    _cachedKey = key;
     return key;
   }
 
@@ -79,12 +87,14 @@ class HmacService {
   }
 
   Future<String> getInstallationId() async {
+    if (_cachedInstallationId != null) return _cachedInstallationId!;
     const idKey = 'installation_id';
     var id = await _storage.read(key: idKey);
     if (id == null) {
       id = const Uuid().v4();
       await _storage.write(key: idKey, value: id);
     }
+    _cachedInstallationId = id;
     return id;
   }
 
@@ -233,6 +243,7 @@ class HmacService {
       }
       
       await _storage.write(key: _keyStorageName, value: finalKey);
+      _cachedKey = finalKey; // ⚡ Bolt: Invalidate and update cache
       return true;
     } catch (e) {
       if (kDebugMode) debugPrint('HmacService: Key restoration failed: $e');
