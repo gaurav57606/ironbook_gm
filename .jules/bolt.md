@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2024-05-24 - [Avoid Filter Chains in UI Providers]
+**Learning:** Chaining multiple `.where().toList()` calls in a Riverpod provider (e.g., sequentially applying search query filters, then status tab filters) creates redundant O(N) list iterations and unnecessary memory allocations for intermediate list copies. For lists rendered in UI, this degrades list scrolling and initial render performance.
+**Action:** When evaluating multiple filter criteria in a provider that returns a list, replace chained `.where()` filters with a single manual `for` loop that cascades conditions and appends to a single result list.
