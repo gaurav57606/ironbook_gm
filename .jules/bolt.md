@@ -32,3 +32,6 @@
 ## 2025-01-24 - Logout Process Optimization
 **Learning:** Clearing multiple Hive boxes and Drift tables sequentially during logout can be a performance bottleneck as the number of data stores grows.
 **Action:** Use `Future.wait` to parallelize Hive box clearing and Drift's `batch` API to clear all tables in a single transaction. This reduced execution time by ~40% in benchmarks.
+## 2024-05-18 - [Optimize filteredMembersProvider with single-pass filtering]
+**Learning:** Chaining multiple `.where(...).toList()` operations inside Riverpod provider build methods (e.g., sequentially applying search queries followed by status tabs) causes redundant O(N) list iterations and unnecessary intermediate memory allocations in Dart. This becomes particularly problematic when filtering lists of complex objects repeatedly.
+**Action:** Replace filter chains with a single-pass `for` loop to evaluate all criteria simultaneously. In `filteredMembersProvider`, replacing `.where(...).toList()` with a single `for` loop prevents redundant iterations and list creation. I will look for other instances of `.where().toList()` chains and optimize them.
