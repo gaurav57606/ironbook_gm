@@ -126,8 +126,6 @@ final filteredMembersProvider = Provider<List<MemberSnapshot>>((ref) {
   final now = ref.watch(clockProvider).now;
   final sort = ref.watch(memberSortProvider);
 
-  // Optimization: Evaluates search and tab filters in a single pass to eliminate
-  // redundant O(N) list iterations and intermediate list memory allocations.
   List<MemberSnapshot> filtered = [];
 
   for (final m in members) {
