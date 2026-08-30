@@ -553,6 +553,8 @@ class FakeMemberNotifier extends StateNotifier<List<MemberSnapshot>>
   @override
   Future<void> rebuildCache() async {}
   @override
+  Future<void> refreshFromDB() async {}
+  @override
   Future<String> addMember({
     String? passedMemberId,
     required String name,
